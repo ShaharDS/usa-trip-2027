@@ -260,6 +260,17 @@ footer{font-size:15px}
 .sliders input[type=range]{width:100%}
 .tbl td.num{text-align:right}
 .chg{display:block;max-width:170px;white-space:normal}
+.fcalc{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#f8fafc;margin:8px 0 14px}
+.fc-row{display:flex;flex-wrap:wrap;gap:16px 28px;margin-bottom:10px}
+.fc-block{display:flex;flex-direction:column;gap:6px}
+.fc-block small{font-size:14px}
+.stepper{display:inline-flex;align-items:center;gap:0;border:1px solid #cbd5e1;border-radius:12px;background:#fff;overflow:hidden;width:max-content}
+.stepper button{font:inherit;font-size:26px;font-weight:700;width:52px;height:48px;border:0;background:#eef2ff;color:var(--accent);cursor:pointer}
+.stepper b{min-width:56px;text-align:center;font-size:24px}
+.fc-tbl{background:#fff;border-radius:10px;margin-top:8px}
+.fc-tbl tfoot td{font-size:20px}
+.legs{font-size:14px;color:var(--muted);font-weight:400;line-height:1.5;margin-top:2px}
+.sliders .fcalc{padding:12px}
 </style>
 </head>
 <body>
@@ -662,6 +673,7 @@ const DEFAULT_PARAMS = {
   rooms: 3, nyc: 425, road: 185, orl: 200, mia: 220,
   out: 800, car: 1400, food: 75, mpg: 22, gas: 4.27, tolls: 150,
   cabin: "balcony", thirdPct: 100, express: false,
+  pax: 7, infant: "lap",
 };
 
 /* ===== RESEARCH CONTENT (checked 22.10.2026) ===== */
@@ -976,7 +988,11 @@ function computeBudget(sch, p, rp) {
   const flight = sch.segs.find((s) => s.type === "flight");
   const ret = flight.options ? optPrice(flight.options, rp.retOpt || flight.def) : (rp.ret ?? flight.price);
   const out = r.outbound.options ? optPrice(r.outbound.options, rp.outOpt || r.outbound.def) : p.out;
-  const ps = out + ret;
+  const rtBase = out + ret;
+  const ps = r.outbound.options ? rtBase : (rp.rt ?? rtBase);
+  const infF = p.infant === "lap" ? 0.1 : p.infant === "seat" ? 1 : 0;
+  const seatW = [2, 2, 3].map((x) => x * p.pax / 7);
+  const fl = { rt: ps, rtBase, out, ret, pax: p.pax, infF, infant: p.infant, seated: ps * p.pax, inf: ps * infF, total: ps * (p.pax + infF) };
   const cr = sch.cruise;
   const pp = cr.pricePP[p.cabin];
   const third = pp * (p.thirdPct / 100);
@@ -992,7 +1008,7 @@ function computeBudget(sch, p, rp) {
   const fuel = (sch.miles * 2) / p.mpg * p.gas;
   const W_PAX = [2, 2, 3], W_HEAD = [2, 3, 3], W_EQ = [1, 1, 1];
   const lines = [
-    { k: "flights", g: "טיסות", label: "טיסות: 7 כרטיסים + תינוק על הברכיים (כ-10%)", v: 7.1 * ps, parts: [2 * ps, 2.1 * ps, 3 * ps], kind: r.outbound.options ? "אינדיקטיבי" : "הערכה" },
+    { k: "flights", g: "טיסות", label: "טיסות הלוך-חזור: " + p.pax + " × " + usd(ps) + (p.infant === "lap" ? " + תינוק על הברכיים (כ-10%)" : p.infant === "seat" ? " + תינוק במושב משלו" : ""), v: fl.total, parts: [seatW[0] * ps, seatW[1] * ps + fl.inf, seatW[2] * ps], kind: r.outbound.options ? "אינדיקטיבי" : "הערכה" },
     { k: "nyc", g: "מלונות", label: "מלון בניו יורק · " + (nb.nyc || 0) + " לילות", v: (nb.nyc || 0) * p.rooms * p.nyc, w: W_EQ, kind: "הערכה" },
     { k: "road", g: "מלונות", label: "מלונות בדרך · " + roadN + " לילות", v: roadN * p.rooms * p.road, w: W_EQ, kind: "הערכה" },
     { k: "orl", g: "מלונות", label: "מלון באורלנדו · " + (nb.orl || 0) + " לילות", v: (nb.orl || 0) * p.rooms * p.orl, w: W_EQ, kind: "הערכה" },
@@ -1011,7 +1027,7 @@ function computeBudget(sch, p, rp) {
   lines.forEach((l) => { l.split = l.parts || l.w.map((x) => (l.v || 0) * x / l.w.reduce((a, b) => a + b, 0)); });
   const total = lines.reduce((s, l) => s + (l.v || 0), 0);
   const units = UNITS.map((u, i) => ({ ...u, v: lines.reduce((s, l) => s + l.split[i], 0) }));
-  return { lines, total, units, ticket: tk, missing: 0 };
+  return { lines, total, units, ticket: tk, fl, missing: 0 };
 }
 
 /* ---------- UI pieces ---------- */
@@ -1201,6 +1217,32 @@ function InfoList({ items }) {
   return html`<div className="info-list">${items.map((x, i) => html`<div key=${i} className=${"info " + (x.tone || "")}><h4>${x.t}</h4><p>${bidi(x.d)} <${Src} keys=${x.src} /></p></div>`)}</div>`;
 }
 
+function legLabel(list, id) { const o = REV_FLIGHTS[list].find((x) => x.id === id) || REV_FLIGHTS[list][0]; return o.label; }
+function FlightCalc({ r, sch, bud, p, sp, rp, setRpMany }) {
+  const f = flightOf(sch), fl = bud.fl;
+  const outLbl = r.outbound.options ? legLabel(r.outbound.options, rp.outOpt || r.outbound.def) : r.outbound.label + " (הערכה $" + fl.out + ")";
+  const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
+  const combos = r.outbound.options && f.options ? REV_FLIGHTS[r.outbound.options].flatMap((o) => REV_FLIGHTS[f.options].map((t) => ({ k: o.id + "|" + t.id, price: o.price + t.price, label: o.label.split(" · ")[0] + " + " + t.label.split(" · ")[0] }))).sort((a, b) => a.price - b.price) : null;
+  const curCombo = (rp.outOpt || r.outbound.def) + "|" + (rp.retOpt || f.def);
+  return html`<div className="fcalc">
+    <div className="fc-row">
+      <div className="fc-block"><div className="lbl">כמה נוסעים עם מושב</div>
+        <div className="stepper"><button aria-label="פחות" onClick=${() => sp("pax")(Math.max(1, p.pax - 1))}>−</button><b>${p.pax}</b><button aria-label="יותר" onClick=${() => sp("pax")(Math.min(12, p.pax + 1))}>+</button></div>
+        <small className="muted">ברירת מחדל 7: שישה מבוגרים והנערה בת 16</small></div>
+      <div className="fc-block"><div className="lbl">התינוק בן השנה</div>
+        <div className="seg">${[["lap", "על הברכיים"], ["seat", "מושב משלו"], ["none", "בלי"]].map(([v, l]) => html`<button key=${v} className=${p.infant === v ? "on" : ""} onClick=${() => sp("infant")(v)}>${l}</button>`)}</div>
+        <small className="muted">${p.infant === "lap" ? "כ-10% ממחיר כרטיס (הערכה)" : p.infant === "seat" ? "מחושב כמו מושב רגיל (הערכה; מחיר ילד לא נבדק). צריך כיסא בטיחות מאושר" : "לא נכלל בחישוב"}</small></div>
+    </div>
+    ${combos ? html`<label className="sel"><span>שילוב טיסות הלוך-חזור (מחיר לאדם, אינדיקטיבי)</span><select value=${curCombo} onChange=${(e) => { const [o, t] = e.target.value.split("|"); setRpMany({ outOpt: o, retOpt: t }); }}>${combos.map((c) => html`<option key=${c.k} value=${c.k}>${c.label} · $${c.price.toLocaleString("en-US")}</option>`)}</select></label>`
+      : html`<${Slider} label="מחיר הלוך-חזור לאדם" value=${fl.rt} min=${1000} max=${3200} step=${20} onChange=${(v) => setRpMany({ rt: v })} fmt=${usd} note=${"לפי המחקר: " + usd(fl.rtBase) + " (הלוך $" + fl.out + " הערכה + חזור $" + fl.ret + ")"} />`}
+    <table className="tbl fc-tbl"><tbody>
+      <tr><td>הלוך-חזור לאדם<div className="legs">הלוך: ${bidi(outLbl)}<br/>חזור: ${bidi(retLbl)}</div></td><td className="num">${usd(fl.rt)}</td></tr>
+      <tr><td>× ${fl.pax} נוסעים</td><td className="num">${usd(fl.seated)}</td></tr>
+      ${fl.infF ? html`<tr><td>תינוק ${fl.infant === "lap" ? "על הברכיים (כ-10%)" : "במושב משלו"}</td><td className="num">${usd(fl.inf)}</td></tr>` : null}
+    </tbody><tfoot><tr><td>סה״כ טיסות</td><td className="num">${usd(fl.total)}</td></tr></tfoot></table>
+  </div>`;
+}
+
 /* ---------- App ---------- */
 function App() {
   const initTab = (location.hash || "").replace("#", "");
@@ -1217,6 +1259,7 @@ function App() {
   const sp = (k) => (v) => setP({ ...p, [k]: v });
   const rp = rps[sel] || {};
   const setRp = (k) => (v) => setRps({ ...rps, [sel]: { ...rp, [k]: v } });
+  const setRpMany = (o) => setRps({ ...rps, [sel]: { ...rp, ...o } });
   const setTab = (t) => { setTabS(t); history.replaceState(null, "", "#" + t); window.scrollTo({ top: 0 }); };
   useEffect(() => { const h = () => { const t = location.hash.replace("#", ""); if (TABS.some((x) => x[0] === t)) setTabS(t); }; window.addEventListener("hashchange", h); return () => window.removeEventListener("hashchange", h); }, []);
   const doPrint = () => { document.querySelectorAll("details.explain").forEach((d) => (d.open = true)); setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 400); };
@@ -1462,13 +1505,8 @@ function App() {
   <section className=${pane("flights")} id="flights">
     <div className="card">
       <h2>הטיסות במסלול ${R0.id}</h2>
-      <div className="tbl-wrap"><table className="tbl"><thead><tr><th></th><th>טיסה</th><th>תאריך</th><th>מחיר לאדם</th><th>סוג</th></tr></thead>
-        <tbody>
-          <tr><td>הלוך</td><td>${R0.outbound.options ? (REV_FLIGHTS[R0.outbound.options].find((o) => o.id === (rp.outOpt || R0.outbound.def)) || {}).label : R0.outbound.label}</td><td>${dm(sch.arrival)}</td><td className="num">${usd(R0.outbound.options ? optPrice(R0.outbound.options, rp.outOpt || R0.outbound.def) : p.out)}</td><td><${Kind} k=${R0.outbound.options ? "אינדיקטיבי" : "הערכה"} /></td></tr>
-          <tr><td>חזור</td><td>${flight.options ? (REV_FLIGHTS[flight.options].find((o) => o.id === (rp.retOpt || flight.def)) || {}).label : bidi(flight.label + (flight.priceRange ? " · טווח " + flight.priceRange : ""))}</td><td>${dm(sch.flightDate)}</td><td className="num">${usd(flight.options ? optPrice(flight.options, rp.retOpt || flight.def) : (rp.ret ?? flight.price))}</td><td><${Kind} k=${flight.options ? "אינדיקטיבי" : "הערכה"} /></td></tr>
-        </tbody>
-        <tfoot><tr><td colSpan="3">סה״כ ל-7 כרטיסים ותינוק</td><td className="num">${usd(bud.lines.find((l) => l.k === "flights").v)}</td><td></td></tr></tfoot>
-      </table></div>
+      <p className="lead-s">מחיר אחד הלוך-חזור לאדם, כפול מספר הנוסעים. ${R0.direction === "sn" || flight.from !== "jfk" ? "הטיסה הלוך והטיסה חזרה הן מערים שונות, והמחיר הוא סכום שתיהן." : ""}</p>
+      <${FlightCalc} r=${R0} sch=${sch} bud=${bud} p=${p} sp=${sp} rp=${rp} setRpMany=${setRpMany} />
       <${Explain}><p>טיסות לאוקטובר 2027 עוד לא נמכרות. המחירים כאן לפי טיסות דומות ב-2026 (טיסת הלוך לניו יורק: הערכה של $800, כי אל על הלוך-חזור התחיל ב-$1,181 באוקטובר 2026). במסלולים ההפוכים: Google Flights ל-16.9.2027 כתאריך ייצוג. אפשר לבחור חברה ומחיר בלשונית "תקציב".</p></${Explain}>
     </div>
     <div className="card">
@@ -1545,10 +1583,8 @@ function App() {
           <${Slider} label="מלונות בדרך, לחדר ללילה" value=${p.road} min=${100} max=${300} step=${5} onChange=${sp("road")} fmt=${usd} note="הערכה" />
           <${Slider} label="אורלנדו, לחדר ללילה" value=${p.orl} min=${100} max=${350} step=${10} onChange=${sp("orl")} fmt=${usd} note="Dockside: סוויטה ל-6 ב-$229–237" />
           <${Slider} label="ליד הנמל, לחדר ללילה" value=${p.mia} min=${120} max=${400} step=${10} onChange=${sp("mia")} fmt=${usd} note="מיאמי, אוקטובר 2026: $195" />
-          ${R0.outbound.options ? html`<label className="sel"><span>טיסה הלוך (לאדם)</span><select value=${rp.outOpt || R0.outbound.def} onChange=${(e) => setRp("outOpt")(e.target.value)}>${REV_FLIGHTS[R0.outbound.options].map((o) => html`<option key=${o.id} value=${o.id}>${o.label} · $${o.price}</option>`)}</select></label>`
-            : html`<${Slider} label="טיסה הלוך לניו יורק, לאדם" value=${p.out} min=${400} max=${1600} step=${20} onChange=${sp("out")} fmt=${usd} note="הערכה" />`}
-          ${flight.options ? html`<label className="sel"><span>טיסה חזרה (לאדם)</span><select value=${rp.retOpt || flight.def} onChange=${(e) => setRp("retOpt")(e.target.value)}>${REV_FLIGHTS[flight.options].map((o) => html`<option key=${o.id} value=${o.id}>${o.label} · $${o.price}</option>`)}</select></label>`
-            : html`<${Slider} label=${"טיסה חזרה, לאדם (" + flight.priceRange + ")"} value=${rp.ret ?? flight.price} min=${400} max=${1600} step=${20} onChange=${setRp("ret")} fmt=${usd} note="מחירי 2026" />`}
+          <h3>טיסות הלוך-חזור</h3>
+          <${FlightCalc} r=${R0} sch=${sch} bud=${bud} p=${p} sp=${sp} rp=${rp} setRpMany=${setRpMany} />
           <${Slider} label="מיניוואן כולל החזרה, לרכב" value=${p.car} min=${600} max=${2200} step=${50} onChange=${sp("car")} fmt=${usd} note="הערכה" />
           <${Slider} label="תוספת דמי החזרה, לרכב" value=${rp.drop ?? R0.dropExtraPerCar} min=${0} max=${750} step=${25} onChange=${setRp("drop")} fmt=${usd} note="הערכה" />
           <${Slider} label="הסעות" value=${rp.transfers ?? R0.transfers} min=${0} max=${600} step=${25} onChange=${setRp("transfers")} fmt=${usd} note="הערכה" />
