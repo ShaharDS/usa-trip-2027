@@ -351,6 +351,7 @@ body{padding-bottom:84px}
 .htiers td b{font-size:15px}
 .crib{color:#b45309;font-size:14px;font-weight:600}
 .tiers{grid-template-columns:repeat(2,1fr)}
+.h-notes{margin:6px 0 0;padding-right:18px;font-size:14px;color:#475569}.h-notes li{margin:2px 0}
 </style>
 </head>
 <body>
@@ -764,7 +765,7 @@ ROUTES.push(
   },
   {
     id: "F", direction: "ns", window: 2,
-    name: "מסלול F · Utopia מפורט קנוורל 15–18.10, יוניברסל אחרי",
+    name: "מסלול F · Utopia מפורט קנוורל 15–18.10, אורלנדו לפני ואחרי",
     tagline: "4.10–21.10: ניו יורק, נסיעה, 3 לילות באורלנדו, לילה ליד הנמל, קרוז, יוניברסל 18–19.10, ולילה ליד שדה התעופה של מיאמי",
     color: "#9333ea", photo: "uto", arrivalDefault: "2027-10-04",
     outbound: OUT_NYC,
@@ -784,7 +785,8 @@ ROUTES.push(
         hotel: { econ: { name: "Westgate Lakes Resort", range: "$565–915 ל-3 לילות", total: 740 }, mid: { name: "Universal Dockside · 2 סוויטות", range: "$2,376 ל-3 לילות", total: 2376, real: true } } },
       { type: "drive", from: "orl", to: "pc", miles: 60, hours: 1, note: "לינה ליד הנמל לפני יום העלייה" },
       { type: "stay", place: "pc", nights: 1, min: 1, flex: false, label: "ליד נמל פורט קנוורל",
-        hotel: { econ: { name: "Country Inn & Suites Port Canaveral · 2 חדרים, ארוחת בוקר", range: "$245–500", total: 372, crib: true }, mid: { name: "Holiday Inn Club Vacations Cape Canaveral · וילה עם 2 חדרי שינה ל-8, על החוף", range: "$270–300 (מחיר ללילה בודד עוד לא נבדק)", total: 285, crib: true } } },
+        hotel: { econ: { name: "Country Inn & Suites Port Canaveral · 2 חדרים, ארוחת בוקר", range: "$245–500", total: 372, crib: true }, mid: { name: "Holiday Inn Club Vacations Cape Canaveral · וילה עם 2 חדרי שינה ל-8, על החוף", range: "$300–450 ללילה, כולל דמי ריזורט ומס", total: 375,
+          notes: ["✅ עריסה בחינם לפי בקשה, בכפוף לזמינות", "ביטול חינם כנראה עד 3 ימים לפני", "הבניין הראשי בשיפוץ מספטמבר 2026, בלי תאריך סיום מפורסם", "הזמנה ללילה אחד כנראה אפשרית, אבל עוד לא נבדק לווילה עם 2 חדרי שינה", "חלופה בטוחה יותר: Radisson Resort at the Port, 2 חדרים עם שאטל לנמל, כ-$705"] } } },
       { type: "drive", from: "pc", to: "pc", miles: 0, hours: 0.5, noCar: true, xfer: true, title: "בבוקר: מחזירים את הרכבים בסניף השכרה ליד הנמל", note: "לרוב הסניפים יש שאטל חינם לנמל. פחות מיניוואנים בסניפים האלה: להזמין מוקדם" },
       { type: "cruise", ship: "Utopia of the Seas", port: "pc", embark: "2027-10-15", nights: 3, depart: "16:00", arrive: "06:30",
         stops: [{ day: 1, place: "nas", time: "09:00–17:30" }, { day: 2, place: "coco", time: "07:00–17:00" }],
@@ -799,7 +801,7 @@ ROUTES.push(
 
     transfers: 0, dropExtraPerCar: 100, car2: { v: 550, label: "השכרה שנייה 18–20.10: פורט קנוורל ← מיאמי (2 רכבים, הערכה לפי $400–700 ל-3 ימים)" },
     warnings: ["יום יוניברסל ראשון ביום הירידה מהאונייה: עגינה ב-06:30 ונסיעה של כשעה לפארק"],
-    note: "אורלנדו 11–14.10 (3 לילות), לילה ליד הנמל 14–15.10, קרוז 15–18.10, יוניברסל 18–19.10, נסיעה למיאמי ב-20.10 ולילה אחרון ליד שדה התעופה. מחזירים את הרכבים בסניף ליד הנמל בבוקר 15.10 ושוכרים שוב באותו סניף ב-18.10. עריסה במלונות ליד הנמל עוד לא אושרה. אם בכל זאת משאירים רכבים: חניה ב-Country Inn לימי השייט $65 לרכב, כולל שאטל לנמל.",
+    note: "אורלנדו 11–14.10 (3 לילות), לילה ליד הנמל 14–15.10, קרוז 15–18.10, יוניברסל 18–19.10, נסיעה למיאמי ב-20.10 ולילה אחרון ליד שדה התעופה. מחזירים את הרכבים בסניף ליד הנמל בבוקר 15.10 ושוכרים שוב באותו סניף ב-18.10. עריסה ב-Country Inn (חסכוני) עוד לא אושרה; ב-Holiday Inn Club Vacations (בינוני) יש עריסה בחינם לפי בקשה. אם בכל זאת משאירים רכבים: חניה ב-Country Inn לימי השייט $65 לרכב, כולל שאטל לנמל.",
   }
 );
 
@@ -1868,7 +1870,7 @@ function App() {
       <p className="lead-s">מחיר ללילה לכל 8 הנוסעים יחד (חדר לכל משפחה, או דירה/סוויטה גדולה), כולל מסים, בלי חניה. בחישוב משתמשים באמצע הטווח.</p>
       <${TierSwitch} p=${p} sp=${sp} sch=${sch} />
       <div className="tbl-wrap"><table className="tbl htiers"><thead><tr><th>איפה</th><th>לילות</th><th className=${p.tier === "econ" ? "on" : ""}>חסכוני</th><th className=${p.tier === "mid" ? "on" : ""}>בינוני</th><th>סה״כ ברמה שנבחרה</th></tr></thead>
-        <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: ${usd(x.h.v / x.n)} ללילה</span></td>`;
+        <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}${H[t].notes ? html`<ul className="h-notes">${H[t].notes.map((n, i) => html`<li key=${i}>${bidi(n)}</li>`)}</ul>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: ${usd(x.h.v / x.n)} ללילה</span></td>`;
           return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}</td></tr>`; })}
           ${bud.rpx ? html`<tr><td colSpan="4">תוספת Royal Pacific עם Express: ${ltr(bud.rpx.text)}</td><td className="num">${usd(bud.rpx.v)}</td></tr>` : null}</tbody>
         <tfoot><tr><td colSpan="4">סה״כ מלונות</td><td className="num">${usd(bud.lines.filter((l) => l.g === "מלונות").reduce((s, l) => s + l.v, 0))}</td></tr></tfoot></table></div>
