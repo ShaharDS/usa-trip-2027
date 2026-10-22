@@ -352,6 +352,41 @@ body{padding-bottom:84px}
 .crib{color:#b45309;font-size:14px;font-weight:600}
 .tiers{grid-template-columns:repeat(2,1fr)}
 .h-notes{margin:6px 0 0;padding-right:18px;font-size:14px;color:#475569}.h-notes li{margin:2px 0}
+
+/* ---------- live price editing ---------- */
+.edit-btn { font-size: 14px; opacity: .75; }
+.edit-btn:hover { opacity: 1; }
+.edit-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #fff7ed; border: 1px solid #fdba74; border-radius: 10px; padding: 8px 12px; margin-top: 8px; font-size: 16px; }
+.edit-bar span { flex: 1 1 260px; }
+.edit-msg { display: flex; gap: 10px; align-items: center; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 10px; padding: 8px 12px; margin-top: 8px; font-weight: 600; }
+.price { position: relative; display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.price .ed-mark { color: #ea580c; font-size: 10px; line-height: 1; }
+.price.edited bdi { text-decoration: underline dotted #ea580c; text-underline-offset: 3px; }
+.price .pencil { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 2px 6px; cursor: pointer; font-size: 15px; line-height: 1.2; }
+.price .pencil:hover { background: #f1f5f9; }
+.ed-pop { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: #fff; border: 1px solid #94a3b8; border-radius: 10px; padding: 8px; margin-top: 4px; box-shadow: 0 6px 18px rgba(15,23,42,.12); z-index: 5; width: 100%; min-width: 220px; text-align: right; }
+.ed-pop input { width: 120px; font-size: 18px; padding: 4px 8px; border: 1px solid #94a3b8; border-radius: 8px; direction: ltr; }
+.ed-pop .ed-meta { flex-basis: 100%; color: #64748b; font-size: 12px; direction: ltr; text-align: right; }
+.btn.small { font-size: 14px; padding: 4px 10px; }
+.h-calc { font-size: 14px; color: #475569; margin-top: 2px; }
+.ed-group { margin: 10px 0; }
+.ed-group summary { font-weight: 700; font-size: 18px; cursor: pointer; padding: 4px 0; }
+@media print { .edit-btn, .edit-bar, .edit-msg, .pencil, .ed-pop, .ed-all { display: none !important; } }
+.pay-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+.pay-sum > div { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; background: #f8fafc; display: flex; flex-direction: column; }
+.pay-sum span { font-size: 16px; color: #475569; }
+.pay-sum b { font-size: 24px; direction: ltr; text-align: right; }
+.pay-sum .ok { background: #f0fdf4; border-color: #86efac; }
+.pay-sum .due { background: #fff7ed; border-color: #fdba74; }
+.actual { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.actual .paid { color: #15803d; font-weight: 700; white-space: nowrap; }
+.paid-row td { background: #f0fdf4; }
+td.struck { color: #94a3b8; text-decoration: line-through; }
+.kind.paid-k { background: #dcfce7; color: #166534; border-color: #86efac; }
+.ed-lbl { flex-basis: 100%; font-size: 14px; font-weight: 600; }
+.h-paid { font-size: 14px; margin-top: 4px; }
+@media (max-width: 600px) { .pay-sum { grid-template-columns: 1fr; } .pay-sum > div { flex-direction: row; justify-content: space-between; align-items: center; } }
+.sec-paid { font-size: 16px; margin: 4px 0 8px; }
 </style>
 </head>
 <body>
@@ -472,11 +507,12 @@ const PLACES = {
    3 days: 3-park park-to-park, by start date: from Sep 22 $451.99, from Oct 5 $485.99, from Oct 12 $571.99. */
 function ticketPrice(days, start) {
   if (days <= 0) return null;
-  if (days === 1) return { price: 189.99, label: "יום אחד, Epic Universe" };
-  if (days === 2) return { price: 359.98, label: "יומיים: יום Epic Universe + יום Studios או Islands" };
+  if (days === 1) return { key: "uni.ticket.1", price: 189.99, label: "יום אחד, Epic Universe" };
+  if (days === 2) return { key: "uni.ticket.2", price: 359.98, label: "יומיים: יום Epic Universe + יום Studios או Islands" };
   const md = start ? start.slice(5) : "10-12";
   const price = md >= "10-12" || md < "09-01" ? 571.99 : md >= "10-05" ? 485.99 : 451.99;
-  return { price, label: days + " ימים, 3 פארקים, מעבר חופשי בין פארקים" + (days > 3 ? " (מחושב כמו 3 ימים)" : "") };
+  const key = price === 571.99 ? "uni.ticket.3.peak" : price === 485.99 ? "uni.ticket.3.mid" : "uni.ticket.3.early";
+  return { key, price, label: days + " ימים, 3 פארקים, מעבר חופשי בין פארקים" + (days > 3 ? " (מחושב כמו 3 ימים)" : "") };
 }
 const UNI_TAX = 0.065;
 
@@ -1048,6 +1084,11 @@ const signed = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + usd(Math.abs(n));
 const P = (k) => PLACES[k] || { name: k, short: k };
 
 const ROUTE_ORDER = ["B", "A", "C", "D", "R1", "R2", "R3", "E", "F"];
+/* ---------- live price overrides (Firestore; empty = built-in prices) ---------- */
+let OVR = {};
+const hasOv = (id) => !!(OVR[id] && typeof OVR[id].v === "number" && isFinite(OVR[id].v));
+const ov = (id, base) => (hasOv(id) ? OVR[id].v : base);
+const cruiseId = (ship, embark, cabin) => "cruise." + ship.split(" ")[0].toLowerCase() + "." + embark + "." + cabin;
 const ALL_ROUTES = ROUTE_ORDER.map((id) => ROUTES.find((r) => r.id === id)).filter(Boolean);
 const DEFAULT_ARRIVAL = "2027-09-30";
 
@@ -1194,7 +1235,8 @@ function computeSchedule(route, shift, cutPlace, autoFix) {
 }
 
 /* ---------- budget ---------- */
-const optPrice = (list, id) => { const o = REV_FLIGHTS[list].find((x) => x.id === id) || REV_FLIGHTS[list][0]; return o.price; };
+const optP = (list, o) => ov("flight.opt." + list + "." + o.id, o.price);
+const optPrice = (list, id) => { const o = REV_FLIGHTS[list].find((x) => x.id === id) || REV_FLIGHTS[list][0]; return optP(list, o); };
 const optNonstop = (list, id) => { const o = REV_FLIGHTS[list].find((x) => x.id === id) || REV_FLIGHTS[list][0]; return o.nonstop; };
 const UNITS = [
   { label: "זוג", who: "2 מבוגרים", pax: 2 },
@@ -1204,35 +1246,118 @@ const UNITS = [
 const CABIN_HE = { interior: "פנימי", ocean: "נוף לים", balcony: "מרפסת" };
 function hotelOf(place, nights, tier, p) {
   const h = HOTEL_TIERS[place];
-  if (!h) return { v: nights * p.rooms * p.mia, name: "מלון ליד הנמל (אין עדיין נתונים לפי רמה)", range: "", est: true };
+  if (!h) { const g = ov("hotel." + place + ".general", p.rooms * p.mia); return { v: nights * g, rate: g, id: "hotel." + place + ".general", name: "מלון ליד הנמל (אין עדיין נתונים לפי רמה)", range: "", est: true }; }
   const t = h[tier] || h.mid;
-  const rate = t.nLong && nights >= 6 ? t.nLong : t.n;
-  return { v: nights * rate, rate, ...t, est: !t.real };
+  const long = t.nLong && nights >= 6;
+  const id = "hotel." + place + "." + tier + (long ? ".long" : "");
+  const rate = ov(id, long ? t.nLong : t.n);
+  return { ...t, v: nights * rate, rate, id, est: !t.real, edited: hasOv(id) };
 }
 function rpxExtra(sch) {
   const r = sch.route, o = RPX[r.id];
-  if (o) return { v: o.extra, text: o.text, real: true };
+  if (o) return { v: ov("rpx." + r.id, o.extra), id: "rpx." + r.id, text: o.text, real: true };
   const orlN = sch.nightsBy.orl || 0, pd = sch.parkDaysActual;
   if (!orlN || !pd) return null;
-  const dock = HOTEL_TIERS.orl.mid, rate = orlN >= 6 ? dock.nLong : dock.n;
-  return { v: pd * (RPX.w1.rate - rate), text: pd + " לילות ב-Royal Pacific במקום Dockside (" + RPX.w1.text + ")", real: false };
+  const dock = HOTEL_TIERS.orl.mid, rate = orlN >= 6 ? ov("hotel.orl.mid.long", dock.nLong) : ov("hotel.orl.mid", dock.n);
+  return { v: pd * (ov("rpx.w1.rate", RPX.w1.rate) - rate), text: pd + " לילות ב-Royal Pacific במקום Dockside (" + RPX.w1.text + ")", real: false };
 }
 const HOTEL_GROUPS = [["nyc", "מלון בניו יורק", ["nyc"]], ["road", "מלונות בדרך", ["dc", "wil", "wlm", "chs", "sav"]], ["orl", "מלון באורלנדו", ["orl"]], ["port", "מלונות בפלורידה ליד הנמל ושדה התעופה", ["pc", "mia", "miaApt"]]];
 function hotelStops(sch, p) {
-  const out = [];
+  const out = [], occ = {};
   sch.segs.filter((s) => (s.type === "stay" || s.type === "parks") && diff(s.start, s.end) > 0).forEach((s) => {
     const n = diff(s.start, s.end);
-    if (s.hotel) { const t = s.hotel[p.tier] || s.hotel.mid; out.push({ k: s.place, n, own: s.hotel, h: { v: t.total * n / s.nights, name: t.name, range: t.range, est: !t.real, crib: t.crib } }); return; }
+    if (s.hotel) { const tier = s.hotel[p.tier] ? p.tier : "mid", t = s.hotel[tier]; occ[s.place] = (occ[s.place] || 0) + 1;
+      const base = "hotel." + sch.route.id + "." + s.place + occ[s.place] + ".", id = base + tier;
+      out.push({ k: s.place, n, own: s.hotel, ownBase: base, h: { v: ov(id, t.total) * n / s.nights, id, name: t.name, range: t.range, est: !t.real, crib: t.crib, edited: hasOv(id) } }); return; }
     const prev = out.find((x) => x.k === s.place && !x.own);
     if (prev) { prev.n += n; prev.h = hotelOf(s.place, prev.n, p.tier, p); } else out.push({ k: s.place, n, h: hotelOf(s.place, n, p.tier, p) });
   });
   return out;
 }
 function hotelLines(sch, p) {
-  const st = hotelStops(sch, p);
-  return HOTEL_GROUPS.map(([k, l, ps]) => { const xs = st.filter((x) => ps.includes(x.k)); const n = xs.reduce((a, x) => a + x.n, 0);
-    return { k, g: "מלונות", label: l + " · " + n + " לילות · " + CAR_TIERS[p.tier].label, v: xs.reduce((a, x) => a + x.h.v, 0), w: [1, 1, 1], kind: xs.length && xs.every((x) => !x.h.est) ? "הצעת מחיר 2027" : "הערכה (אמצע הטווח)" }; });
+  const cnt = {};
+  return hotelStops(sch, p).map((x, i) => { cnt[x.k] = (cnt[x.k] || 0) + 1;
+    return { k: "hotel." + x.k + (cnt[x.k] > 1 ? "." + cnt[x.k] : ""), hotelIdx: i, g: "מלונות", label: "מלון · " + P(x.k).short + " · " + x.n + (x.n === 1 ? " לילה" : " לילות") + " · " + CAR_TIERS[p.tier].label, v: x.h.v, w: [1, 1, 1], kind: x.h.est ? "הערכה (אמצע הטווח)" : "הצעת מחיר 2027" }; });
 }
+/* ---------- edit mode UI ---------- */
+const EditCtx = React.createContext({ editing: false });
+const sailEmbark = (s) => "2027-10-" + String(parseInt(s.date, 10)).padStart(2, "0");
+const sailId = (s, cabin) => cruiseId(s.ship, sailEmbark(s), cabin);
+const fmtWhen = (t) => { try { const d = t && t.toDate ? t.toDate() : t ? new Date(t) : null; return d ? d.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : ""; } catch (e) { return ""; } };
+const whoShort = (e) => (e ? String(e).split("@")[0] : "");
+function Price({ id, base, onlyEdit }) {
+  const E = React.useContext(EditCtx);
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const edited = hasOv(id), o = OVR[id];
+  const v = ov(id, base);
+  const show = v == null ? "—" : "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const meta = edited ? "נערך על ידי " + (E.editing ? o.by : whoShort(o.by)) + (o.at ? " בתאריך " + fmtWhen(o.at) : "") : "";
+  const go = async (fn) => { setBusy(true); const ok = await fn(); setBusy(false); if (ok) setOpen(false); };
+  if (onlyEdit && !E.editing) return null;
+  return html`<span className=${"price" + (edited ? " edited" : "")} title=${meta || undefined}>
+    ${onlyEdit ? null : html`<bdi>${show}</bdi>`}${edited ? html`<span className="ed-mark" aria-label=${meta}>●</span>` : null}
+    ${E.editing ? html`<button className="pencil" title="עריכת מחיר" aria-label="עריכת מחיר" onClick=${(e) => { e.stopPropagation(); setVal(v == null ? "" : String(v)); setOpen(!open); }}>✏️</button>` : null}
+    ${E.editing && open ? html`<span className="ed-pop" onClick=${(e) => e.stopPropagation()}>
+      <input type="number" inputMode="decimal" min="0" step="any" value=${val} onInput=${(e) => setVal(e.target.value)} aria-label="מחיר חדש בדולרים" />
+      <button className="btn small" disabled=${busy || val === "" || !(Number(val) >= 0)} onClick=${() => go(() => E.save(id, Number(val)))}>שמירה</button>
+      <button className="btn ghost small" onClick=${() => setOpen(false)}>ביטול</button>
+      ${edited ? html`<button className="btn ghost small" disabled=${busy} onClick=${() => go(() => E.reset(id))}>החזר למחיר המקורי${base != null ? " (" + usd(base) + ")" : ""}</button>` : null}
+      ${edited ? html`<small className="ed-meta">${meta}</small>` : null}
+      <small className="ed-meta">${id}</small>
+    </span>` : null}
+  </span>`;
+}
+function Actual({ line }) {
+  const E = React.useContext(EditCtx);
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const o = OVR[line.aid];
+  const meta = line.paid && o ? "עודכן על ידי " + whoShort(o.by) + (o.at ? " בתאריך " + fmtWhen(o.at) : "") : "";
+  const go = async (fn) => { setBusy(true); const ok = await fn(); setBusy(false); if (ok) setOpen(false); };
+  return html`<span className="actual" title=${meta || undefined}>
+    ${line.paid ? html`<span className="paid">✅ שולם <bdi>${usd(line.actual)}</bdi></span>` : html`<span className="muted">עוד לא</span>`}
+    ${E.editing ? html`<button className="pencil" title="כמה שילמנו בפועל" aria-label="כמה שילמנו בפועל" onClick=${() => { setVal(line.paid ? String(line.actual) : ""); setOpen(!open); }}>✏️</button>` : null}
+    ${E.editing && open ? html`<span className="ed-pop">
+      <label className="ed-lbl">כמה שילמנו בפועל (דולר, סה״כ לסעיף)</label>
+      <input type="number" inputMode="decimal" min="0" step="any" value=${val} onInput=${(e) => setVal(e.target.value)} aria-label="כמה שילמנו בפועל" />
+      <button className="btn small" disabled=${busy || val === "" || !(Number(val) >= 0)} onClick=${() => go(() => E.save(line.aid, Number(val)))}>שמירה</button>
+      <button className="btn ghost small" onClick=${() => setOpen(false)}>ביטול</button>
+      ${line.paid ? html`<button className="btn ghost small" disabled=${busy} onClick=${() => go(() => E.reset(line.aid))}>מחיקת הסכום ששולם</button>` : null}
+      ${meta ? html`<small className="ed-meta">${meta}</small>` : null}
+    </span>` : null}
+  </span>`;
+}
+function priceRegistry() {
+  const G = [];
+  const add = (g, label, id, base, unit) => { let x = G.find((y) => y.g === g); if (!x) G.push((x = { g, items: [] })); if (!x.items.some((i) => i.id === id)) x.items.push({ label, id, base, unit }); };
+  ALL_ROUTES.forEach((r) => { const f = r.legs.find((l) => l.type === "flight") || {}; if (!r.outbound.options && !f.options) add("טיסות", "מסלול " + r.id + ": הלוך-חזור לאדם", "flight.rt." + r.id, DEFAULT_PARAMS.out + (f.price || 0), "לאדם"); });
+  [["toMIA", "תל אביב ← מיאמי"], ["toMCO", "תל אביב ← אורלנדו"], ["fromNYC", "ניו יורק ← תל אביב"]].forEach(([k, l]) => (REV_FLIGHTS[k] || []).forEach((o) => add("טיסות", l + " · " + o.label.split(" · ")[0], "flight.opt." + k + "." + o.id, o.price, "לאדם, כיוון אחד")));
+  Object.entries(HOTEL_TIERS).forEach(([k, H]) => ["econ", "mid"].forEach((t) => { if (!H[t]) return; add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · " + H[t].name, "hotel." + k + "." + t, H[t].n, "ללילה, לכולם"); if (H[t].nLong) add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · 6 לילות ומעלה", "hotel." + k + "." + t + ".long", H[t].nLong, "ללילה, לכולם"); }));
+  ALL_ROUTES.forEach((r) => { const occ = {}; r.legs.forEach((l) => { if (!l.hotel) return; occ[l.place] = (occ[l.place] || 0) + 1; ["econ", "mid"].forEach((t) => l.hotel[t] && add("מלונות", "מסלול " + r.id + " · " + P(l.place).short + " · " + CAR_TIERS[t].label + " · " + l.hotel[t].name, "hotel." + r.id + "." + l.place + occ[l.place] + "." + t, l.hotel[t].total, "סה״כ לשהייה")); }); });
+  add("מלונות", "ליד הנמל בפורט קנוורל (כשאין נתונים לפי רמה)", "hotel.pc.general", DEFAULT_PARAMS.rooms * DEFAULT_PARAMS.mia, "ללילה, לכולם");
+  const cab = [["interior", "פנימי"], ["ocean", "חלון לים"], ["balcony", "מרפסת"]];
+  SAILINGS.forEach((s) => cab.forEach(([c, l], i) => add("קרוז", s.ship + " " + s.date + " · " + l, sailId(s, c), [s.i, s.o, s.b][i], "לאדם")));
+  ALL_ROUTES.forEach((r) => r.legs.forEach((l) => l.type === "cruise" && cab.forEach(([c, cl]) => add("קרוז", l.ship + " · " + l.embark + " · " + cl, cruiseId(l.ship, l.embark, c), l.pricePP[c], "לאדם"))));
+  add("קרוז", "טיפים (gratuities)", "cruise.grat", 18.5, "לאדם ללילה");
+  add("רכבים", "רכב בינוני (מיניוואן), כולל החזרה", "car.mid", DEFAULT_PARAMS.car, "לרכב");
+  add("רכבים", "רכב חסכוני", "car.econ", null, "לרכב");
+  ALL_ROUTES.forEach((r) => { add("רכבים", "מסלול " + r.id + ": תוספת דמי החזרה", "car.drop." + r.id, r.dropExtraPerCar ?? 0, "לרכב"); if (r.car2) add("רכבים", "מסלול " + r.id + ": " + r.car2.label, "car.second." + r.id, r.car2.v, "סה״כ"); add("רכבים", "מסלול " + r.id + ": הסעות", "transfers." + r.id, r.transfers ?? 0, "סה״כ"); });
+  [["uni.ticket.1", "כרטיס יום אחד", 189.99], ["uni.ticket.2", "כרטיס יומיים", 359.98], ["uni.ticket.3.early", "כרטיס 3 ימים (תאריך זול)", 451.99], ["uni.ticket.3.mid", "כרטיס 3 ימים (תאריך בינוני)", 485.99], ["uni.ticket.3.peak", "כרטיס 3 ימים (תאריך יקר)", 571.99]].forEach(([id, l, b]) => add("יוניברסל", l, id, b, "לאדם, לפני מס"));
+  add("יוניברסל", "Express Pass ליום", "uni.express.day", 164.99, "לאדם");
+  add("יוניברסל", "חניה בפארק ליום", "uni.parking.day", 35, "לרכב");
+  Object.entries(RPX).forEach(([k, o]) => { if (o.extra != null) add("יוניברסל", "Royal Pacific עם Express · מסלול " + k, "rpx." + k, o.extra, "תוספת"); else if (o.rate != null) add("יוניברסל", "Royal Pacific ללילה (חלון 1)", "rpx." + k + ".rate", o.rate, "ללילה"); });
+  add("שונות", "אוכל", "param.food", DEFAULT_PARAMS.food, "לאדם ליום");
+  add("שונות", "דלק", "param.gas", DEFAULT_PARAMS.gas, "לגלון");
+  add("שונות", "אגרות", "param.tolls", DEFAULT_PARAMS.tolls, "לכל הנסיעה");
+  return G;
+}
+const PARAM_OV = { car: "car.mid", food: "param.food", gas: "param.gas", tolls: "param.tolls" };
+const effParams = (raw) => { const p = { ...raw }; Object.entries(PARAM_OV).forEach(([k, id]) => { if (raw[k] === DEFAULT_PARAMS[k]) p[k] = ov(id, raw[k]); }); return p; };
+const carPriced = (tier) => (tier === "econ" ? hasOv("car.econ") : true);
+const carPer = (p) => (p.tier === "econ" && hasOv("car.econ") ? OVR["car.econ"].v : p.car);
 function computeBudget(sch, p, rp) {
   const r = sch.route;
   const nb = sch.nightsBy;
@@ -1241,24 +1366,25 @@ function computeBudget(sch, p, rp) {
   const flight = sch.segs.find((s) => s.type === "flight");
   const ret = flight.options ? optPrice(flight.options, rp.retOpt || flight.def) : (rp.ret ?? flight.price);
   const out = r.outbound.options ? optPrice(r.outbound.options, rp.outOpt || r.outbound.def) : p.out;
-  const rtBase = out + ret;
+  const rtBase = r.outbound.options || flight.options ? out + ret : ov("flight.rt." + r.id, out + ret);
   const ps = r.outbound.options ? rtBase : (rp.rt ?? rtBase);
   const infF = p.infant === "lap" ? 0.1 : p.infant === "seat" ? 1 : 0;
   const seatW = [2, 2, 3].map((x) => x * p.pax / 7);
   const fl = { rt: ps, rtBase, out, ret, pax: p.pax, infF, infant: p.infant, seated: ps * p.pax, inf: ps * infF, total: ps * (p.pax + infF) };
   const cr = sch.cruise;
   const cabin = TIER_CABIN[p.tier] || "balcony";
-  const pp = cr.pricePP[cabin];
+  const pp = ov(cruiseId(cr.ship, cr.embark || cr.start, cabin), cr.pricePP[cabin]);
   const third = pp * (p.thirdPct / 100);
   const cab = [2 * pp, 2 * pp + third, 2 * pp + third];
   const pd = sch.parkDaysActual;
   const parkSeg = sch.segs.find((s) => s.type === "parks" && s.parkDates && s.parkDates.length);
   const tk = ticketPrice(pd, parkSeg ? parkSeg.parkDates[0] : null);
+  if (tk) tk.price = ov(tk.key, tk.price);
   const uni = tk ? PARTY.paying * tk.price * (1 + UNI_TAX) : 0;
   const expDays = Math.max(0, pd - 1);
   const rpx = p.tier === "mid" && p.rpx ? rpxExtra(sch) : null;
-  const express = p.express && !rpx ? PARTY.paying * 164.99 * expDays * (1 + UNI_TAX) : 0;
-  const parking = r.orlCar === false ? 0 : 2 * 35 * pd;
+  const express = p.express && !rpx ? PARTY.paying * ov("uni.express.day", 164.99) * expDays * (1 + UNI_TAX) : 0;
+  const parking = r.orlCar === false ? 0 : 2 * ov("uni.parking.day", 35) * pd;
   const landDays = diff(sch.arrival, sch.flightDate) - cr.nights;
   const fuel = (sch.miles * 2) / p.mpg * p.gas;
   const W_PAX = [2, 2, 3], W_HEAD = [2, 3, 3], W_EQ = [1, 1, 1];
@@ -1270,18 +1396,23 @@ function computeBudget(sch, p, rp) {
     { k: "express", g: "יוניברסל", label: (rpx ? "Express: כלול בלינה ב-Royal Pacific" : "Express ×7 · " + expDays + " ימים"), v: express, w: W_PAX, kind: "מחיר מינימום" },
     { k: "parking", g: "יוניברסל", label: "חניה ביוניברסל · 2 רכבים × " + pd + " ימים", v: parking, w: W_HEAD, kind: "מקור" },
     { k: "cruise", g: "קרוז", label: "קרוז · 3 תאים · " + CABIN_HE[cabin], v: cab[0] + cab[1] + cab[2], parts: cab, kind: "מחיר מפורסם + הערכה לאורח שלישי" },
-    { k: "grat", g: "קרוז", label: "טיפים בקרוז (8 × " + cr.nights + " לילות × $18.50)", v: PARTY.guests * cr.nights * 18.5, w: W_HEAD, kind: "מקור" },
-    { k: "cars", g: "רכבים", label: "2 רכבים, רמה " + (CAR_TIERS[p.tier] || CAR_TIERS.mid).label + (CAR_TIERS[p.tier] && CAR_TIERS[p.tier].priced ? "" : " (המחיר יתעדכן כשתיפתח ההזמנה; בינתיים לפי הערכת בינוני)"), v: 2 * p.car + 2 * (rp.drop ?? r.dropExtraPerCar ?? 0), w: W_HEAD, kind: "הערכה" },
+    { k: "grat", g: "קרוז", label: "טיפים בקרוז (8 × " + cr.nights + " לילות × $18.50)", v: PARTY.guests * cr.nights * ov("cruise.grat", 18.5), w: W_HEAD, kind: "מקור" },
+    { k: "cars", g: "רכבים", label: "2 רכבים, רמה " + (CAR_TIERS[p.tier] || CAR_TIERS.mid).label + (carPriced(p.tier) ? "" : " (המחיר יתעדכן כשתיפתח ההזמנה; בינתיים לפי הערכת בינוני)"), v: 2 * carPer(p) + 2 * (rp.drop ?? ov("car.drop." + r.id, r.dropExtraPerCar ?? 0)), w: W_HEAD, kind: "הערכה" },
     { k: "fuel", g: "רכבים", label: "דלק (" + sch.miles.toLocaleString("en-US") + " מייל × 2 רכבים) ואגרות", v: fuel + p.tolls, w: W_HEAD, kind: "הערכה" },
-    ...(r.car2 ? [{ k: "car2", g: "רכבים", label: r.car2.label, v: r.car2.v, w: W_HEAD, kind: "הערכה" }] : []),
-    { k: "transfers", g: "רכבים", label: "הסעות (ואן ל-8, הסעות לנמל)", v: rp.transfers ?? r.transfers ?? 0, w: W_HEAD, kind: "הערכה" },
+    ...(r.car2 ? [{ k: "car2", g: "רכבים", label: r.car2.label, v: ov("car.second." + r.id, r.car2.v), w: W_HEAD, kind: "הערכה" }] : []),
+    { k: "transfers", g: "רכבים", label: "הסעות (ואן ל-8, הסעות לנמל)", v: rp.transfers ?? ov("transfers." + r.id, r.transfers ?? 0), w: W_HEAD, kind: "הערכה" },
     { k: "food", g: "אוכל", label: "אוכל · 7 × " + landDays + " ימים ביבשה", v: 7 * landDays * p.food, w: W_PAX, kind: "הערכה" },
     { k: "esta", g: "שונות", label: "ESTA × 8 ($40.62)", v: PARTY.guests * 40.62, w: W_HEAD, kind: "מקור" },
   ];
+  lines.forEach((l) => { l.planned = l.v || 0; l.aid = "actual." + r.id + "." + l.k;
+    if (hasOv(l.aid)) { l.paid = true; l.actual = OVR[l.aid].v; if (l.parts) l.parts = l.parts.map((x) => (l.planned ? x * l.actual / l.planned : l.actual / l.parts.length)); l.v = l.actual; } });
+  const plannedTotal = lines.reduce((s, l) => s + l.planned, 0);
+  const paidTotal = lines.reduce((s, l) => s + (l.paid ? l.actual : 0), 0);
+  const remaining = lines.reduce((s, l) => s + (l.paid ? 0 : l.v || 0), 0);
   lines.forEach((l) => { l.split = l.parts || l.w.map((x) => (l.v || 0) * x / l.w.reduce((a, b) => a + b, 0)); });
   const total = lines.reduce((s, l) => s + (l.v || 0), 0);
   const units = UNITS.map((u, i) => ({ ...u, v: lines.reduce((s, l) => s + l.split[i], 0) }));
-  return { lines, total, units, ticket: tk, fl, cabin, rpx, missing: 0 };
+  return { lines, total, units, ticket: tk, fl, cabin, rpx, missing: 0, plannedTotal, paidTotal, remaining };
 }
 
 /* ---------- UI pieces ---------- */
@@ -1477,7 +1608,7 @@ function FlightCalc({ r, sch, bud, p, sp, rp, setRpMany }) {
   const f = flightOf(sch), fl = bud.fl;
   const outLbl = r.outbound.options ? legLabel(r.outbound.options, rp.outOpt || r.outbound.def) : r.outbound.label + " (הערכה $" + fl.out + ")";
   const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
-  const combos = r.outbound.options && f.options ? REV_FLIGHTS[r.outbound.options].flatMap((o) => REV_FLIGHTS[f.options].map((t) => ({ k: o.id + "|" + t.id, price: o.price + t.price, label: o.label.split(" · ")[0] + " + " + t.label.split(" · ")[0] }))).sort((a, b) => a.price - b.price) : null;
+  const combos = r.outbound.options && f.options ? REV_FLIGHTS[r.outbound.options].flatMap((o) => REV_FLIGHTS[f.options].map((t) => ({ k: o.id + "|" + t.id, price: optP(r.outbound.options, o) + optP(f.options, t), label: o.label.split(" · ")[0] + " + " + t.label.split(" · ")[0] }))).sort((a, b) => a.price - b.price) : null;
   const curCombo = (rp.outOpt || r.outbound.def) + "|" + (rp.retOpt || f.def);
   return html`<div className="fcalc">
     <div className="fc-row">
@@ -1553,10 +1684,29 @@ function App() {
   const [shift, setShift] = useState(0);
   const [cut, setCut] = useState("nyc");
   const [autoFix, setAutoFix] = useState(true);
-  const [p, setP] = useState(DEFAULT_PARAMS);
+  const [pRaw, setP] = useState(DEFAULT_PARAMS);
+  const [ovVer, setOvVer] = useState(0);
+  const [fbReady, setFbReady] = useState(!!(window.TRIP_FB && window.TRIP_FB.ready));
+  const [user, setUser] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [edMsg, setEdMsg] = useState("");
+  useEffect(() => {
+    const onOv = (e) => { OVR = (e && e.detail) || (window.TRIP_FB && window.TRIP_FB.overrides) || {}; setOvVer((v) => v + 1); };
+    const onAuth = () => { const u = window.TRIP_FB && window.TRIP_FB.user; setUser(u ? { email: u.email } : null); if (!u) setEditing(false); };
+    const onReady = () => setFbReady(true);
+    window.addEventListener("trip-fb-overrides", onOv); window.addEventListener("trip-fb-auth", onAuth); window.addEventListener("trip-fb-ready", onReady);
+    if (window.TRIP_FB) { if (window.TRIP_FB.ready) setFbReady(true); if (window.TRIP_FB.overrides) onOv(); onAuth(); }
+    return () => { window.removeEventListener("trip-fb-overrides", onOv); window.removeEventListener("trip-fb-auth", onAuth); window.removeEventListener("trip-fb-ready", onReady); };
+  }, []);
+  const p = useMemo(() => effParams(pRaw), [pRaw, ovVer]);
+  const denied = async () => { setEdMsg("אין לך הרשאת עריכה"); setEditing(false); try { await window.TRIP_FB.signOut(); } catch (e) {} };
+  const fbCall = async (fn) => { setEdMsg(""); try { await fn(); return true; } catch (e) { if (e && (e.code === "permission-denied" || /permission/i.test(e.message || ""))) await denied(); else setEdMsg("השמירה לא הצליחה. נסו שוב."); return false; } };
+  const edCtx = { editing, user, save: (id, v) => fbCall(() => window.TRIP_FB.save(id, v)), reset: (id) => fbCall(() => window.TRIP_FB.reset(id)) };
+  const startEdit = async () => { setEdMsg(""); try { if (!window.TRIP_FB.user) await window.TRIP_FB.signIn(); if (window.TRIP_FB.user) setEditing(true); } catch (e) { if (e && e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") setEdMsg("ההתחברות לא הצליחה. נסו שוב."); } };
+  const stopEdit = async () => { setEditing(false); try { await window.TRIP_FB.signOut(); } catch (e) {} };
   const [rps, setRps] = useState({});
   const [cmp, setCmp] = useState(["B", "A", "R1"]);
-  const sp = (k) => (v) => setP({ ...p, [k]: v });
+  const sp = (k) => (v) => setP({ ...pRaw, [k]: v });
   const rp = rps[sel] || {};
   const setRp = (k) => (v) => setRps({ ...rps, [sel]: { ...rp, [k]: v } });
   const setRpMany = (o) => setRps({ ...rps, [sel]: { ...rp, ...o } });
@@ -1567,7 +1717,7 @@ function App() {
   const all = useMemo(() => ALL_ROUTES.map((r) => {
     const sch = computeSchedule(r, shift, cut, autoFix);
     return { r, sch, bud: computeBudget(sch, p, rps[r.id] || {}) };
-  }), [shift, cut, autoFix, p, rps]);
+  }), [shift, cut, autoFix, p, rps, ovVer]);
   const cur = all.find((x) => x.r.id === sel);
   const sch = cur.sch, bud = cur.bud, R0 = cur.r;
   const inWin = (w) => all.filter((x) => x.r.window === w);
@@ -1590,13 +1740,16 @@ function App() {
   const drives = sch.segs.filter((s) => s.type === "drive");
   const stopKeys = new Set(sch.segs.filter((s) => s.type === "stay").map((s) => s.place));
 
-  return html`<div className=${printing ? "printing" : ""}>
+  return html`<${EditCtx.Provider} value=${edCtx}><div className=${(printing ? "printing" : "") + (editing ? " editing" : "")}>
   <header className="top">
     <div className="top-row">
       <div className="brand">טיול משפחתי לארה״ב · 2027</div>
       <div className="tier-pick"><span>רמה:</span><div className="seg">${Object.entries(CAR_TIERS).map(([k, t]) => html`<button key=${k} className=${p.tier === k ? "on" : ""} onClick=${() => sp("tier")(k)}>${t.label}</button>`)}</div><small className="muted">מלונות, תא בקרוז ורכבים</small></div>
       <button className="btn ghost print-btn" onClick=${doPrint}>🖨 הדפסה</button>
+      ${fbReady && !editing ? html`<button className="btn ghost edit-btn" onClick=${startEdit}>✏️ מצב עריכה</button>` : null}
     </div>
+    ${editing ? html`<div className="edit-bar"><span>✏️ מצב עריכה${user ? html` · <bdi>${user.email}</bdi>` : null}. לחצו על ✏️ ליד מחיר כדי לשנות אותו. השינוי נשמר לכולם.</span><button className="btn small" onClick=${() => setTab("budget")}>כל המחירים</button><button className="btn ghost small" onClick=${stopEdit}>יציאה</button></div>` : null}
+    ${edMsg ? html`<div className="edit-msg" role="alert">${edMsg}<button className="btn ghost small" onClick=${() => setEdMsg("")}>סגירה</button></div>` : null}
     <nav className="tabs" role="tablist">${TABS.map(([id, ic, l]) => html`<button key=${id} role="tab" aria-selected=${tab === id} className=${tab === id ? "on" : ""} onClick=${() => setTab(id)}><span className="ic">${ic}</span>${l}</button>`)}</nav>
   </header>
 
@@ -1739,6 +1892,7 @@ function App() {
           <p>${dRange(cr.start, cr.end)} · ${cr.nights} לילות · יוצאת מ${P(cr.port).short} ב-${cr.depart}, חוזרת ב-${cr.arrive}</p>
           <p>עוצרת ב: ${cr.stops.map((s) => P(s.place).name).join(" ואז ")}</p>
           <p className="big-num">${usd(bud.lines.find((l) => l.k === "cruise").v + bud.lines.find((l) => l.k === "grat").v)} <small>3 תאים עם ${CABIN_HE[bud.cabin]}, כולל טיפים</small></p>
+          <p className="sec-paid">כמה שילמנו בפועל על התאים: <${Actual} line=${bud.lines.find((l) => l.k === "cruise")} /></p>
         </div>
       </div>
       <${Explain}>
@@ -1751,7 +1905,7 @@ function App() {
       <p className="muted small">מחיר לאדם, 2 בתא, בדולרים. נבדק ב-${CHECKED} <${Src} keys=${["wonder", "utopia"]} /></p>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>תאריכים</th><th>אונייה</th><th>נמל</th><th>לילות</th><th>עצירות</th><th>פנימי</th><th>נוף לים</th><th>מרפסת</th><th>במסלול</th></tr></thead>
-        <tbody>${SAILINGS.map((s, i) => html`<tr key=${i} className=${curSailing === s ? "hi" : ""}><td>${bidi(s.date)}</td><td>${s.ship}</td><td>${s.port}</td><td>${s.n}</td><td>${s.ports}</td><td className="num">$${s.i}</td><td className="num">$${s.o}</td><td className="num">$${s.b}${s.changed ? html`<div className="chg">${bidi(s.changed)}</div>` : null}</td><td>${s.routes}</td></tr>`)}</tbody>
+        <tbody>${SAILINGS.map((s, i) => html`<tr key=${i} className=${curSailing === s ? "hi" : ""}><td>${bidi(s.date)}</td><td>${s.ship}</td><td>${s.port}</td><td>${s.n}</td><td>${s.ports}</td><td className="num"><${Price} id=${sailId(s, "interior")} base=${s.i} /></td><td className="num"><${Price} id=${sailId(s, "ocean")} base=${s.o} /></td><td className="num"><${Price} id=${sailId(s, "balcony")} base=${s.b} />${s.changed ? html`<div className="chg">${bidi(s.changed)}</div>` : null}</td><td>${s.routes}</td></tr>`)}</tbody>
       </table></div>
     </div>
     <div className="card">
@@ -1791,6 +1945,7 @@ function App() {
           <p>${sch.segs.filter((s) => s.parkDates).flatMap((s) => s.parkDates).map((d) => dm(d) + " (" + wd(d) + ")").join(" · ")}</p>
           <p>${bud.ticket ? bud.ticket.label : ""}</p>
           <p className="big-num">${usd(bud.lines.find((l) => l.k === "uni").v)} <small>7 כרטיסים כולל מס (התינוק נכנס חינם)</small></p>
+          <p className="sec-paid">כמה שילמנו בפועל על הכרטיסים: <${Actual} line=${bud.lines.find((l) => l.k === "uni")} /></p>
         </div>
       </div>
       <${Explain}>
@@ -1823,7 +1978,7 @@ function App() {
     <div className="card">
       <h2>אפשרויות בכיוון ההפוך (מיאמי ← ניו יורק)</h2>
       <div className="tbl-wrap"><table className="tbl"><thead><tr><th>כיוון</th><th>טיסה</th><th>מחיר לאדם</th></tr></thead>
-        <tbody>${[["toMIA", "תל אביב ← מיאמי"], ["toMCO", "תל אביב ← אורלנדו"], ["fromNYC", "ניו יורק ← תל אביב"]].flatMap(([k, l]) => REV_FLIGHTS[k].map((o) => html`<tr key=${k + o.id}><td>${l}</td><td>${bidi(o.label)}</td><td className="num">$${o.price}</td></tr>`))}</tbody></table></div>
+        <tbody>${[["toMIA", "תל אביב ← מיאמי"], ["toMCO", "תל אביב ← אורלנדו"], ["fromNYC", "ניו יורק ← תל אביב"]].flatMap(([k, l]) => REV_FLIGHTS[k].map((o) => html`<tr key=${k + o.id}><td>${l}</td><td>${bidi(o.label)}</td><td className="num"><${Price} id=${"flight.opt." + k + "." + o.id} base=${o.price} /></td></tr>`))}</tbody></table></div>
       <p className="muted small">${REV_FLIGHTS.source}</p>
     </div>
     <div className="card"><h2>מה חשוב לדעת</h2><${InfoList} items=${FLIGHT_INFO} /></div>
@@ -1842,7 +1997,7 @@ function App() {
       <${TierSwitch} p=${p} sp=${sp} sch=${sch} noRpx=${true} />
       <div className="tiers">${Object.entries(CAR_TIERS).map(([k, t]) => html`<div key=${k} className=${"tier" + (p.tier === k ? " on" : "")} onClick=${() => sp("tier")(k)}>
         <h4>${t.label}</h4><ul>${t.cars.map((c, i) => html`<li key=${i}>${c}</li>`)}</ul>
-        <div className="tier-price">${t.priced ? html`<b>${usd(p.car)}</b> לרכב, כולל דמי החזרה <${Kind} k="הערכה" />` : html`<span className="muted">מחיר יתעדכן כשתיפתח ההזמנה</span>`}</div>
+        <div className="tier-price">${k === "mid" ? html`<b><${Price} id="car.mid" base=${DEFAULT_PARAMS.car} /></b> לרכב, כולל דמי החזרה <${Kind} k="הערכה" />` : html`${hasOv("car.econ") ? html`<b><${Price} id="car.econ" base=${null} /></b> לרכב` : html`<span className="muted">מחיר יתעדכן כשתיפתח ההזמנה <${Price} id="car.econ" base=${null} onlyEdit=${true} /></span>`}`}</div>
       </div>`)}</div>
       <${Explain}><p>8 אנשים בשני רכבים: הזוג עם התינוק ברכב אחד (עם כיסא בטיחות), וחמשת האחרים ברכב השני. עוד אין מחירים לאוקטובר 2027, ולכן רק לרמה "בינוני" יש הערכה ($${p.car} לרכב). ברמות האחרות התקציב משתמש בינתיים באותה הערכה, עד שיהיו מחירים.</p></${Explain}>
     </div>
@@ -1870,8 +2025,8 @@ function App() {
       <p className="lead-s">מחיר ללילה לכל 8 הנוסעים יחד (חדר לכל משפחה, או דירה/סוויטה גדולה), כולל מסים, בלי חניה. בחישוב משתמשים באמצע הטווח.</p>
       <${TierSwitch} p=${p} sp=${sp} sch=${sch} />
       <div className="tbl-wrap"><table className="tbl htiers"><thead><tr><th>איפה</th><th>לילות</th><th className=${p.tier === "econ" ? "on" : ""}>חסכוני</th><th className=${p.tier === "mid" ? "on" : ""}>בינוני</th><th>סה״כ ברמה שנבחרה</th></tr></thead>
-        <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}${H[t].notes ? html`<ul className="h-notes">${H[t].notes.map((n, i) => html`<li key=${i}>${bidi(n)}</li>`)}</ul>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: ${usd(x.h.v / x.n)} ללילה</span></td>`;
-          return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}</td></tr>`; })}
+        <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div><div className="h-calc">בחישוב: <${Price} id=${x.own ? x.ownBase + t : "hotel." + x.k + "." + t + (H[t].nLong && x.n >= 6 ? ".long" : "")} base=${x.own ? H[t].total : H[t].nLong && x.n >= 6 ? H[t].nLong : H[t].n} /> ${x.own ? "לשהייה" : "ללילה"}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}${H[t].notes ? html`<ul className="h-notes">${H[t].notes.map((n, i) => html`<li key=${i}>${bidi(n)}</li>`)}</ul>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: <${Price} id=${"hotel." + x.k + ".general"} base=${p.rooms * p.mia} /> ללילה</span></td>`;
+          return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}${(() => { const L = bud.lines.find((l) => l.hotelIdx === xi); return L ? html`<div className="h-paid"><${Actual} line=${L} /></div>` : null; })()}</td></tr>`; })}
           ${bud.rpx ? html`<tr><td colSpan="4">תוספת Royal Pacific עם Express: ${ltr(bud.rpx.text)}</td><td className="num">${usd(bud.rpx.v)}</td></tr>` : null}</tbody>
         <tfoot><tr><td colSpan="4">סה״כ מלונות</td><td className="num">${usd(bud.lines.filter((l) => l.g === "מלונות").reduce((s, l) => s + l.v, 0))}</td></tr></tfoot></table></div>
       <p className="muted small">⚠ ${CRIB_NOTE}. בשישי ושבת המחירים בדרך כלל גבוהים ב-50%–100%. ביטול חינם: מלונות יוניברסל עד 6 ימים לפני; Hilton ו-Marriott בדרך כלל יום-יומיים לפני (לא נבדק לכל מלון).</p>
@@ -1887,8 +2042,13 @@ function App() {
     <div className="card">
       <h2>תקציב · מסלול ${R0.id}</h2>
       <div className="budget-top">
-        <div className="cost-total"><span>סה״כ משוער</span><b>${usd(bud.total)}</b><small>כל 8 הנוסעים, בדולרים</small></div>
+        <div className="cost-total"><span>סה״כ משוער</span><b>${usd(bud.total)}</b><small>כל 8 הנוסעים, בדולרים${bud.paidTotal ? " · כולל מה ששולם בפועל" : ""}</small></div>
         <div className="units">${bud.units.map((u, i) => html`<div key=${i} className="unit"><div><b>${u.label}</b><small>${u.who}</small></div><span>${usd(u.v)}</span></div>`)}</div>
+      </div>
+      <div className="pay-sum">
+        <div><span>מתוכנן</span><b>${usd(bud.plannedTotal)}</b></div>
+        <div className="ok"><span>✅ שולם בפועל</span><b>${usd(bud.paidTotal)}</b></div>
+        <div className="due"><span>נשאר לשלם</span><b>${usd(bud.remaining)}</b></div>
       </div>
       <${Explain}><p>הסכום מתעדכן מיד כשמזיזים את הסליידרים למטה. כל שורה מסומנת: <span className="kind src">מקור</span> מחיר שנמצא במקור, <span className="kind est">הערכה</span> הנחה שלנו. החלוקה למשפחות: טיסות, כרטיסים ואוכל לפי מספר האנשים; מלונות לפי חדר; קרוז לפי תא.</p></${Explain}>
     </div>
@@ -1898,9 +2058,11 @@ function App() {
           ${vis("budget") && html`<${ChartView} type="doughnut" data=${{ labels: groups.map((g) => g.g), datasets: [{ data: groups.map((g) => Math.round(g.v)), backgroundColor: palette }] }}
             options=${{ plugins: { legend: { position: "bottom", rtl: true, labels: { font: { family: "Heebo", size: 15 }, boxWidth: 16 } } }, maintainAspectRatio: false }} />`}
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>סעיף</th><th>סכום</th><th>סוג</th></tr></thead>
-            <tbody>${bud.lines.filter((l) => l.v).map((l) => html`<tr key=${l.k}><td>${l.label}</td><td className="num">${usd(l.v)}</td><td><${Kind} k=${l.kind} /></td></tr>`)}</tbody>
-            <tfoot><tr><td>סה״כ</td><td className="num">${usd(bud.total)}</td><td></td></tr></tfoot>
+            <thead><tr><th>סעיף</th><th>מתוכנן</th><th>שולם בפועל</th><th>סוג</th></tr></thead>
+            <tbody>${bud.lines.filter((l) => l.planned || l.paid).map((l) => html`<tr key=${l.k} className=${l.paid ? "paid-row" : ""}><td>${l.label}</td><td className=${"num" + (l.paid ? " struck" : "")}>${usd(l.planned)}</td><td className="num"><${Actual} line=${l} /></td><td>${l.paid ? html`<span className="kind paid-k">✅ שולם</span>` : html`<${Kind} k=${l.kind} />`}</td></tr>`)}</tbody>
+            <tfoot><tr><td>סה״כ</td><td className="num">${usd(bud.plannedTotal)}</td><td className="num">${usd(bud.paidTotal)}</td><td></td></tr>
+              <tr><td>נשאר לשלם</td><td className="num" colSpan="3">${usd(bud.remaining)}</td></tr>
+              <tr><td><b>סה״כ משוער (שולם + נשאר)</b></td><td className="num" colSpan="3"><b>${usd(bud.total)}</b></td></tr></tfoot>
           </table></div>
         </div>
         <div className="sliders">
@@ -1912,8 +2074,8 @@ function App() {
           <h3>טיסות הלוך-חזור</h3>
           <${FlightCalc} r=${R0} sch=${sch} bud=${bud} p=${p} sp=${sp} rp=${rp} setRpMany=${setRpMany} />
           <${Slider} label="מיניוואן כולל החזרה, לרכב" value=${p.car} min=${600} max=${2200} step=${50} onChange=${sp("car")} fmt=${usd} note="הערכה" />
-          <${Slider} label="תוספת דמי החזרה, לרכב" value=${rp.drop ?? R0.dropExtraPerCar} min=${0} max=${750} step=${25} onChange=${setRp("drop")} fmt=${usd} note="הערכה" />
-          <${Slider} label="הסעות" value=${rp.transfers ?? R0.transfers} min=${0} max=${600} step=${25} onChange=${setRp("transfers")} fmt=${usd} note="הערכה" />
+          <${Slider} label="תוספת דמי החזרה, לרכב" value=${rp.drop ?? ov("car.drop." + R0.id, R0.dropExtraPerCar ?? 0)} min=${0} max=${750} step=${25} onChange=${setRp("drop")} fmt=${usd} note="הערכה" />
+          <${Slider} label="הסעות" value=${rp.transfers ?? ov("transfers." + R0.id, R0.transfers ?? 0)} min=${0} max=${600} step=${25} onChange=${setRp("transfers")} fmt=${usd} note="הערכה" />
           <${Slider} label="דלק לגלון" value=${p.gas} min=${3} max=${5.5} step=${0.05} onChange=${sp("gas")} fmt=${(v) => "$" + v.toFixed(2)} note="AAA ב-22.10.2026: $4.27" />
           <${Slider} label="אגרות, לכל הנסיעה" value=${p.tolls} min=${0} max=${400} step=${10} onChange=${sp("tolls")} fmt=${usd} note="הערכה" />
           <${Slider} label="אוכל, לאדם ליום" value=${p.food} min=${40} max=${130} step=${5} onChange=${sp("food")} fmt=${usd} note="הערכה" />
@@ -1922,6 +2084,13 @@ function App() {
       </div>
     </div>
   </section>
+
+  ${editing ? html`<section className=${pane("budget") + " ed-all"}><div className="card">
+      <h2>✏️ כל המחירים שאפשר לערוך</h2>
+      <p className="lead-s">כל מחיר כאן משפיע על החישובים בכל המסלולים. מחיר שנערך מסומן בנקודה כתומה.</p>
+      ${priceRegistry().map((G) => html`<details key=${G.g} className="ed-group" open=${G.g === "מלונות" ? undefined : true}><summary>${G.g} (${G.items.length})</summary>
+        <div className="tbl-wrap"><table className="tbl"><tbody>${G.items.map((it) => html`<tr key=${it.id}><td>${ltr(it.label)}</td><td className="muted small">${it.unit}</td><td className="num"><${Price} id=${it.id} base=${it.base} /></td></tr>`)}</tbody></table></div></details>`)}
+    </div></section>` : null}
 
   <section className=${pane("tips")} id="tips">
     <div className="card"><h2>מידע שימושי</h2><${InfoList} items=${PRACTICAL} /></div>
@@ -1948,10 +2117,65 @@ function App() {
     <div className="sb-btns"><button className="btn ghost sm" onClick=${() => setTab("plan")}>החלפת מסלול</button><button className="btn sm" onClick=${() => setTab("budget")}>פירוט</button></div>
   </div>
   <footer>עודכן ב-${CHECKED} · הערכות מסומנות · כל הסכומים בדולרים</footer>
-  </div>`;
+  </div></${EditCtx.Provider}>`;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+
+</script>
+<script>
+/* =====================================================================
+   FIREBASE WEB CONFIG  (public by design: these values are not secrets)
+   Fill in the values from Firebase console > Project settings > Your apps,
+   then set enabled: true. While enabled is false the site works exactly
+   as before and the "edit mode" button stays hidden.
+   Who may edit is decided ONLY by the Firestore security rules.
+   ===================================================================== */
+window.FIREBASE_CONFIG = {
+  enabled: true,
+  apiKey: "AIzaSyCdo2V9kaiAPCQYZnsuhcTgC6sEv5PXp3E",
+  authDomain: "usa-trip-2027-shahar.firebaseapp.com",
+  projectId: "usa-trip-2027-shahar",
+  storageBucket: "usa-trip-2027-shahar.firebasestorage.app",
+  messagingSenderId: "768226421972",
+  appId: "1:768226421972:web:622512dd50ee75c91e9f41",
+};
+
+</script>
+<script type="module">
+/* Loads Firebase only when configured. "by" stores only the part before @ (docs are publicly readable). Any failure => silent, site keeps built-in prices. */
+const C = window.FIREBASE_CONFIG || {};
+const configured = C.enabled === true && [C.apiKey, C.authDomain, C.projectId, C.appId].every((x) => typeof x === "string" && x && !/PASTE_/.test(x));
+if (configured) {
+  try {
+    const V = "10.14.1", B = "https://www.gstatic.com/firebasejs/" + V + "/";
+    const [A, F, AU] = await Promise.all([import(B + "firebase-app.js"), import(B + "firebase-firestore.js"), import(B + "firebase-auth.js")]);
+    const { enabled, ...cfg } = C;
+    const app = A.initializeApp(cfg);
+    const db = F.getFirestore(app);
+    const auth = AU.getAuth(app);
+    const items = F.collection(db, "overrides");
+    const fire = (n, d) => window.dispatchEvent(new CustomEvent(n, { detail: d }));
+    const T = (window.TRIP_FB = {
+      ready: true, user: null, overrides: {},
+      signIn: () => AU.signInWithPopup(auth, new AU.GoogleAuthProvider()).then((r) => { T.user = r.user; fire("trip-fb-auth"); return r.user; }),
+      signOut: () => AU.signOut(auth),
+      save: (id, v) => {
+        if (!auth.currentUser) return Promise.reject({ code: "permission-denied" });
+        if (typeof v !== "number" || !isFinite(v) || v < 0) return Promise.reject({ code: "invalid-argument" });
+        return F.setDoc(F.doc(items, id), { v, by: String(auth.currentUser.email || "").split("@")[0], at: F.serverTimestamp() });
+      },
+      reset: (id) => F.deleteDoc(F.doc(items, id)),
+    });
+    F.onSnapshot(items, (snap) => {
+      const o = {};
+      snap.forEach((d) => { const x = d.data(); if (typeof x.v === "number" && isFinite(x.v)) o[d.id] = { v: x.v, by: x.by || "", at: x.at || null }; });
+      T.overrides = o; fire("trip-fb-overrides", o);
+    }, () => {});
+    AU.onAuthStateChanged(auth, (u) => { T.user = u || null; fire("trip-fb-auth"); });
+    fire("trip-fb-ready");
+  } catch (e) { /* unreachable or misconfigured: keep built-in prices, no visible error */ }
+}
 
 </script>
 </body>
