@@ -765,35 +765,41 @@ ROUTES.push(
   {
     id: "F", direction: "ns", window: 2,
     name: "מסלול F · Utopia מפורט קנוורל 15–18.10, יוניברסל אחרי",
-    tagline: "4.10–21.10: ניו יורק, נסיעה, קוקואה ביץ׳, קרוז, יוניברסל 18–19.10, ולילה ליד שדה התעופה של מיאמי",
+    tagline: "4.10–21.10: ניו יורק, נסיעה, 3 לילות באורלנדו, לילה ליד הנמל, קרוז, יוניברסל 18–19.10, ולילה ליד שדה התעופה של מיאמי",
     color: "#9333ea", photo: "uto", arrivalDefault: "2027-10-04",
     outbound: OUT_NYC,
     legs: [
       ...ROAD_E,
-      { type: "stay", place: "dc", nights: 2, min: 1, flex: true },
+      { type: "stay", place: "dc", nights: 1, min: 1, flex: false },
       { type: "drive", from: "dc", to: "wil", miles: 150, hours: 2.5 },
       { type: "stay", place: "wil", nights: 1, min: 1, flex: false },
       { type: "drive", from: "wil", to: "wlm", miles: 280, hours: 4.5 },
       { type: "stay", place: "wlm", nights: 1, min: 1, flex: false },
       { type: "drive", from: "wlm", to: "chs", miles: 175, hours: 3 },
-      { type: "stay", place: "chs", nights: 2, min: 1, flex: true },
+      { type: "stay", place: "chs", nights: 1, min: 1, flex: false },
       { type: "drive", from: "chs", to: "sav", miles: 110, hours: 2 },
       { type: "stay", place: "sav", nights: 1, min: 1, flex: false },
-      { type: "drive", from: "sav", to: "pc", miles: 250, hours: 4 },
-      { type: "stay", place: "pc", nights: 2, min: 1, flex: true, label: "קוקואה ביץ׳ ו-Kennedy Space Center" },
-      { type: "drive", from: "pc", to: "pc", miles: 0, hours: 0.5, noCar: true, xfer: true, title: "בבוקר: מחזירים את הרכבים בסניף השכרה ליד הנמל (אזור קוקואה ביץ׳)", note: "לרוב הסניפים יש שאטל חינם לנמל. פחות מיניוואנים בסניפים האלה: להזמין מוקדם" },
+      { type: "drive", from: "sav", to: "orl", miles: 280, hours: 4.5 },
+      { type: "stay", place: "orl", nights: 3, min: 2, flex: true, label: "אורלנדו, לפני הקרוז",
+        hotel: { econ: { name: "Westgate Lakes Resort", range: "$565–915 ל-3 לילות", total: 740 }, mid: { name: "Universal Dockside · 2 סוויטות", range: "$2,376 ל-3 לילות", total: 2376, real: true } } },
+      { type: "drive", from: "orl", to: "pc", miles: 60, hours: 1, note: "לינה ליד הנמל לפני יום העלייה" },
+      { type: "stay", place: "pc", nights: 1, min: 1, flex: false, label: "ליד נמל פורט קנוורל",
+        hotel: { econ: { name: "Country Inn & Suites Port Canaveral · 2 חדרים, ארוחת בוקר", range: "$245–500", total: 372, crib: true }, mid: { name: "Holiday Inn Club Vacations Cape Canaveral · וילה עם 2 חדרי שינה ל-8, על החוף", range: "$270–300 (מחיר ללילה בודד עוד לא נבדק)", total: 285, crib: true } } },
+      { type: "drive", from: "pc", to: "pc", miles: 0, hours: 0.5, noCar: true, xfer: true, title: "בבוקר: מחזירים את הרכבים בסניף השכרה ליד הנמל", note: "לרוב הסניפים יש שאטל חינם לנמל. פחות מיניוואנים בסניפים האלה: להזמין מוקדם" },
       { type: "cruise", ship: "Utopia of the Seas", port: "pc", embark: "2027-10-15", nights: 3, depart: "16:00", arrive: "06:30",
         stops: [{ day: 1, place: "nas", time: "09:00–17:30" }, { day: 2, place: "coco", time: "07:00–17:00" }],
         pricePP: { interior: 614, ocean: 664, balcony: 666 }, sources: ["utopia", "utopiaAvoya"] },
       { type: "drive", from: "pc", to: "orl", miles: 60, hours: 1, note: "שוכרים שוב באותו סניף ליד הנמל ונוסעים ישר לפארק" },
-      { type: "parks", place: "orl", nights: 2, min: 2, flex: false, parkDays: 2, parkFromStart: true },
+      { type: "parks", place: "orl", nights: 2, min: 2, flex: false, parkDays: 2, parkFromStart: true,
+        hotel: { econ: { name: "Westgate Lakes Resort", range: "$375–610 ל-2 לילות", total: 492 }, mid: { name: "Universal Dockside · 2 סוויטות", range: "$1,368 ל-2 לילות", total: 1368, real: true } } },
       { type: "drive", from: "orl", to: "miaApt", miles: 235, hours: 3.5, note: "החזרת הרכבים (ההשכרה השנייה) בשדה התעופה של מיאמי" },
       { type: "stay", place: "miaApt", nights: 1, min: 1, flex: false },
       { ...LY_MIA },
     ],
+
     transfers: 0, dropExtraPerCar: 100, car2: { v: 550, label: "השכרה שנייה 18–20.10: פורט קנוורל ← מיאמי (2 רכבים, הערכה לפי $400–700 ל-3 ימים)" },
     warnings: ["יום יוניברסל ראשון ביום הירידה מהאונייה: עגינה ב-06:30 ונסיעה של כשעה לפארק"],
-    note: "יוניברסל 18–19.10, נסיעה למיאמי ב-20.10 ולילה אחרון ליד שדה התעופה. מחזירים את הרכבים בסניף ליד הנמל בבוקר 15.10 ושוכרים שוב באותו סניף ב-18.10. בבדיקה: מלון 'חונים ומפליגים' (park & cruise) ליד פורט קנוורל.",
+    note: "אורלנדו 11–14.10 (3 לילות), לילה ליד הנמל 14–15.10, קרוז 15–18.10, יוניברסל 18–19.10, נסיעה למיאמי ב-20.10 ולילה אחרון ליד שדה התעופה. מחזירים את הרכבים בסניף ליד הנמל בבוקר 15.10 ושוכרים שוב באותו סניף ב-18.10. עריסה במלונות ליד הנמל עוד לא אושרה. אם בכל זאת משאירים רכבים: חניה ב-Country Inn לימי השייט $65 לרכב, כולל שאטל לנמל.",
   }
 );
 
@@ -1211,7 +1217,14 @@ function rpxExtra(sch) {
 }
 const HOTEL_GROUPS = [["nyc", "מלון בניו יורק", ["nyc"]], ["road", "מלונות בדרך", ["dc", "wil", "wlm", "chs", "sav"]], ["orl", "מלון באורלנדו", ["orl"]], ["port", "מלונות בפלורידה ליד הנמל ושדה התעופה", ["pc", "mia", "miaApt"]]];
 function hotelStops(sch, p) {
-  return Object.entries(sch.nightsBy).filter(([k, n]) => n && k !== "cruise" && (HOTEL_TIERS[k] || k === "pc")).map(([k, n]) => ({ k, n, h: hotelOf(k, n, p.tier, p) }));
+  const out = [];
+  sch.segs.filter((s) => (s.type === "stay" || s.type === "parks") && diff(s.start, s.end) > 0).forEach((s) => {
+    const n = diff(s.start, s.end);
+    if (s.hotel) { const t = s.hotel[p.tier] || s.hotel.mid; out.push({ k: s.place, n, own: s.hotel, h: { v: t.total * n / s.nights, name: t.name, range: t.range, est: !t.real, crib: t.crib } }); return; }
+    const prev = out.find((x) => x.k === s.place && !x.own);
+    if (prev) { prev.n += n; prev.h = hotelOf(s.place, prev.n, p.tier, p); } else out.push({ k: s.place, n, h: hotelOf(s.place, n, p.tier, p) });
+  });
+  return out;
 }
 function hotelLines(sch, p) {
   const st = hotelStops(sch, p);
@@ -1854,9 +1867,9 @@ function App() {
       <h2>מלונות במסלול ${R0.id}</h2>
       <p className="lead-s">מחיר ללילה לכל 8 הנוסעים יחד (חדר לכל משפחה, או דירה/סוויטה גדולה), כולל מסים, בלי חניה. בחישוב משתמשים באמצע הטווח.</p>
       <${TierSwitch} p=${p} sp=${sp} sch=${sch} />
-      <div className="tbl-wrap"><table className="tbl htiers"><thead><tr><th>איפה</th><th>לילות</th><th className=${p.tier === "econ" ? "on" : ""}>חסכוני · ללילה</th><th className=${p.tier === "mid" ? "on" : ""}>בינוני · ללילה</th><th>סה״כ ברמה שנבחרה</th></tr></thead>
-        <tbody>${hotelStops(sch, p).map((x) => { const H = HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: ${usd(x.h.v / x.n)} ללילה</span></td>`;
-          return html`<tr key=${x.k}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}</td></tr>`; })}
+      <div className="tbl-wrap"><table className="tbl htiers"><thead><tr><th>איפה</th><th>לילות</th><th className=${p.tier === "econ" ? "on" : ""}>חסכוני</th><th className=${p.tier === "mid" ? "on" : ""}>בינוני</th><th>סה״כ ברמה שנבחרה</th></tr></thead>
+        <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: ${usd(x.h.v / x.n)} ללילה</span></td>`;
+          return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}</td></tr>`; })}
           ${bud.rpx ? html`<tr><td colSpan="4">תוספת Royal Pacific עם Express: ${ltr(bud.rpx.text)}</td><td className="num">${usd(bud.rpx.v)}</td></tr>` : null}</tbody>
         <tfoot><tr><td colSpan="4">סה״כ מלונות</td><td className="num">${usd(bud.lines.filter((l) => l.g === "מלונות").reduce((s, l) => s + l.v, 0))}</td></tr></tfoot></table></div>
       <p className="muted small">⚠ ${CRIB_NOTE}. בשישי ושבת המחירים בדרך כלל גבוהים ב-50%–100%. ביטול חינם: מלונות יוניברסל עד 6 ימים לפני; Hilton ו-Marriott בדרך כלל יום-יומיים לפני (לא נבדק לכל מלון).</p>
