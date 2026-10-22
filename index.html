@@ -64,7 +64,14 @@ select{font:inherit;font-size:16px;padding:8px 12px;border:1px solid #cbd5e1;bor
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:15px;margin-bottom:14px;color:#374151}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:6px;vertical-align:middle}
 .timeline{display:flex;flex-direction:column;gap:12px}
-.day{display:grid;grid-template-columns:90px 1fr 160px;gap:16px;border:1px solid var(--line);border-right:6px solid var(--c);border-radius:14px;padding:14px 16px;background:#fff;align-items:start}
+.grp{border:1px solid var(--line);border-right:6px solid var(--c);border-radius:14px;background:#fff;overflow:hidden}
+.grp-head{display:flex;gap:14px;align-items:center;padding:12px 16px;background:color-mix(in srgb,var(--c) 9%,#fff);border-bottom:1px solid var(--line)}
+.grp-head img{width:96px;height:60px;object-fit:cover;border-radius:8px}
+.grp-t{font-size:21px;font-weight:800;color:var(--c)}
+.grp-s{font-size:15px;color:#374151}
+.day{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:12px 16px;border-top:1px solid #f1f5f9;align-items:start}
+.grp-head+.day{border-top:0}
+.day-date em{font-style:normal;font-size:14px;font-weight:700;color:var(--c)}
 .day.flagged{background:#fffdf5}
 .day-date{display:flex;flex-direction:column}
 .day-date b{font-size:24px;line-height:1.1}
@@ -73,7 +80,7 @@ select{font:inherit;font-size:16px;padding:8px 12px;border:1px solid #cbd5e1;bor
 .it{display:flex;gap:10px;align-items:flex-start}
 .it-t{font-weight:600}
 .pill{color:#fff;font-size:12px;padding:2px 9px;border-radius:999px;margin-top:4px;flex:none}
-.day-img{width:160px;height:96px;object-fit:cover;border-radius:10px}
+
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .cal-h{text-align:center;font-weight:700;color:var(--muted);font-size:15px}
 .cal-c{min-height:84px;border:1px solid var(--line);border-top:4px solid #e5e7eb;border-radius:10px;padding:6px 8px;background:#fafafa;opacity:.5}
@@ -108,8 +115,18 @@ select{font:inherit;font-size:16px;padding:8px 12px;border:1px solid #cbd5e1;bor
 .notes li,.sources li{margin-bottom:8px}
 .sources{font-size:15px;word-break:break-all}
 footer{text-align:center;color:var(--muted);font-size:14px;padding:24px}
-@media (max-width:900px){.hero{grid-template-columns:1fr}.hero h1{font-size:30px}.budget-grid{grid-template-columns:1fr}.day{grid-template-columns:70px 1fr}.day-img{display:none}.card{padding:18px}.map{height:360px}}
+@media (max-width:900px){.hero{grid-template-columns:1fr}.hero h1{font-size:30px}.budget-grid{grid-template-columns:1fr}.day{grid-template-columns:84px 1fr}.card{padding:18px}.map{height:360px}}
 @media (max-width:520px){body{font-size:17px}.cal-t{font-size:11px}.cal-c{min-height:70px;padding:4px}}
+
+.dir{font-size:14px;color:#475569;font-weight:600}
+.rid{font-size:13px;color:var(--muted);margin-top:-4px}
+.bar{display:flex;height:12px;border-radius:999px;overflow:hidden;gap:2px;margin:6px 0 2px}
+.bar span{display:block;min-width:4px}
+.breakdown{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:15px;color:#1f2937}
+.breakdown i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:5px}
+.breakdown .tot{font-weight:800}
+.segdates{list-style:none;margin:6px 0 0;padding:0;font-size:15px;color:#374151;display:flex;flex-direction:column;gap:2px}
+.segdates b{font-weight:700;color:#111827;margin-left:4px}
 </style>
 </head>
 <body>
@@ -303,7 +320,7 @@ const NYC_HOME = { type: "flight", from: "jfk", to: "tlv", nonstop: true, hours:
 ROUTES.push(
   {
     id: "C", direction: "ns",
-    name: "מסלול C · קרוז באמצע (Utopia, 11–15.10), פארקים אחרי",
+    name: "מסלול C · קרוז באמצע: Utopia 11–15.10, פארקים אחרי",
     tagline: "2 לילות בניו יורק, 4 לילות בים בין מסע הכבישים לאורלנדו",
     color: "#7c3aed", photo: "uto",
     outbound: OUT_NYC,
@@ -323,7 +340,7 @@ ROUTES.push(
   },
   {
     id: "D", direction: "ns",
-    name: "מסלול D · קרוז מוקדם (Utopia 8–11.10), הרבה זמן באורלנדו",
+    name: "מסלול D · קרוז מוקדם: Utopia 8–11.10, הרבה זמן באורלנדו",
     tagline: "2 לילות בניו יורק, יציאה ב-2.10, עד כ-5 שעות נהיגה ביום, יוניברסל אחרי הקרוז",
     color: "#ea580c", photo: "orl",
     outbound: OUT_NYC,
@@ -355,7 +372,7 @@ ROUTES.push(
   /* ===== REVERSE (south → north) ===== */
   {
     id: "R1", direction: "sn", partial: true, recommended: true,
-    name: "מסלול R1 · מיאמי קודם (Wonder 4–8.10), צפונה לניו יורק",
+    name: "מסלול R1 · מיאמי קודם: Wonder 4–8.10, צפונה לניו יורק",
     tagline: "נוחתים במיאמי, קרוז, יוניברסל, נוסעים צפונה, טסים הביתה מניו יורק",
     color: "#0891b2", photo: "won",
     outbound: { label: "טיסה תל אביב ← מיאמי (MIA)", from: "tlv", to: "miaAir", options: "toMIA", def: "ly" },
@@ -374,7 +391,7 @@ ROUTES.push(
   },
   {
     id: "R2", direction: "sn", partial: true,
-    name: "מסלול R2 · Wonder מיד בנחיתה (1–4.10), צפונה לניו יורק",
+    name: "מסלול R2 · Wonder מיד בנחיתה: 1–4.10, צפונה לניו יורק",
     tagline: "עולים לאונייה יום אחרי הנחיתה; 2 לילות במנהטן בסוף",
     color: "#64748b", photo: "coco",
     outbound: { label: "טיסה תל אביב ← מיאמי (MIA)", from: "tlv", to: "miaAir", options: "toMIA", def: "ly" },
@@ -394,7 +411,7 @@ ROUTES.push(
   },
   {
     id: "R3", direction: "sn", partial: true,
-    name: "מסלול R3 · יוניברסל קודם (Utopia 4–8.10), צפונה לניו יורק",
+    name: "מסלול R3 · יוניברסל קודם: Utopia 4–8.10, צפונה לניו יורק",
     tagline: "נוחתים באורלנדו, פארקים 1–3.10, קרוז, אחר כך צפונה ו-2 לילות במנהטן",
     color: "#16a34a", photo: "uto",
     outbound: { label: "טיסה תל אביב ← אורלנדו (MCO)", from: "tlv", to: "mco", options: "toMCO", def: "tp" },
@@ -478,6 +495,37 @@ const ALL_ROUTES = ROUTE_ORDER.map((id) => ROUTES.find((r) => r.id === id)).filt
 const DEFAULT_ARRIVAL = "2027-09-30";
 
 /* ---------- schedule engine ---------- */
+const phaseOf = (place) => (place === "nyc" ? "nyc" : place === "orl" ? "parks" : place === "mia" || place === "pc" ? "beach" : "road");
+const bidi = (t) => (typeof t === "string" ? t.replace(/\d+(?:[.:]\d+)*(?:\s?[–-]\s?\d+(?:[.:]\d+)*)+/g, (m) => "\u2066" + m + "\u2069") : t);
+const dRange = (a, b) => { const A = D(a), B = D(b); return "\u2066" + (A.getUTCMonth() === B.getUTCMonth() ? A.getUTCDate() + "–" + dm(b) : dm(a) + "–" + dm(b)) + "\u2069"; };
+const shipShort = (ship) => ship.split(" ")[0];
+/* groups of consecutive days by where you sleep */
+function groupsOf(sch) {
+  const sleep = {};
+  sch.segs.forEach((s) => {
+    if (s.type === "stay" || s.type === "parks") for (let d = s.start; d < s.end; d = add(d, 1)) sleep[d] = { key: s.place, label: P(s.place).short, phase: phaseOf(s.place), photo: P(s.place).photo };
+    if (s.type === "cruise") for (let d = s.start; d < s.end; d = add(d, 1)) sleep[d] = { key: "cruise", label: "קרוז – " + shipShort(s.ship), phase: "cruise", photo: s.ship.startsWith("Utopia") ? "uto" : "won" };
+  });
+  const groups = [];
+  for (let d = sch.arrival; d <= sch.end; d = add(d, 1)) {
+    const info = sleep[d] || { key: "home", label: "חזרה הביתה", phase: "flight" };
+    const g = groups[groups.length - 1];
+    if (g && g.key === info.key) g.dates.push(d); else groups.push({ ...info, dates: [d] });
+  }
+  groups.forEach((g) => { g.nights = g.key === "home" ? 0 : g.dates.length; g.start = g.dates[0]; g.endOut = add(g.dates[g.dates.length - 1], 1); });
+  return groups;
+}
+const CAT = { nyc: "ניו יורק", road: "מסע ברכב", parks: "אורלנדו", beach: "חוף ונמל", cruise: "קרוז" };
+function breakdown(sch) {
+  const runs = [];
+  groupsOf(sch).filter((g) => g.key !== "home").forEach((g) => {
+    const last = runs[runs.length - 1];
+    if (last && last.phase === g.phase) { last.nights += g.nights; last.endOut = g.endOut; }
+    else runs.push({ phase: g.phase, nights: g.nights, start: g.start, endOut: g.endOut });
+  });
+  const total = runs.reduce((s, r) => s + r.nights, 0);
+  return { runs, total };
+}
 function computeSchedule(route, shift, cutPlace, autoFix) {
   const legs = route.legs.map((l) => ({ ...l }));
   const planned = route.arrivalDefault || DEFAULT_ARRIVAL;
@@ -561,7 +609,7 @@ function computeSchedule(route, shift, cutPlace, autoFix) {
       for (let d = s.start; d < s.end; d = add(d, 1)) {
         if (s.type === "parks" && s.parkDates.includes(d)) push(d, { phase: "parks", place: s.place, title: "יוניברסל · יום " + (s.parkDates.indexOf(d) + 1), detail: P(s.place).name });
         else if (s.type === "parks" && s.restDates.includes(d)) push(d, { phase: "parks", place: s.place, title: "יום חופשי באורלנדו", detail: "בריכה, קניות או מנוחה" });
-        else push(d, { phase: s.place === "nyc" ? "nyc" : s.type === "parks" ? "parks" : "road", place: s.place, title: d === s.start ? "לינה ב" + P(s.place).short : P(s.place).name, detail: d === s.start ? s.nights + " לילות" : "יום טיולים" });
+        else push(d, { phase: phaseOf(s.place), place: s.place, title: d === s.start ? "הגעה ל" + P(s.place).short : "יום ב" + P(s.place).short, detail: d === s.start ? "" : "יום חופשי לטיולים" });
       }
     }
     if (s.type === "drive") push(s.date, { phase: "drive", title: "נסיעה: " + P(s.from).short + " ← " + P(s.to).short, detail: "כ-" + s.miles + " מייל · כ-" + s.hours + " שעות" + (s.note ? " · " + s.note : "") });
@@ -626,11 +674,11 @@ function computeBudget(sch, p, rp) {
 /* ---------- UI pieces ---------- */
 const PHASE = {
   flight: { label: "טיסה", color: "#64748b" }, nyc: { label: "ניו יורק", color: "#2563eb" },
-  drive: { label: "נסיעה", color: "#d97706" }, road: { label: "בדרך", color: "#f59e0b" },
-  parks: { label: "אורלנדו", color: "#7c3aed" }, cruise: { label: "קרוז", color: "#0d9488" },
+  drive: { label: "נסיעה", color: "#d97706" }, road: { label: "מסע ברכב", color: "#f59e0b" },
+  parks: { label: "אורלנדו", color: "#7c3aed" }, beach: { label: "חוף ונמל", color: "#0ea5e9" }, cruise: { label: "קרוז", color: "#0d9488" },
 };
 const Badge = ({ tone, children }) => html`<span className=${"badge " + (tone || "")}>${children}</span>`;
-const Flag = ({ f }) => html`<div className=${"flag " + f.level}><span className="dot"></span><span>${f.date ? dm(f.date) + " · " : ""}${f.text}</span></div>`;
+const Flag = ({ f }) => html`<div className=${"flag " + f.level}><span className="dot"></span><span>${bidi((f.date ? dm(f.date) + " · " : "") + f.text)}</span></div>`;
 
 function Slider({ label, value, min, max, step, onChange, fmt, note }) {
   return html`<label className="slider">
@@ -732,7 +780,7 @@ function App() {
   const shown = all.filter((x) => dir === "all" || x.r.direction === dir);
   const cmpRows = all.filter((x) => cmp.includes(x.r.id));
   const toggleCmp = (id) => setCmp(cmp.includes(id) ? cmp.filter((x) => x !== id) : cmp.length >= 3 ? [...cmp.slice(1), id] : [...cmp, id]);
-  const dirLabel = (d) => (d === "ns" ? "צפון ← דרום" : "דרום ← צפון");
+  const dirLabel = (d) => (d === "ns" ? "ניו יורק ← מיאמי" : "מיאמי ← ניו יורק");
   const dayList = Object.keys(cur.sch.days).sort();
   const flight = cur.sch.segs.find((s) => s.type === "flight");
   const palette = ["#2563eb", "#0d9488", "#7c3aed", "#f59e0b", "#db2777", "#64748b", "#16a34a", "#ea580c", "#0891b2", "#a16207", "#9333ea", "#475569"];
@@ -760,28 +808,25 @@ function App() {
   <main>
   <section id="routes" className="card">
     <div className="sec-head"><h2>בחירת מסלול</h2>
-      <div className="seg">${[["all", "הכל"], ["ns", "צפון ← דרום"], ["sn", "דרום ← צפון"]].map(([v, l]) => html`<button key=${v} className=${dir === v ? "on" : ""} onClick=${() => setDir(v)}>${l}</button>`)}</div>
+      <div className="seg">${[["all", "הכל"], ["ns", "ניו יורק ← מיאמי"], ["sn", "מיאמי ← ניו יורק"]].map(([v, l]) => html`<button key=${v} className=${dir === v ? "on" : ""} onClick=${() => setDir(v)}>${l}</button>`)}</div>
     </div>
     <div className="route-grid">
       ${shown.map(({ r, sch, bud }) => html`<div key=${r.id} className=${"route-card" + (sel === r.id ? " selected" : "") + (r.partial ? " pending" : "")} style=${{ "--c": r.color }} onClick=${() => setSel(r.id)}>
         <img src=${IMGS[r.photo]} alt=${r.name} />
         <div className="rc-body">
+          ${(() => { const bd = breakdown(sch); const f = sch.segs.find((s) => s.type === "flight"); const rp0 = rps[r.id] || {}; const retNs = f.options ? optNonstop(f.options, rp0.retOpt || f.def) : f.nonstop; const outNs = r.outbound.options ? optNonstop(r.outbound.options, rp0.outOpt || r.outbound.def) : true; const danger = sch.flags.some((x) => x.level === "danger"); return html`
           <div className="badges">
-            ${r.recommended && html`<${Badge} tone="green">מומלץ · ${dirLabel(r.direction)}</${Badge}>`}
+            ${r.recommended && html`<${Badge} tone="green">מומלץ</${Badge}>`}
             ${r.partial && html`<${Badge} tone="gray">בבדיקה</${Badge}>`}
-            <${Badge} tone="blue">${dirLabel(r.direction)}</${Badge}>
-            ${(() => { const f = sch.segs.find((s) => s.type === "flight"); const rp0 = rps[r.id] || {}; const retNs = f.options ? optNonstop(f.options, rp0.retOpt || f.def) : f.nonstop; const outNs = r.outbound.options ? optNonstop(r.outbound.options, rp0.outOpt || r.outbound.def) : true; return retNs && outNs ? html`<${Badge} tone="teal">טיסות ישירות</${Badge}>` : html`<${Badge}>טיסה עם עצירה</${Badge}>`; })()}
-            <${Badge}>${sch.parkDaysActual} ימי פארקים</${Badge}>
-            ${sch.flags.filter((f) => f.level === "danger").length > 0 && html`<${Badge} tone="red">התנגשות</${Badge}>`}
-            ${sch.flags.filter((f) => f.level === "warning").length > 0 && html`<${Badge} tone="amber">${sch.flags.filter((f) => f.level === "warning").length} אזהרות</${Badge}>`}
+            ${danger && html`<${Badge} tone="red">התנגשות</${Badge}>`}
           </div>
-          <h3>${r.name}</h3>
-          <p className="muted">${r.tagline}</p>
-          <ul className="facts">
-            <li>${dm(sch.arrival)} – ${dm(sch.flightDate)} · ${diff(sch.arrival, sch.flightDate)} לילות</li>
-            <li>${sch.cruise.ship} · ${dm(sch.cruise.start)}–${dm(sch.cruise.end)} · ${P(sch.cruise.port).short}</li>
-            <li>${sch.segs.find((s) => s.type === "flight").label}</li>
-          </ul>
+          <div className="dir">${dirLabel(r.direction)} · ${retNs && outNs ? "טיסות ישירות" : "טיסה עם עצירה"}</div>
+          <h3>${bidi(r.name.replace(/^מסלול \S+ · /, ""))}</h3>
+          <div className="rid">מסלול ${r.id}</div>
+          <div className="bar">${bd.runs.map((x, i) => html`<span key=${i} title=${CAT[x.phase] + " " + x.nights} style=${{ flex: x.nights, background: PHASE[x.phase].color }}></span>`)}</div>
+          <div className="breakdown">${bd.runs.map((x, i) => html`<span key=${i}><i style=${{ background: PHASE[x.phase].color }}></i>${CAT[x.phase]} ${x.nights}</span>`)}<span className="tot">סה״כ ${bd.total} לילות</span></div>
+          <ul className="segdates">${bd.runs.map((x, i) => html`<li key=${i}><b>${CAT[x.phase]}</b> ${dRange(x.start, x.endOut)}${x.phase === "cruise" ? " · " + shipShort(sch.cruise.ship) + " מ" + P(sch.cruise.port).short : x.phase === "parks" ? " · " + sch.parkDaysActual + " ימי יוניברסל" : ""}</li>`)}
+            <li><b>טיסה הביתה</b> ${dm(sch.flightDate)} · ${f.from === "jfk" ? "מניו יורק" : f.from === "miaAir" ? "ממיאמי" : "מאורלנדו"}</li></ul>`; })()}
           <div className="total">${bud.pending ? html`<span className="muted">עלות: בבדיקה</span>` : html`<span>${r.partial ? "סה״כ משוער (חלקי)" : "סה״כ משוער"}</span><b>${usd(bud.total)}</b>`}</div>
           <label className="cmp-check" onClick=${(e) => e.stopPropagation()}><input type="checkbox" checked=${cmp.includes(r.id)} onChange=${() => toggleCmp(r.id)} /> להשוואה</label>
         </div>
@@ -802,7 +847,7 @@ function App() {
   </section>
 
   <section className="card">
-    <h2>${cur.r.name}</h2>
+    <h2>${bidi(cur.r.name)}</h2>
     ${cur.r.note && html`<p className="muted">${cur.r.note}</p>`}
     <div className="flags">${cur.sch.flags.length ? cur.sch.flags.map((f, i) => html`<${Flag} key=${i} f=${f} />`) : html`<div className="flag ok"><span className="dot"></span>אין התנגשויות במסלול הזה</div>`}</div>
   </section>
@@ -811,14 +856,19 @@ function App() {
     <h2>לו״ז יום אחר יום</h2>
     <div className="legend">${Object.entries(PHASE).map(([k, v]) => html`<span key=${k}><i style=${{ background: v.color }}></i>${v.label}</span>`)}</div>
     <div className="timeline">
-      ${dayList.map((d) => { const items = cur.sch.days[d]; const ph = (items.find((x) => x.phase !== "drive") || items[0]).phase; const ph2 = items.find((x) => x.place && PLACES[x.place] && PLACES[x.place].photo); return html`<div key=${d} className=${"day" + (items.flag ? " flagged" : "")} style=${{ "--c": PHASE[ph].color }}>
-        <div className="day-date"><b>${dm(d)}</b><span>יום ${wd(d)}</span></div>
-        <div className="day-body">
-          ${items.map((it, i) => html`<div key=${i} className="it"><span className="pill" style=${{ background: PHASE[it.phase].color }}>${PHASE[it.phase].label}</span><div><div className="it-t">${it.title}</div>${it.detail && html`<div className="muted small">${it.detail}</div>`}</div></div>`)}
-          ${cur.sch.flags.filter((f) => f.date === d).map((f, i) => html`<${Flag} key=${"f" + i} f=${f} />`)}
+      ${groupsOf(cur.sch).map((g) => html`<div key=${g.key + g.start} className="grp" style=${{ "--c": PHASE[g.phase].color }}>
+        <div className="grp-head">
+          ${g.photo && html`<img src=${IMGS[g.photo]} alt=${g.label} />`}
+          <div><div className="grp-t">${g.label}</div><div className="grp-s">${g.key === "home" ? dRange(g.start, g.dates[g.dates.length - 1]) : dRange(g.start, g.endOut) + " · " + g.nights + (g.nights === 1 ? " לילה" : " לילות")}</div></div>
         </div>
-        ${ph2 && html`<img className="day-img" src=${IMGS[PLACES[ph2.place].photo]} alt=${PLACES[ph2.place].name} />`}
-      </div>`; })}
+        ${g.dates.map((d) => { const items = cur.sch.days[d] || []; return html`<div key=${d} className=${"day" + (items.flag ? " flagged" : "")}>
+          <div className="day-date"><b>${dm(d)}</b><span>יום ${wd(d)}</span><em>${g.label}</em></div>
+          <div className="day-body">
+            ${items.map((it, i) => html`<div key=${i} className="it"><span className="pill" style=${{ background: PHASE[it.phase].color }}>${PHASE[it.phase].label}</span><div><div className="it-t">${bidi(it.title)}</div>${it.detail && html`<div className="muted small">${bidi(it.detail)}</div>`}</div></div>`)}
+            ${cur.sch.flags.filter((f) => f.date === d).map((f, i) => html`<${Flag} key=${"f" + i} f=${f} />`)}
+          </div>
+        </div>`; })}
+      </div>`)}
     </div>
   </section>
 
