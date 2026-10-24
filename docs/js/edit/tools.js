@@ -1,0 +1,99 @@
+// Edit buttons that appear next to content in edit mode (rows, categories, option questions).
+import { h, icon, toast } from "../ui/h.js";
+import { commit, undo } from "../data/commit.js";
+import { activeList } from "../shared/engine.js";
+import { newId } from "../shared/schema.js";
+import { ID_PREFIX } from "../shared/ops.js";
+
+/** Commit with a toast that offers undo. */
+export async function run(ops, opts = {}) {
+  try {
+    const res = await commit(ops, opts);
+    toast(opts.doneText || "נשמר ✓", res?.changeId ? { label: "ביטול", run: () => undoChange(res.changeId) } : null);
+    return res;
+  } catch (err) {
+    toast(err.message || "לא נשמר");
+    throw err;
+  }
+}
+
+export async function undoChange(id) {
+  try {
+    await undo(id);
+    toast("השינוי בוטל");
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+/** Swap `order` with the neighbour (renumbers the list when orders collide). */
+export function moveOps(entity, list, id, dir) {
+  const i = list.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return [];
+  const orders = list.map((x, k) => x.order ?? k);
+  const unique = new Set(orders).size === orders.length;
+  const target = unique ? orders : list.map((_, k) => k + 1);
+  const next = [...target];
+  [next[i], next[j]] = [next[j], next[i]];
+  return list
+    .map((x, k) => ({ x, k }))
+    .filter(({ x, k }) => (x.order ?? null) !== next[k])
+    .map(({ x, k }) => ({ t: "update", e: entity, id: x.id, set: { order: next[k] }, before: { order: x.order ?? null } }));
+}
+
+export function duplicateOp(entity, rec, overrides = {}) {
+  const { id: _id, v: _v, archived: _a, ...rest } = rec;
+  return { t: "create", e: entity, id: newId(ID_PREFIX[entity] || "id"), v: { ...structuredClone(rest), ...overrides } };
+}
+
+export const nextOrder = (map) => Math.max(0, ...activeList(map).map((x) => x.order ?? 0)) + 1;
+
+function smallBtn(label, iconName, onclick, attrs = {}) {
+  return h("button", { type: "button", class: "edit-btn", onclick, ...attrs }, icon(iconName, "icon-sm"), label);
+}
+function smallLink(label, iconName, href) {
+  return h("a", { class: "edit-btn", href }, icon(iconName, "icon-sm"), label);
+}
+
+export const editTools = {
+  item(ctx, item) {
+    const siblings = activeList(ctx.state.items).filter((x) => x.categoryId === item.categoryId);
+    return h("div", { class: "btn-row" },
+      smallLink("עריכה", "edit", `#/edit/item/${encodeURIComponent(item.id)}`),
+      smallBtn("שכפול", "copy", () => run([duplicateOp("items", item, { label: `${item.label} (עותק)`, order: (item.order ?? 0) + 0.5 })], { doneText: "השורה שוכפלה" })),
+      smallBtn("למעלה", "up", () => run(moveOps("items", siblings, item.id, -1)), { disabled: siblings[0]?.id === item.id }),
+      smallBtn("למטה", "down", () => run(moveOps("items", siblings, item.id, 1)), { disabled: siblings.at(-1)?.id === item.id }),
+      smallBtn("הסרה", "archive", () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" הוסר` })));
+  },
+
+  category(ctx, cat) {
+    const cats = activeList(ctx.state.categories);
+    return h("div", { class: "btn-row" },
+      smallLink("עריכת הקטגוריה", "edit", `#/edit/category/${encodeURIComponent(cat.id)}`),
+      smallBtn("למעלה", "up", () => run(moveOps("categories", cats, cat.id, -1)), { disabled: cats[0]?.id === cat.id }),
+      smallBtn("למטה", "down", () => run(moveOps("categories", cats, cat.id, 1)), { disabled: cats.at(-1)?.id === cat.id }),
+      smallBtn("הסרת הקטגוריה", "archive", () => {
+        const rows = activeList(ctx.state.items).filter((x) => x.categoryId === cat.id);
+        run([{ t: "archive", e: "categories", id: cat.id }, ...rows.map((x) => ({ t: "archive", e: "items", id: x.id }))], { doneText: `הקטגוריה "${cat.label}" הוסרה` })
+          .then(() => { location.hash = "#/"; })
+          .catch(() => {});
+      }));
+  },
+
+  addItem(ctx, catId) {
+    return h("div", { class: "btn-row" },
+      h("a", { class: "btn", href: `#/edit/item/new/${encodeURIComponent(catId)}` }, icon("plus"), "הוספת שורה"),
+      h("a", { class: "btn btn-secondary", href: "#/edit/category/new" }, icon("plus"), "קטגוריה חדשה"));
+  },
+
+  optionGroup(ctx, g) {
+    const opts = activeList(ctx.state.options).filter((o) => o.groupId === g.id);
+    return h("div", { class: "stack", style: { marginTop: "12px" } },
+      h("div", { class: "btn-row" },
+        smallLink("עריכת השאלה", "edit", `#/edit/group/${encodeURIComponent(g.id)}`),
+        smallLink("אפשרות חדשה", "plus", `#/edit/option/new/${encodeURIComponent(g.id)}`)),
+      h("p", { class: "meta" }, "עריכת אפשרות:"),
+      h("div", { class: "btn-row" }, opts.map((o) => smallLink(o.label, "edit", `#/edit/option/${encodeURIComponent(o.id)}`))));
+  },
+};

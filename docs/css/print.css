@@ -1,0 +1,11 @@
+@media print {
+  body { background: #fff; font-size: 12pt; }
+  .nav, .editbar, .demo-banner, .btn, .back, .edit-btn, .toast, .no-print { display: none !important; }
+  .page { padding: 0; max-width: none; }
+  .card, .hero { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  .hero { background: #fff; color: #000; }
+  .hero-total, .hero-usd, .hero-range, .hero-dates, .hero-label, .hero-updated { color: #000; }
+  .hero-split > div { background: #f3f3f3; }
+  .hero-split .v, .hero-split .k { color: #000; }
+  a { color: #000; text-decoration: none; }
+}

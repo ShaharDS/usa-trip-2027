@@ -1,0 +1,51 @@
+/* Design tokens. Contrast was measured for every text/background pair (WCAG AA). */
+:root {
+  --bg: #F5F7FA;
+  --card: #FFFFFF;
+  --ink: #1F2641;
+  --muted: #525B73;
+  --border: #DCE1E9;
+  --border-strong: #8A93A6;
+
+  --primary: #0B5CAD;
+  --primary-hover: #094A8C;
+  --primary-soft: #E6EFF8;
+  --focus: #5C6AC4;
+
+  --sun: #F59E3B;          /* fill only — never text */
+  --accent-text: #A34A06;
+
+  --paid: #15704F;
+  --booked: #15704F;
+  --booked-soft: #E5F4EC;
+  --quote: #0B5CAD;
+  --quote-soft: #E6EFF8;
+  --estimate: #8A5A0E;
+  --estimate-soft: #FCF1DD;
+  --danger: #B42335;
+  --danger-soft: #FDECEE;
+
+  --hero: #1F2641;
+  --hero-soft: #2C3558;
+  --gold: #FFE07A;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 12px 36px rgba(31, 38, 65, 0.05), 0 1px 2px rgba(31, 38, 65, 0.07);
+
+  --font: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-head: "Rubik", "Heebo", system-ui, sans-serif;
+
+  --fs-meta: 15px;
+  --fs-label: 16px;
+  --fs-base: 18px;
+  --fs-h3: 20px;
+  --fs-h2: 24px;
+  --fs-h1: 30px;
+  --fs-total: clamp(44px, 12vw, 60px);
+
+  --tap: 48px;
+  --gutter: 16px;
+  --maxw: 720px;
+  --nav-h: 68px;
+}

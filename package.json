@@ -1,0 +1,20 @@
+{
+  "name": "usa-trip-2027",
+  "description": "Family trip-cost hub for the USA trip (Hebrew, RTL). Static site in docs/, Firebase backend in functions/.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/ && node scripts/check-utf8.mjs",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-usa-trip \"node --test tests/rules/firestore.rules.mjs tests/rules/storage.rules.mjs\"",
+    "test:all": "npm test && npm --prefix functions test && npm run test:rules && node -e \"setTimeout(() => {}, 6000)\" && npm run test:integration",
+    "serve": "node scripts/serve.mjs",
+    "check:utf8": "node scripts/check-utf8.mjs",
+    "test:integration": "npm --prefix functions run build && firebase emulators:exec --only auth,firestore,functions,storage --project demo-usa-trip \"node --test --test-concurrency=1 tests/integration/functions.int.mjs tests/integration/ai.int.mjs\"",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --project demo-usa-trip"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0",
+    "lucide-static": "^1.61.0"
+  }
+}

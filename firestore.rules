@@ -1,0 +1,83 @@
+rules_version = '2';
+
+// Who can do what:
+//   anyone          — read the public cost summary (trips/{t}/public/state), nothing else
+//   family (listed) — also read the private document, change history, documents list, their own AI answers
+//   editors         — also read AI proposals and usage
+// Nobody writes trip data from the browser: every change goes through the Cloud Functions
+// (commitChange, applyProposal, ...), which validate it and keep the history. The owner is configured in
+// the functions (OWNER_EMAIL) and is always kept on the editors list in config/access.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    function access() {
+      return get(/databases/$(database)/documents/config/access).data;
+    }
+    function isEditor() {
+      return signedIn() && email() in access().editors;
+    }
+    function isFamily() {
+      return signedIn() && (email() in access().editors || email() in access().family);
+    }
+
+    match /trips/{tripId}/public/state {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    match /trips/{tripId}/private/state {
+      allow get: if isFamily();
+      allow list, write: if false;
+    }
+
+    match /trips/{tripId}/changes/{id} {
+      allow read: if isFamily();
+      allow write: if false;
+    }
+    match /trips/{tripId}/documents/{id} {
+      allow read: if isFamily();
+      allow write: if false;
+    }
+    match /trips/{tripId}/alerts/{id} {
+      allow read: if isFamily();
+      allow write: if false;
+    }
+    match /trips/{tripId}/proposals/{id} {
+      allow read: if isEditor() || (isFamily() && resource.data.createdBy.uid == request.auth.uid);
+      allow write: if false;
+    }
+    match /trips/{tripId}/usage/{id} {
+      allow read: if isEditor();
+      allow write: if false;
+    }
+
+    // The allowlist is managed only through the getAccess / setAccess functions.
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid && isFamily()
+        && request.resource.data.keys().hasOnly(['lastSeenVersion', 'lastSeenAt'])
+        && request.resource.data.lastSeenVersion is int
+        && request.resource.data.lastSeenAt == request.time;
+    }
+    match /users/{uid}/asks/{id} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

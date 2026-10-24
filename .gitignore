@@ -1,0 +1,33 @@
+# Secrets & personal config: never commit
+.firebaserc
+functions/.env
+functions/.env.*
+functions/.secret.local
+!functions/.env.example
+LOCAL-NOTES.md
+seed/*private*.json
+!seed/seed-private.example.json
+*serviceAccount*.json
+
+# Build output / generated copies
+node_modules/
+functions/node_modules/
+functions/lib/
+functions/src/shared/
+functions/assets/
+.firebase/
+*.log
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+
+# Local tooling
+.tmp/
+.claude/
+.playwright-mcp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

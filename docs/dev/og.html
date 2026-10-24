@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>OG image source</title>
+<!-- Source for assets/og.jpg (the WhatsApp link preview). Render at 1200×630 and save as JPG.
+     Never put the live total here: WhatsApp caches previews for weeks. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;800;900&family=Rubik:wght@700&display=swap">
+<style>
+  html, body { margin: 0; overflow: hidden; }
+  body { width: 1200px; height: 630px; overflow: hidden; font-family: Heebo, sans-serif; background: #1F2641; color: #fff; }
+  .wrap { position: fixed; inset: 0; width: 1200px; height: 630px; overflow: hidden; padding: 40px 90px 120px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+  .sun { position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(245,158,59,.55), rgba(245,158,59,0) 65%); left: 0; top: -200px; transform: translateX(-25%); }
+  h1 { font-family: Rubik, Heebo, sans-serif; font-size: 82px; line-height: 1.05; margin: 0 0 18px; color: #FFE07A; position: relative; }
+  .route { font-size: 38px; font-weight: 500; color: #D5DAEA; margin: 0 0 46px; position: relative; }
+  .cta { display: inline-flex; align-self: flex-start; align-items: center; gap: 18px; background: #fff; color: #1F2641; border-radius: 22px; padding: 18px 34px; font-size: 40px; font-weight: 800; position: relative; }
+  .icons { position: absolute; left: 90px; bottom: 34px; display: flex; gap: 26px; }
+  .icons span { width: 92px; height: 92px; border-radius: 26px; display: grid; place-items: center; background: #2C3558; }
+  svg { width: 52px; height: 52px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="sun"></div>
+    <h1>הטיול המשפחתי לארה״ב</h1>
+    <p class="route">ניו יורק · נסיעה דרומה · אורלנדו · שייט</p>
+    <div class="cta">כמה זה עולה? לסיכום המעודכן ←</div>
+    <div class="icons">
+      <span style="color:#7FC4F0"><svg><use href="../assets/icons.svg#i-plane"/></svg></span>
+      <span style="color:#D9B38C"><svg><use href="../assets/icons.svg#i-car"/></svg></span>
+      <span style="color:#F59AC7"><svg><use href="../assets/icons.svg#i-ferris"/></svg></span>
+      <span style="color:#9FD0F0"><svg><use href="../assets/icons.svg#i-ship"/></svg></span>
+    </div>
+  </div>
+</body>
+</html>
