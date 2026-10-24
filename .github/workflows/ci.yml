@@ -27,7 +27,7 @@ jobs:
         run: npm --prefix functions test
       - name: Emulator config (fake owner, fake Claude — no secrets, no cost)
         run: |
-          printf 'OWNER_EMAIL=owner@example.com\nCLAUDE_FAKE=1\n' > functions/.env.local
+          printf 'OWNER_EMAIL=owner@example.com,owner2@example.com\nCLAUDE_FAKE=1\n' > functions/.env.local
           printf 'ANTHROPIC_API_KEY=fake-key-for-emulator\n' > functions/.secret.local
       - name: Security rules tests
         run: npm run test:rules

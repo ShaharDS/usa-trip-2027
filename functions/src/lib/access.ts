@@ -1,10 +1,11 @@
-// Who is calling: owner (OWNER_EMAIL), editor or family (config/access), or nobody special.
+// Who is calling: owner (OWNER_EMAIL — one or more accounts, comma-separated), editor or family (config/access),
+// or nobody special.
 // Mirrors the security rules: a verified Google account is required for any role.
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineString } from "firebase-functions/params";
 import { db, paths } from "./admin.js";
 
-export const OWNER_EMAIL = defineString("OWNER_EMAIL", { description: "Google account of the site owner" });
+export const OWNER_EMAIL = defineString("OWNER_EMAIL", { description: "Google account(s) of the site owner(s), comma-separated" });
 
 export type Role = "public" | "family" | "editor" | "owner";
 export interface Access {
@@ -22,7 +23,8 @@ export interface Caller {
 const RANK: Record<Role, number> = { public: 0, family: 1, editor: 2, owner: 3 };
 let cache: { at: number; access: Access } | null = null;
 
-export const ownerEmail = () => (OWNER_EMAIL.value() || "").trim().toLowerCase();
+export const ownerEmails = (): string[] =>
+  (OWNER_EMAIL.value() || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 
 export async function loadAccess(fresh = false): Promise<Access> {
   if (!fresh && cache && Date.now() - cache.at < 60_000) return cache.access;
@@ -44,7 +46,7 @@ export async function callerOf(req: CallableRequest, fresh = false): Promise<Cal
   if (!req.auth || !token?.email || token.email_verified !== true || token.firebase?.sign_in_provider !== "google.com") return nobody;
   const email = String(token.email).toLowerCase();
   const fallbackLabel = String(token.name || email.split("@")[0]);
-  if (email === ownerEmail()) return { role: "owner", uid: req.auth.uid, email, label: fallbackLabel };
+  if (ownerEmails().includes(email)) return { role: "owner", uid: req.auth.uid, email, label: fallbackLabel };
   const access = await loadAccess(fresh);
   if (access.editors[email]) return { role: "editor", uid: req.auth.uid, email, label: access.editors[email].label || fallbackLabel };
   if (access.family[email]) return { role: "family", uid: req.auth.uid, email, label: access.family[email].label || fallbackLabel };

@@ -126,3 +126,17 @@ test("full flow: owner → access → editor edits → viewer sees → undo", as
   const pubText = JSON.stringify((await readRest("trips/usa2027/public/state")).json);
   assert.ok(!pubText.includes("ABC123"), "booking code must never reach the public document");
 });
+
+test("a second owner account (OWNER_EMAIL list) is a full owner and can't be removed", async () => {
+  const owner = await googleUser("owner@example.com", "שחר");
+  const owner2 = await googleUser("owner2@example.com", "שחר 2");
+  assert.equal((await call("whoami", {}, owner2)).role, "owner");
+  const acc = await call("getAccess", {}, owner2);
+  assert.deepEqual(acc.ownerEmails, ["owner@example.com", "owner2@example.com"]);
+  assert.ok(acc.editors["owner2@example.com"], "owner2 was put on the editors list by whoami");
+  await call("setAccess", { add: "cousin@example.com", role: "family", label: "בת דודה" }, owner2);
+  await rejects(call("setAccess", { remove: "owner2@example.com" }, owner), "INVALID_ARGUMENT");
+  await rejects(call("setAccess", { remove: "owner@example.com" }, owner2), "INVALID_ARGUMENT");
+  const r = await call("adminImport", { pub: seed }, owner2);
+  assert.ok(r.version >= 1);
+});

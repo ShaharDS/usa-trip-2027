@@ -155,7 +155,7 @@ function access(ctx) {
         Object.keys(data[key] || {}).length
           ? h("ul", { class: "check-list" }, Object.entries(data[key]).map(([mail, info]) => h("li", {},
             h("span", { class: "grow" }, info?.label ? `${info.label} — ` : "", h("bdi", {}, mail)),
-            data.ownerEmail === mail ? h("span", { class: "meta" }, "בעל האתר") : h("button", { type: "button", class: "edit-btn", onclick: () => update({ remove: mail }) }, icon("trash", "icon-sm"), "הסרה"))))
+            (data.ownerEmails || []).includes(mail) ? h("span", { class: "meta" }, "בעל האתר") : h("button", { type: "button", class: "edit-btn", onclick: () => update({ remove: mail }) }, icon("trash", "icon-sm"), "הסרה"))))
           : emptyState("אין עדיין."))));
   const update = async (change) => {
     try {
