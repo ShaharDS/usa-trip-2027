@@ -92,7 +92,8 @@ function topBars() {
   if (can.edit() && store.docs.plan) {
     bars.push(h("div", { class: "editbar" },
       h("span", {}, icon("edit", "icon-sm"), store.editMode ? " מצב עריכה" : " בלי כפתורי עריכה"),
-      h("span", { class: "row", style: { gap: "6px" } },
+      h("span", { class: "row wrap", style: { gap: "6px" } },
+        h("button", { type: "button", onclick: () => { location.hash = "#/edit/expense/new"; } }, icon("plus", "icon-sm"), " הוצאה"),
         h("button", { type: "button", onclick: () => setState({ editMode: !store.editMode }) }, store.editMode ? "להסתיר כפתורי עריכה" : "לחזור לעריכה"),
         h("button", { type: "button", onclick: () => { location.hash = "#/history"; } }, "היסטוריה"),
         h("button", { type: "button", onclick: () => { location.hash = "#/ask"; } }, icon("sparkles", "icon-sm"), " AI"))));

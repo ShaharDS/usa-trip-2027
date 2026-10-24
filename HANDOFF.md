@@ -31,6 +31,15 @@ Read `CLAUDE.md` for the rules and the file map; this file is the **state of pla
   browser: demo public/family/owner at 375 + desktop with the audit clean; emulators: owner → load card → load → move
   section saved on the server.
 
+**Later the same day — quick "הוספת הוצאה" (Shahar: adding an expense was too clumsy):** `#/edit/expense/new[/cat]`
+(`docs/js/edit/expense.js`, ops in `expenseOps.js`, tests in `tests/expense.test.mjs`): what / category (or a new one) /
+amount ₪ or $ / total or per person / status, with a live line of how the category and the total change; saves one
+undoable change and returns to the dashboard with the category highlighted. Buttons: "+ הוצאה" in the edit bar, "הוספת
+הוצאה" under "לאן הולך הכסף" and on each category page. Site-only change (no functions/rules).
+
+**Go-live status:** functions + rules deployed and the restructure pushed (`1ec30ef`) on 2026-10-25; Shahar loaded the
+opening data. The steps below are kept for reference.
+
 **To go live (each needs Shahar's OK — outward-facing):**
 1. `firebase.cmd deploy --only functions,firestore:rules --project usa-trip-2027-shahar` (functions pick up key v2;
    storage rules only after the bucket exists).

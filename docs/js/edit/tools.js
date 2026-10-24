@@ -49,6 +49,14 @@ export function duplicateOp(entity, rec, overrides = {}) {
 
 export const nextOrder = (map) => Math.max(0, ...activeList(map).map((x) => x.order ?? 0)) + 1;
 
+/** The category that just received an expense — the dashboard highlights it for a few seconds. */
+export const lastAdded = { catId: null, at: 0 };
+export function markAdded(catId) {
+  lastAdded.catId = catId;
+  lastAdded.at = Date.now();
+}
+export const justAdded = (catId) => lastAdded.catId === catId && Date.now() - lastAdded.at < 8000;
+
 function smallBtn(label, iconName, onclick, attrs = {}) {
   return h("button", { type: "button", class: "edit-btn", onclick, ...attrs }, icon(iconName, "icon-sm"), label);
 }
@@ -83,7 +91,8 @@ export const editTools = {
 
   addItem(ctx, catId) {
     return h("div", { class: "btn-row" },
-      h("a", { class: "btn", href: `#/edit/item/new/${encodeURIComponent(catId)}` }, icon("plus"), "הוספת שורה"),
+      h("a", { class: "btn", href: `#/edit/expense/new/${encodeURIComponent(catId)}` }, icon("plus"), "הוספת הוצאה"),
+      h("a", { class: "btn btn-secondary", href: `#/edit/item/new/${encodeURIComponent(catId)}` }, icon("plus"), "שורה עם חישוב (לילות, חדרים)"),
       h("a", { class: "btn btn-secondary", href: "#/edit/category/new" }, icon("plus"), "קטגוריה חדשה"));
   },
 

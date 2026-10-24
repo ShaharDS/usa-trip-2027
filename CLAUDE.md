@@ -69,7 +69,8 @@ USA Trip 2027/
                             route (routeView: plan → price-free public route)
     js/views/               home (editors: renders `sections`), route (renderRouteHome = the whole site for public/family),
                             category, options, print, ask, docs, settings (+ setupCard when no data), history, signin, footer
-    js/edit/                kit (form controls), forms (row/category/stop/section/option/question), tools, sections, stops
+    js/edit/                kit (form controls), forms (row/category/stop/section/option/question), expense (quick add +
+                            expenseOps), tools, sections, stops
     js/components/          common (badges, chips, share), proposal (AI review card)
     js/data/                rest (public route via REST), live (editors: live plan + private), session (sign-in → whoami → data), commit
     js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables), storage (getBlob only)

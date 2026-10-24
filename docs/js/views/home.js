@@ -13,6 +13,7 @@ import { timelineList } from "./route.js";
 import { footer } from "./footer.js";
 import { can, store } from "../store.js";
 import { sectionTools } from "../edit/sections.js";
+import { justAdded } from "../edit/tools.js";
 
 const LAST_SEEN_KEY = "usaTrip.lastSeenVersion";
 
@@ -115,7 +116,7 @@ export function categoryList(ctx, { withTotal = true } = {}) {
   const rows = r.categories.map((cat) => {
     const final = cat.itemIds.every((id) => !r.items[id].included || r.items[id].mode === "actual");
     return h("li", {},
-      h("a", { class: "cat-row", href: `#/cat/${encodeURIComponent(cat.id)}` },
+      h("a", { class: ["cat-row", justAdded(cat.id) ? "cat-row-new" : ""], href: `#/cat/${encodeURIComponent(cat.id)}` },
         catChip(cat),
         h("div", { class: "grow" },
           h("div", { class: "row-between" },
@@ -149,7 +150,8 @@ function categories(ctx) {
   return h("section", { class: "card" },
     h("h2", {}, icon("wallet"), ctx.section.title || "לאן הולך הכסף"),
     h("p", { class: "card-sub" }, "לחצו על קטגוריה כדי לראות ממה היא מורכבת."),
-    categoryList(ctx));
+    categoryList(ctx),
+    can.edit() ? h("div", { class: "btn-row" }, h("a", { class: "btn", href: "#/edit/expense/new" }, icon("plus"), "הוספת הוצאה")) : null);
 }
 
 export function optionRows(ctx, groupId, { limit = Infinity, withChoose = false } = {}) {

@@ -351,6 +351,10 @@
   padding: 6px 16px;
 }
 .editbar { flex-wrap: wrap; }
+/* The category that just received an expense (quick "הוספת הוצאה"): a short highlight on the dashboard. */
+.cat-row-new { animation: cat-new 3s ease-out; border-radius: var(--radius-sm); }
+@keyframes cat-new { 0%, 40% { background: var(--booked-soft); box-shadow: 0 0 0 3px var(--booked); } 100% { background: transparent; box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .cat-row-new { animation: none; background: var(--booked-soft); } }
 .editbar button { min-height: 48px; background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.5); border-radius: 10px; padding: 4px 12px; font-weight: 700; }
 .toast {
   position: fixed; inset-inline: 16px; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); z-index: 30;

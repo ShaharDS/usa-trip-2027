@@ -8,6 +8,7 @@ import { approxIls, explainHe, fmtIls, fmtUsd, nightsHe, warningHe } from "../sh
 import { backLink, emptyState, pageHead } from "../components/common.js";
 import { choices, compact, dateInput, diffOp, errorBox, field, fieldset, numberInput, saveBar, select, textArea, textInput } from "./kit.js";
 import { nextOrder, run } from "./tools.js";
+import { expenseForm } from "./expense.js";
 import { store } from "../store.js";
 
 const clone = (x) => (x === undefined ? undefined : structuredClone(x));
@@ -495,6 +496,7 @@ function groupForm(ctx, id) {
 export function renderEdit(ctx, params) {
   const [kind, id = "new", parent] = params;
   switch (kind) {
+    case "expense": return expenseForm(ctx, parent); // #/edit/expense/new[/<categoryId>] — the quick form
     case "item": return id === "new" ? itemForm(ctx, "new", parent) : itemForm(ctx, id);
     case "category": return categoryForm(ctx, id);
     case "stop": return stopForm(ctx, id);
