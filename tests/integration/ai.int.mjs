@@ -54,21 +54,25 @@ const owner = await googleUser("owner@example.com", "שחר");
 const editor = await googleUser("editor@example.com", "עורכת");
 const dad = await googleUser("dad@example.com", "אבא");
 
+/** The plan (with prices) as an editor reads it. */
 async function publicState() {
-  const res = await fetch(`${FS}/trips/usa2027/public/state`);
+  const res = await fetch(`${FS}/trips/usa2027/plan/state`, { headers: { Authorization: `Bearer ${editor}` } });
   return (await res.json()).fields;
 }
 
 test("setup: opening data and people", async () => {
   await call("whoami", {}, owner);
-  await call("adminImport", { pub: seed, priv: { schemaVersion: 1, items: {}, flights: {}, aiSettings: { monthlyBudgetUsd: 25, dailyCapFamily: 2, dailyCapEditor: 40 } } }, owner);
+  await call("adminImport", { plan: seed, priv: { schemaVersion: 1, items: {}, flights: {}, aiSettings: { monthlyBudgetUsd: 25, dailyCapFamily: 2, dailyCapEditor: 40 } } }, owner);
   await call("setAccess", { add: "editor@example.com", role: "editors", label: "עורכת" }, owner);
   await call("setAccess", { add: "dad@example.com", role: "family", label: "אבא" }, owner);
 });
 
-test("family can ask; daily cap is enforced; strangers can't ask", async () => {
+test("family can ask but the AI gets no prices; daily cap is enforced; strangers can't ask", async () => {
   const a = await call("aiAsk", { question: "כמה עולה המלון בניו יורק?" }, dad);
   assert.match(a.answer, /תשובת בדיקה/);
+  assert.doesNotMatch(a.answer, /₪/, "the family's request must carry no prices (the fake can only quote what it was given)");
+  const e = await call("aiAsk", { question: "כמה עולה המלון בניו יורק?" }, editor);
+  assert.match(e.answer, /₪/, "editors' requests carry the prices");
   await call("aiAsk", { question: "ועוד שאלה" }, dad);
   const capped = await rejects(call("aiAsk", { question: "שלישית" }, dad), "RESOURCE_EXHAUSTED");
   assert.match(capped.message, /מגבלה של 2/);
@@ -127,12 +131,12 @@ test("ticket upload → read → proposal with private booking code and flight",
   assert.ok(r.lines.some((l) => /צורף לשורה/.test(l)));
   const ap = await call("applyProposal", { proposalId: r.proposalId }, editor);
   assert.equal(ap.ok, true, JSON.stringify(ap));
-  const priv = await (await fetch(`${FS}/trips/usa2027/private/state`, { headers: { Authorization: `Bearer ${dad}` } })).json();
+  const priv = await (await fetch(`${FS}/trips/usa2027/private/state`, { headers: { Authorization: `Bearer ${editor}` } })).json();
   const row = priv.fields.items.mapValue.fields.flights_intl.mapValue.fields;
   assert.equal(row.bookingRef.stringValue, "ABC123");
   assert.equal(row.documentIds.arrayValue.values[0].stringValue, "doc_test1");
   assert.ok(Object.keys(priv.fields.flights.mapValue.fields).length === 1);
-  const pubText = JSON.stringify(await publicState());
+  const pubText = JSON.stringify(await (await fetch(`${FS}/trips/usa2027/public/state`)).json());
   assert.ok(!pubText.includes("ABC123"));
   const pubFlights = (await publicState()).items.mapValue.fields.flights_intl.mapValue.fields;
   assert.equal(pubFlights.status.stringValue, "booked");

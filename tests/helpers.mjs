@@ -9,7 +9,7 @@ export function seed() {
 }
 
 export function seedDocs() {
-  return { pub: seed(), priv: { schemaVersion: 1, items: {}, flights: {}, aiSettings: {} } };
+  return { plan: seed(), priv: { schemaVersion: 1, items: {}, flights: {}, aiSettings: {} } };
 }
 
 export const near = (a, b, eps = 0.01) => Math.abs(a - b) <= eps;

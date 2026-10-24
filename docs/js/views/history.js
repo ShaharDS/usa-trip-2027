@@ -24,7 +24,7 @@ function changeRow(c) {
 }
 
 export function renderHistory() {
-  if (!can.family()) return [backLink(), pageHead("היסטוריית שינויים"), notice("ההיסטוריה המלאה זמינה לבני המשפחה אחרי כניסה.", "info", "lock")];
+  if (!can.edit()) return [backLink(), pageHead("היסטוריית שינויים"), notice("ההיסטוריה פתוחה רק לעורכי הטיול.", "info", "lock")];
   const list = h("ul", { class: "check-list" });
   if (store.demo) {
     const items = localHistory();

@@ -37,9 +37,14 @@ export function fakeMessage(params: any): any {
     }) }], "end_turn");
   }
 
-  // No custom tools: a question ("Ask the trip").
+  // No custom tools: a question ("Ask the trip"). It can only quote a price if the request carried prices —
+  // the family test relies on that to prove their context has none.
   if (!toolNames.some((n) => n !== "web_search")) {
-    return message([{ type: "text", text: "זו תשובת בדיקה: המלון בניו יורק מוערך בכ-25,800 ₪ (אומדן)." }], "end_turn");
+    const system = (Array.isArray(params.system) ? params.system : [{ text: String(params.system || "") }]).map((b: any) => b.text || "").join("\n");
+    const sawPrices = /"price"|"ils"|"usd"|₪/.test(system);
+    return message([{ type: "text", text: sawPrices
+      ? "זו תשובת בדיקה: המלון בניו יורק מוערך בכ-25,800 ₪ (אומדן)."
+      : "זו תשובת בדיקה: מגיעים לאורלנדו ב-8 באוקטובר. מחירים פתוחים רק לעורכים." }], "end_turn");
   }
 
   if (hasToolResults) return message([{ type: "text", text: "הצעת בדיקה: הוספתי את מה שביקשת. אשרו כדי לשמור." }], "end_turn");

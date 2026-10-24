@@ -51,9 +51,9 @@ export function rangeLine(amount) {
   return rangeIls(amount.ils.low, amount.ils.high);
 }
 
-/** WhatsApp share: the phone's share sheet when available, else a wa.me link. Text never contains the total. */
+/** WhatsApp share: the phone's share sheet when available, else a wa.me link. The link opens the route (no prices). */
 export function shareButton(cls = "btn btn-secondary") {
-  const text = "✈️🏨🚗🎢🚢 הטיול המשפחתי לארה״ב — כמה זה עולה? הסיכום המעודכן כאן:";
+  const text = "✈️🏨🚗🎢🚢 הטיול המשפחתי לארה״ב — המסלול המעודכן כאן:";
   const url = SITE_URL;
   return h(
     "button",

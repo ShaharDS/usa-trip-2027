@@ -191,7 +191,7 @@ const FIELD_HE = {
 };
 
 function recordName(e, rec, id, docs) {
-  if (e === "privateItems") return docs?.pub?.items?.[id]?.label || "שורה";
+  if (e === "privateItems") return docs?.plan?.items?.[id]?.label || "שורה";
   if (e === "flights" && rec?.carrier) return `${rec.carrier}${rec.number}${rec.date ? ` ב-${dateHe(rec.date, "dm")}` : ""}`;
   return rec?.label || rec?.title || ENTITIES[e]?.labelHe || e;
 }
@@ -236,19 +236,19 @@ function changedLeaves(a, b, prefix = "") {
 
 /** One Hebrew line per op: what changed, before ← after. `docs` = documents BEFORE the op. */
 export function describeOp(op, docs) {
-  const pub = docs?.pub || {};
+  const plan = docs?.plan || {};
   if (op.t === "choose") {
-    const g = pub.optionGroups?.[op.groupId];
-    const from = pub.options?.[g?.chosen]?.label || "—";
-    const to = pub.options?.[op.optionId]?.label || "—";
+    const g = plan.optionGroups?.[op.groupId];
+    const from = plan.options?.[g?.chosen]?.label || "—";
+    const to = plan.options?.[op.optionId]?.label || "—";
     return `${g?.label || "בחירה"}: ${from} ← ${to}`;
   }
   const def = ENTITIES[op.e];
-  const doc = def?.doc === "private" ? docs?.priv : pub;
+  const doc = def?.doc === "private" ? docs?.priv : plan;
   const rec = def?.singleton ? doc?.[def.path] : doc?.[def?.path]?.[op.id];
   switch (op.t) {
     case "create":
-      if (op.e === "privateItems") return `שמירת פרטים פרטיים (רק למשפחה) לשורה "${recordName(op.e, op.v, op.id, docs)}"`;
+      if (op.e === "privateItems") return `שמירת פרטים פרטיים (רק לעורכים) לשורה "${recordName(op.e, op.v, op.id, docs)}"`;
       if (op.e === "flights") return `רישום טיסה ${recordName(op.e, op.v, op.id, docs)}`;
       return `הוספת ${def?.labelHe || "פריט"}: "${recordName(op.e, op.v, op.id, docs)}"`;
     case "delete":
@@ -279,7 +279,7 @@ export function describeOp(op, docs) {
           continue;
         }
         if (path === "rule.time.stopIds") {
-          const name = (id) => pub.stops?.[id]?.label || "עצירה";
+          const name = (id) => plan.stops?.[id]?.label || "עצירה";
           const added = (after || []).filter((id) => !(before || []).includes(id)).map(name);
           const removed = (before || []).filter((id) => !(after || []).includes(id)).map(name);
           if (added.length) changes.push(`נוספו לחישוב: ${added.join(", ")}`);

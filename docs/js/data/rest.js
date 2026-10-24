@@ -1,4 +1,4 @@
-// Read the public trip document with one plain HTTPS request (no Firebase SDK for viewers).
+// Read the public route document with one plain HTTPS request (no Firebase SDK for viewers).
 import { ACTIVE_FIREBASE, EMULATOR_HOST, TRIP_ID, USE_EMULATORS } from "../config.js";
 
 /** Firestore REST value -> plain JS. */
@@ -44,4 +44,5 @@ export async function fetchDoc(path, token = null) {
   return decodeFields(json.fields || {});
 }
 
-export const fetchPublicState = () => fetchDoc(`trips/${TRIP_ID}/public/state`);
+/** The route anyone may see (no prices). Written by the Cloud Functions from the plan on every change. */
+export const fetchRoute = () => fetchDoc(`trips/${TRIP_ID}/public/state`);

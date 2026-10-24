@@ -5,14 +5,14 @@ import { COMMON_FIELDS, ENTITIES, ID_RE } from "./schema.js";
 import { applyOps } from "./ops.js";
 
 export const MAX_OPS = 60;
-export const MAX_PUBLIC_BYTES = 700_000;
+export const MAX_PLAN_BYTES = 700_000;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const isPlainObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
 
 function collectionOf(docs, entity) {
   const def = ENTITIES[entity];
-  const doc = def.doc === "public" ? docs.pub : docs.priv;
+  const doc = def.doc === "plan" ? docs.plan : docs.priv;
   return doc?.[def.path] || {};
 }
 
@@ -66,7 +66,7 @@ function checkValue(def, value, path, ctx, errors) {
     case "people":
       if (typeof value === "number") {
         if (!Number.isFinite(value) || value < 0 || value > 1000) errors.push(`${path}: מספר אנשים לא תקין`);
-      } else if (typeof value !== "string" || !(value in (ctx.docs.pub.presets || {}))) {
+      } else if (typeof value !== "string" || !(value in (ctx.docs.plan.presets || {}))) {
         errors.push(`${path}: קבוצת אנשים לא מוכרת`);
       }
       break;
@@ -121,10 +121,10 @@ export function validateRecord(entity, rec, docs, id = "_") {
   }
   if (entity === "options" && isPlainObject(rec.stopPatch)) {
     for (const stopId of Object.keys(rec.stopPatch)) {
-      if (!(stopId in (docs.pub.stops || {}))) errors.push(`${path}: עצירה לא קיימת "${stopId}"`);
+      if (!(stopId in (docs.plan.stops || {}))) errors.push(`${path}: עצירה לא קיימת "${stopId}"`);
     }
   }
-  if (entity === "optionGroups" && rec.chosen && docs.pub.options?.[rec.chosen]?.groupId !== id) {
+  if (entity === "optionGroups" && rec.chosen && docs.plan.options?.[rec.chosen]?.groupId !== id) {
     errors.push(`${path}: האפשרות שנבחרה לא שייכת לשאלה הזו`);
   }
   if (entity === "settings" && rec.startDate && rec.endDate && rec.startDate > rec.endDate) {
@@ -138,7 +138,7 @@ export function validateRecord(entity, rec, docs, id = "_") {
 export function validateDocs(docs) {
   const errors = [];
   for (const [entity, def] of Object.entries(ENTITIES)) {
-    const doc = def.doc === "public" ? docs.pub : docs.priv;
+    const doc = def.doc === "plan" ? docs.plan : docs.priv;
     if (!doc) continue;
     if (def.singleton) {
       if (doc[def.path] !== undefined) errors.push(...validateRecord(entity, doc[def.path], docs));
@@ -155,8 +155,8 @@ export function validateDocs(docs) {
       errors.push(...validateRecord(entity, rec, docs, id));
     }
   }
-  const bytes = JSON.stringify(docs.pub || {}).length;
-  if (bytes > MAX_PUBLIC_BYTES) errors.push(`המסמך הציבורי גדול מדי (${bytes} בתים)`);
+  const bytes = JSON.stringify(docs.plan || {}).length;
+  if (bytes > MAX_PLAN_BYTES) errors.push(`מסמך הטיול גדול מדי (${bytes} בתים)`);
   return errors;
 }
 

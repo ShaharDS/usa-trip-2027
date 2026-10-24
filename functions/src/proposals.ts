@@ -3,7 +3,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { db, paths, REGION } from "./lib/admin.js";
 import { requireRole } from "./lib/access.js";
-import { badRequest, readDocs, rejectPrepared, writeDocs } from "./lib/state.js";
+import { badRequest, readDocs, rejectPrepared, requireTripData, writeDocs } from "./lib/state.js";
 import { prepareCommit } from "./shared/commit.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -20,6 +20,7 @@ export const applyProposal = onCall({ region: REGION }, async (req) => {
     const snap = await tx.get(ref);
     const docs = await readDocs(tx);
     if (!snap.exists) badRequest("לא מצאנו את ההצעה.");
+    requireTripData(docs);
     const p = snap.data() as any;
     if (p.status !== "open") badRequest(p.status === "applied" ? "ההצעה הזו כבר אושרה." : "ההצעה הזו כבר לא פתוחה.");
     const all: any[] = p.ops || [];
@@ -40,7 +41,7 @@ export const applyProposal = onCall({ region: REGION }, async (req) => {
     writeDocs(tx, prepared.docs);
     tx.set(changeRef, prepared.change);
     tx.update(ref, { status: "applied", changeId: changeRef.id, appliedBy: caller.label, appliedAt: now, acceptedLines: picked });
-    return { ok: true, changeId: changeRef.id, version: prepared.docs.pub.version };
+    return { ok: true, changeId: changeRef.id, version: prepared.docs.plan.version };
   });
 });
 

@@ -1,12 +1,14 @@
 rules_version = '2';
 
 // Who can do what:
-//   anyone          — read the public cost summary (trips/{t}/public/state), nothing else
-//   family (listed) — also read the private document, change history, documents list, their own AI answers
-//   editors         — also read AI proposals and usage
+//   anyone          — read the route (trips/{t}/public/state: dates, stops, holidays — no prices), nothing else
+//   family (listed) — also their own AI answers (users/{uid}/asks); asking goes through the aiAsk function,
+//                     which gives the model the route only. Family never reads prices.
+//   editors         — the plan with all prices, the private document, history, documents, proposals, usage
 // Nobody writes trip data from the browser: every change goes through the Cloud Functions
-// (commitChange, applyProposal, ...), which validate it and keep the history. The owner is configured in
-// the functions (OWNER_EMAIL) and is always kept on the editors list in config/access.
+// (commitChange, applyProposal, ...), which validate it, keep the history and regenerate the public route
+// from the plan. The owner is configured in the functions (OWNER_EMAIL) and is always kept on the editors
+// list in config/access.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -33,25 +35,30 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
+    match /trips/{tripId}/plan/state {
+      allow get: if isEditor();
+      allow list, write: if false;
+    }
+
     match /trips/{tripId}/private/state {
-      allow get: if isFamily();
+      allow get: if isEditor();
       allow list, write: if false;
     }
 
     match /trips/{tripId}/changes/{id} {
-      allow read: if isFamily();
+      allow read: if isEditor();
       allow write: if false;
     }
     match /trips/{tripId}/documents/{id} {
-      allow read: if isFamily();
+      allow read: if isEditor();
       allow write: if false;
     }
     match /trips/{tripId}/alerts/{id} {
-      allow read: if isFamily();
+      allow read: if isEditor();
       allow write: if false;
     }
     match /trips/{tripId}/proposals/{id} {
-      allow read: if isEditor() || (isFamily() && resource.data.createdBy.uid == request.auth.uid);
+      allow read: if isEditor();
       allow write: if false;
     }
     match /trips/{tripId}/usage/{id} {

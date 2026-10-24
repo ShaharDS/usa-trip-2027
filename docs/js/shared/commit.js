@@ -10,7 +10,7 @@ import { describeOp } from "./format.js";
 
 export const RECENT_MAX = 40;
 
-const isPublicOp = (op) => op.t === "choose" || ENTITIES[op.e]?.doc === "public";
+const isPlanOp = (op) => op.t === "choose" || ENTITIES[op.e]?.doc === "plan";
 
 export function summarizeOps(ops, docs, max = 400) {
   // Describe each op against the documents as they are at that point, so later ops can name records
@@ -31,12 +31,12 @@ export function summarizeOps(ops, docs, max = 400) {
 export function conflictHe(c, docs) {
   if (c.reason === "missing") return "פריט שניסיתם לשנות כבר לא קיים (אולי מישהו מחק אותו). רעננו את הדף.";
   if (c.reason === "exists") return "הפריט כבר קיים. רעננו את הדף.";
-  const rec = c.e && ENTITIES[c.e] && !ENTITIES[c.e].singleton ? (ENTITIES[c.e].doc === "public" ? docs.pub : docs.priv)?.[ENTITIES[c.e].path]?.[c.id] : null;
+  const rec = c.e && ENTITIES[c.e] && !ENTITIES[c.e].singleton ? (ENTITIES[c.e].doc === "plan" ? docs.plan : docs.priv)?.[ENTITIES[c.e].path]?.[c.id] : null;
   return `מישהו אחר שינה בינתיים את ${rec?.label ? `"${rec.label}"` : "הפריט"}. רעננו את הדף ונסו שוב.`;
 }
 
 /**
- * @param docs {pub, priv} — current documents
+ * @param docs {plan, priv} — current documents
  * @param ops  change ops
  * @param meta {now, byUid, byLabel, source, summary, approvedBy, proposalId, changeId, undoOf, limits}
  * @returns {ok:false, errors, conflicts?} | {ok:true, docs, change, touched}
@@ -44,32 +44,32 @@ export function conflictHe(c, docs) {
 export function prepareCommit(docs, ops, meta) {
   const conflicts = conflictsOf(docs, ops);
   if (conflicts.length) return { ok: false, conflicts, errors: conflicts.map((c) => conflictHe(c, docs)) };
-  const version = (docs.pub.version || 0) + 1;
+  const version = (docs.plan.version || 0) + 1;
   const v = validateOps(docs, ops, { ...(meta.limits || {}), version });
   if (!v.ok) return { ok: false, errors: v.errors };
 
-  const before = computeTrip(docs.pub, { skipOptions: true });
-  const after = computeTrip(v.docs.pub, { skipOptions: true });
+  const before = computeTrip(docs.plan, { skipOptions: true });
+  const after = computeTrip(v.docs.plan, { skipOptions: true });
   const deltaIlsTyp = Math.round(after.total.ils.typ - before.total.ils.typ);
-  const publicOps = ops.filter(isPublicOp);
+  const planOps = ops.filter(isPlanOp);
 
-  const pub = v.docs.pub;
-  pub.version = version;
-  pub.updatedAt = meta.now;
-  pub.updatedByLabel = meta.byLabel || "";
-  pub.derived = derivedSummary(after, meta.now);
-  if (publicOps.length) {
+  const plan = v.docs.plan;
+  plan.version = version;
+  plan.updatedAt = meta.now;
+  plan.updatedByLabel = meta.byLabel || "";
+  plan.derived = derivedSummary(after, meta.now);
+  if (planOps.length) {
     const entry = {
       version,
       changeId: meta.changeId || null,
       at: meta.now,
       byLabel: meta.byLabel || "",
       source: meta.source || "manual",
-      summary: summarizeOps(publicOps, docs, 240), // regenerated here: never trust client text on the public doc
+      summary: summarizeOps(planOps, docs, 240), // regenerated here from plan ops only: private details never reach this list
       deltaIlsTyp,
-      refs: v.touched.filter((t) => ENTITIES[t.e]?.doc === "public").slice(0, 10),
+      refs: v.touched.filter((t) => ENTITIES[t.e]?.doc === "plan").slice(0, 10),
     };
-    pub.recent = [entry, ...(pub.recent || [])].slice(0, RECENT_MAX);
+    plan.recent = [entry, ...(plan.recent || [])].slice(0, RECENT_MAX);
   }
 
   const change = {

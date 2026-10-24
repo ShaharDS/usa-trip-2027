@@ -214,12 +214,12 @@ function itemForm(ctx, id, catId) {
     h("section", { class: "card" },
       fieldset("סטטוס", h("div", {}, statusChoices, actualWrap)),
       field("מתי השורה נספרת", select(optionList, draft.optionId || "", (v) => { if (v) draft.optionId = v; else delete draft.optionId; refresh(); })),
-      field("הערה (רואים כולם)", textArea(draft.note, (v) => { draft.note = v; }))),
+      field("הערה (רואים העורכים)", textArea(draft.note, (v) => { draft.note = v; }))),
     h("section", { class: "card" }, h("h2", {}, icon("external"), "מקורות"), sources),
     h("section", { class: "card" }, h("h2", {}, icon("clock"), "מועדים (ביטול חינם, תשלום אחרון…)"), deadlines),
     store.docs.priv
       ? h("section", { class: "card" },
-        h("h2", {}, icon("lock"), "פרטים פרטיים (רק למשפחה)"),
+        h("h2", {}, icon("lock"), "פרטים פרטיים (רק לעורכים)"),
         field("קוד הזמנה", textInput(privDraft.bookingRef, (v) => { privDraft.bookingRef = v; }, { dir: "ltr" })),
         field("מספר אישור", textInput(privDraft.confirmation, (v) => { privDraft.confirmation = v; }, { dir: "ltr" })),
         field("הערה פרטית", textArea(privDraft.privateNote, (v) => { privDraft.privateNote = v; })))
@@ -286,7 +286,7 @@ function stopForm(ctx, id) {
   const refresh = () => {
     let test = { ...state, stops: { ...state.stops, [stopId]: { ...compact(draft), order: orderFor() } } };
     try {
-      test = applyOps({ pub: test, priv: {} }, extraOps()).docs.pub;
+      test = applyOps({ plan: test, priv: {} }, extraOps()).docs.plan;
     } catch { /* preview only */ }
     const result = computeTrip(test, { skipOptions: true });
     const it = result.itinerary;
@@ -371,7 +371,7 @@ function stopForm(ctx, id) {
       nightsField,
       field("תאריך התחלה קבוע (לא חובה)", dateInput(draft.anchorDate, (v) => { if (v) draft.anchorDate = v; else delete draft.anchorDate; refresh(); }), "למשל יום היציאה של שייט. בלי תאריך — העצירה מתחילה כשהקודמת נגמרת."),
       fieldset("אייקון", iconPicker(draft.icon, (v) => { draft.icon = v; })),
-      field("הערה", textArea(draft.note, (v) => { draft.note = v; }))),
+      field("הערה", textArea(draft.note, (v) => { draft.note = v; }), "גלויה לכל מי שפותח את הקישור, גם בלי כניסה — בלי מחירים כאן.")),
     isNew
       ? h("section", { class: "card" },
         h("h2", {}, icon("wallet"), "מה העצירה עולה"),

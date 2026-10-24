@@ -5,6 +5,7 @@
 // No temperature / top_p (rejected by the API). Sonnet 5.5 (and Opus 5.5) reject forced tool_choice, so tools use "auto".
 import Anthropic from "@anthropic-ai/sdk";
 import { defineSecret } from "firebase-functions/params";
+import * as logger from "firebase-functions/logger";
 import { HttpsError } from "firebase-functions/v2/https";
 import { fakeMessage } from "./claudeFake.js";
 
@@ -127,6 +128,13 @@ export function urlsOf(msg: Msg): { seen: Map<string, string>; cited: Map<string
 
 export function toHttpsError(err: any): HttpsError {
   if (err instanceof HttpsError) return err;
+  // The family only sees a Hebrew sentence; the log keeps what Anthropic said (never the key itself).
+  logger.error("Claude API call failed", {
+    status: err?.status ?? null,
+    type: err?.error?.error?.type ?? err?.name ?? null,
+    message: String(err?.message || err).slice(0, 300),
+    requestId: err?.requestID ?? err?.request_id ?? null,
+  });
   const he = (code: any, messageHe: string) => new HttpsError(code, messageHe, { messageHe });
   if (err instanceof Anthropic.RateLimitError) return he("resource-exhausted", "ה-AI עמוס כרגע. נסו שוב בעוד דקה.");
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return he("failed-precondition", "מפתח ה-API של Claude לא תקין או חסר. בעל האתר צריך לעדכן אותו.");

@@ -1,5 +1,6 @@
-// Family sign-in. One tap on "כניסה עם גוגל"; the session is remembered on that phone.
-import { h, icon } from "../ui/h.js";
+// Sign-in. The "כניסה" button sits in the bar at the top of every page (and on the route page); this screen
+// is for the cases that need words: WhatsApp's in-app browser, an account that isn't on the list, sign-out.
+import { h, icon, toast } from "../ui/h.js";
 import { backLink, notice, pageHead } from "../components/common.js";
 import { isInAppBrowser, preloadAuth, signInWithGoogle, signOutNow } from "../fb/auth.js";
 import { firebaseEnabled } from "../fb/lazy.js";
@@ -7,7 +8,25 @@ import { store } from "../store.js";
 import { startSession } from "../data/session.js";
 import { SITE_URL } from "../config.js";
 
-const ROLE_HE = { owner: "בעל האתר", editor: "עורך", family: "משפחה", public: "אורח" };
+export const ROLE_HE = { owner: "בעל האתר", editor: "עורך", family: "משפחה", public: "אורח" };
+
+const signInError = (err) => (err?.code === "auth/popup-blocked"
+  ? "הדפדפן חסם את החלון. לחצו שוב על ״כניסה״."
+  : err?.code === "auth/popup-closed-by-user" ? "החלון נסגר. אפשר לנסות שוב." : "הכניסה לא הצליחה. נסו שוב.");
+
+/** One tap → Google's account chooser. Must run inside the tap handler (iOS blocks late popups). */
+export function startSignIn() {
+  if (store.demo || !firebaseEnabled()) {
+    location.search = "?demo=family"; // demo mode has no accounts: show what family sees
+    return;
+  }
+  if (isInAppBrowser()) {
+    location.hash = "#/signin"; // WhatsApp's browser can't do Google sign-in: this screen explains what to do
+    return;
+  }
+  startSession();
+  signInWithGoogle().catch((err) => toast(signInError(err)));
+}
 
 function copyLinkButton() {
   return h("button", {
@@ -37,11 +56,7 @@ export function signInCard(reason) {
       status.textContent = "פותח חלון של גוגל…";
       startSession();
       // A new Google sign-in replaces the current account (the chooser is always shown).
-      signInWithGoogle().then(() => { status.textContent = "נכנסתם — בודק הרשאות…"; }).catch((err) => {
-        status.textContent = err?.code === "auth/popup-blocked"
-          ? "הדפדפן חסם את החלון. לחצו שוב על הכפתור."
-          : err?.code === "auth/popup-closed-by-user" ? "החלון נסגר. אפשר לנסות שוב." : "הכניסה לא הצליחה. נסו שוב.";
-      });
+      signInWithGoogle().then(() => { status.textContent = "נכנסתם — בודק הרשאות…"; }).catch((err) => { status.textContent = signInError(err); });
     },
   }, icon("login"), label);
 
@@ -61,7 +76,7 @@ export function signInCard(reason) {
 
   return h("section", { class: "card" },
     h("h2", {}, icon("lock"), "כניסה לבני המשפחה"),
-    h("p", { class: "card-sub" }, reason || "הכניסה פותחת את המסמכים ואת השאלות ל-AI. את הסכום הכולל רואים גם בלי כניסה."),
+    h("p", { class: "card-sub" }, reason || "הכניסה פותחת את השאלות ל-AI. את המסלול רואים גם בלי כניסה."),
     inApp
       ? h("div", {},
         notice("גוגל לא מאפשרת להיכנס מתוך הדפדפן של וואטסאפ. פתחו את האתר בכרום או בספארי:", "", "alert"),
@@ -73,17 +88,23 @@ export function signInCard(reason) {
     status);
 }
 
+const WHAT_YOU_SEE = {
+  family: "את המסלול ואת השאלות ל-AI. המחירים פתוחים רק לעורכים.",
+  editor: "הכל — כולל המחירים, העריכה והמסמכים.",
+  owner: "הכל — כולל המחירים, העריכה, המסמכים וניהול הגישה.",
+};
+
 export function renderSignin() {
-  if (store.user) {
-    return [
-      backLink(),
-      pageHead("החשבון שלי"),
-      h("section", { class: "card" },
-        h("p", {}, "מחובר/ת בתור ", h("bdi", {}, store.user.email || "")),
-        h("p", {}, `הרשאה: ${ROLE_HE[store.role] || store.role}`),
-        store.role === "public" ? notice("החשבון הזה עוד לא ברשימת המשפחה. בקשו משחר להוסיף אתכם, ואז היכנסו שוב.", "", "info") : null,
-        h("button", { type: "button", class: "btn btn-secondary", onclick: () => signOutNow().then(() => { location.hash = "#/"; location.reload(); }) }, icon("logout"), "יציאה")),
-    ];
-  }
-  return [backLink(), pageHead("כניסה"), signInCard()];
+  const signOut = h("button", { type: "button", class: "btn btn-secondary", onclick: () => signOutNow().then(() => { location.hash = "#/"; location.reload(); }) }, icon("logout"), "יציאה");
+  if (!store.user) return [backLink(), pageHead("כניסה"), signInCard()];
+  if (store.role === "public") return [backLink(), pageHead("כניסה"), signInCard(), signOut]; // checking, or not on the list
+  return [
+    backLink(),
+    pageHead("החשבון שלי"),
+    h("section", { class: "card" },
+      h("p", {}, "מחובר/ת בתור ", h("bdi", {}, store.user.email || "")),
+      h("p", {}, `הרשאה: ${ROLE_HE[store.role] || store.role}`),
+      WHAT_YOU_SEE[store.role] ? h("p", { class: "card-sub" }, `מה רואים: ${WHAT_YOU_SEE[store.role]}`) : null,
+      signOut),
+  ];
 }

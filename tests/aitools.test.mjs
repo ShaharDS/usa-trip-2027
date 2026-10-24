@@ -48,23 +48,23 @@ test("'add Washington for 2 nights after New York' as tool calls", () => {
     ["update_item", { ...nullItem, item_id: "food", time_by: "nights", time_stop_ids: ["nyc", "$dc", "road", "orlando", "after"] }],
   ], { allowedUrls: new Set(["https://example.com/dc-hotels"]) });
   const dc = tempMap.$dc;
-  const r = computeTrip(docs.pub);
+  const r = computeTrip(docs.plan);
   const nights = Object.fromEntries(r.itinerary.stops.map((s) => [s.id, s.nights]));
   assert.equal(nights[dc], 2);
   assert.equal(nights.orlando, 5);
-  const hotel = docs.pub.items[tempMap.$dc_hotel];
+  const hotel = docs.plan.items[tempMap.$dc_hotel];
   assert.deepEqual(hotel.rule, { unit: "rooms", time: { by: "nights", stopIds: [dc] } });
   assert.equal(hotel.sources.length, 1);
   assert.equal(r.items[tempMap.$dc_hotel].amount.usd.typ, 3 * 2 * 220);
-  assert.deepEqual(docs.pub.items.food.rule.time.stopIds, ["nyc", dc, "road", "orlando", "after"]);
-  assert.equal(docs.pub.items.food.rule.people, "paying", "other rule factors are kept");
+  assert.deepEqual(docs.plan.items.food.rule.time.stopIds, ["nyc", dc, "road", "orlando", "after"]);
+  assert.equal(docs.plan.items.food.rule.people, "paying", "other rule factors are kept");
 });
 
 test("source URLs not seen in the web search are dropped", () => {
   const { docs, tempMap } = runCalls([
     ["add_item", { ...nullItem, temp_id: "$x", label: "כרטיסים", category_id: "extras", people: "paying", price_typical: 50, currency: "USD", status: "estimate", sources: [{ url: "https://made-up.example/price", label: "fake" }] }],
   ], { allowedUrls: new Set(["https://real.example/"]) });
-  assert.equal(docs.pub.items[tempMap.$x].sources, undefined);
+  assert.equal(docs.plan.items[tempMap.$x].sources, undefined);
 });
 
 test("cruise sailing, ship, layout and settings tools", () => {
@@ -75,12 +75,12 @@ test("cruise sailing, ship, layout and settings tools", () => {
     ["update_settings", { title: null, start_date: null, end_date: null, planning_rate: 3.2, buffer_pct: 12, card_fee_pct: null }],
     ["add_section", { temp_id: "$note", type: "note", title: "חשוב", text: "לבדוק דרכונים" }],
   ]);
-  assert.equal(docs.pub.optionGroups.sailing.chosen, "s1011");
-  assert.equal(docs.pub.settings.fx.planningRate, 3.2);
-  assert.equal(docs.pub.settings.bufferPct, 12);
-  const order = Object.entries(docs.pub.sections).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
+  assert.equal(docs.plan.optionGroups.sailing.chosen, "s1011");
+  assert.equal(docs.plan.settings.fx.planningRate, 3.2);
+  assert.equal(docs.plan.settings.bufferPct, 12);
+  const order = Object.entries(docs.plan.sections).sort((a, b) => a[1].order - b[1].order).map(([id]) => id);
   assert.equal(order[1], "sec_route");
-  assert.ok(Object.values(docs.pub.sections).some((s) => s.type === "note" && s.text === "לבדוק דרכונים"));
+  assert.ok(Object.values(docs.plan.sections).some((s) => s.type === "note" && s.text === "לבדוק דרכונים"));
 });
 
 test("extraction tools store private details and flights in the private document", () => {
@@ -91,8 +91,8 @@ test("extraction tools store private details and flights in the private document
     ["add_flight_segment", { item_id: "flights_intl", carrier: "ly", number: "LY001", date: "2027-09-30", from: "TLV", to: "JFK", sched_dep: "00:45", sched_arr: "05:40" }],
   ]);
   assert.equal(docs.priv.items.hotel_nyc.bookingRef, "HX12345");
-  assert.ok(!JSON.stringify(docs.pub).includes("HX12345"));
-  assert.equal(computeTrip(docs.pub).items.hotel_nyc.mode, "actual");
+  assert.ok(!JSON.stringify(docs.plan).includes("HX12345"));
+  assert.equal(computeTrip(docs.plan).items.hotel_nyc.mode, "actual");
   const flight = Object.values(docs.priv.flights)[0];
   assert.equal(flight.carrier, "LY");
   assert.equal(flight.number, "001");
@@ -118,5 +118,5 @@ test("pasted quotes and documents get no removal, settings or layout tools", () 
 test("stableStringify is order-independent and byte-stable", () => {
   assert.equal(stableStringify({ b: 1, a: { d: [3, { y: 1, x: 2 }], c: null } }), stableStringify({ a: { c: null, d: [3, { x: 2, y: 1 }] }, b: 1 }));
   const docs = seedDocs();
-  assert.equal(stableStringify(docs.pub), stableStringify(JSON.parse(JSON.stringify(docs.pub))));
+  assert.equal(stableStringify(docs.plan), stableStringify(JSON.parse(JSON.stringify(docs.plan))));
 });

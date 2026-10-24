@@ -10,8 +10,9 @@ export const REGION = "me-west1"; // Tel Aviv, next to the family
 export const TRIP_ID = "usa2027";
 
 export const paths = {
-  pub: `trips/${TRIP_ID}/public/state`,
-  priv: `trips/${TRIP_ID}/private/state`,
+  plan: `trips/${TRIP_ID}/plan/state`, // the whole trip with prices — editors only
+  priv: `trips/${TRIP_ID}/private/state`, // booking codes, flights, AI settings — editors only
+  route: `trips/${TRIP_ID}/public/state`, // price-free route for anyone with the link, derived from the plan
   changes: `trips/${TRIP_ID}/changes`,
   backups: `trips/${TRIP_ID}/backups`,
   proposals: `trips/${TRIP_ID}/proposals`,

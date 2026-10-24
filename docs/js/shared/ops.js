@@ -1,4 +1,4 @@
-// Change operations over the two trip documents ({pub, priv}).
+// Change operations over the two trip documents ({plan, priv}).
 // Every edit — by hand, by AI proposal, or undo — is a list of ops. applyOps() returns the new documents
 // plus the inverse ops, so any committed change can be undone exactly.
 //
@@ -44,7 +44,7 @@ export function sameValue(a, b) {
 function docKey(e) {
   const def = ENTITIES[e];
   if (!def) throw new Error(`unknown entity "${e}"`);
-  return def.doc === "public" ? "pub" : "priv";
+  return def.doc === "plan" ? "plan" : "priv";
 }
 
 function container(docs, e) {
@@ -85,7 +85,7 @@ export function conflictsOf(docs, ops) {
 
 function checkOne(docs, op, i, out) {
   if (op.t === "choose") {
-    const g = docs.pub.optionGroups?.[op.groupId];
+    const g = docs.plan.optionGroups?.[op.groupId];
     if (!g) out.push({ op: i, reason: "missing", groupId: op.groupId });
     else if ("before" in op && !sameValue(g.chosen, op.before)) out.push({ op: i, reason: "changed", path: "chosen", expected: op.before, actual: g.chosen });
     return;
@@ -109,11 +109,11 @@ function checkOne(docs, op, i, out) {
 
 /**
  * Apply ops to copies of the documents.
- * @returns {{docs:{pub,priv}, inverseOps:Array, touched:Array<{e,id}>}}
+ * @returns {{docs:{plan,priv}, inverseOps:Array, touched:Array<{e,id}>}}
  * @param opts.version stamps `v` on every touched record (drives the "updated" badges)
  */
 export function applyOps(docs, ops, opts = {}) {
-  const next = { pub: clone(docs.pub) || {}, priv: clone(docs.priv) || {} };
+  const next = { plan: clone(docs.plan) || {}, priv: clone(docs.priv) || {} };
   const inverse = [];
   const touched = [];
   const stamp = (rec) => {
@@ -122,7 +122,7 @@ export function applyOps(docs, ops, opts = {}) {
 
   for (const op of ops) {
     if (op.t === "choose") {
-      const g = next.pub.optionGroups?.[op.groupId];
+      const g = next.plan.optionGroups?.[op.groupId];
       if (!g) throw new Error(`no option group "${op.groupId}"`);
       inverse.push({ t: "choose", groupId: op.groupId, optionId: g.chosen ?? null, before: op.optionId });
       g.chosen = op.optionId;

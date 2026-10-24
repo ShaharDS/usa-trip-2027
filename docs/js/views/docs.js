@@ -1,4 +1,4 @@
-// Tickets and booking confirmations (family only). Editors upload a PDF / screenshot; the AI reads it and
+// Tickets and booking confirmations (editors only — they carry prices). Editors upload a PDF / screenshot; the AI reads it and
 // proposes updates (row booked, real price, deadlines, booking code) for approval.
 import { h, icon, toast } from "../ui/h.js";
 import { backLink, emptyState, notice, pageHead } from "../components/common.js";
@@ -82,11 +82,11 @@ function uploadCard(rerender) {
       h("button", { type: "button", class: "choice", "aria-pressed": state.extract ? "false" : "true", onclick: () => { state.extract = false; rerender(); } }, "רק לשמור")),
     h("div", { class: "btn-row" }, h("button", { type: "button", class: "btn", disabled: state.busy, onclick: go }, icon("upload"), state.busy ? "רגע…" : "העלאה")),
     state.step ? h("p", { class: "meta", role: "status" }, state.step) : null,
-    h("p", { class: "meta" }, "המסמכים נראים רק לבני המשפחה שנכנסו. קודי הזמנה לא מופיעים בעמוד הציבורי."));
+    h("p", { class: "meta" }, "המסמכים נראים רק לעורכים. בעמוד הציבורי אין מחירים ואין קודי הזמנה."));
 }
 
 export function renderDocs(ctx) {
-  if (!can.family()) return [backLink(), pageHead("כרטיסים ואישורים"), signInCard("המסמכים מכילים קודי הזמנה, ולכן הם רק לבני המשפחה.")];
+  if (!can.edit()) return [backLink(), pageHead("כרטיסים ואישורים"), signInCard("המסמכים מכילים מחירים וקודי הזמנה, ולכן הם רק לעורכי הטיול.")];
   if (store.demo) return [backLink(), pageHead("כרטיסים ואישורים"), notice("במצב הדגמה אין אחסון קבצים. אחרי החיבור ל-Firebase אפשר להעלות כאן כרטיסים ואישורים.", "info", "info")];
   const rerender = ctx.rerender;
   if (state.list === null) load(rerender);

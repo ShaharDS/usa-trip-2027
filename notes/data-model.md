@@ -1,8 +1,17 @@
 # Data model
 
-Two Firestore documents hold the whole trip; everything is editable data (`docs/js/shared/schema.js` is the single source of truth — validator, editor forms and AI tools all read it).
+Two Firestore documents hold the whole trip (both **editors only**); everything is editable data (`docs/js/shared/schema.js` is the single source of truth — validator, editor forms and AI tools all read it). A third, price-free document is generated from them for everyone else.
 
-## `trips/usa2027/public/state` (anyone can read)
+| Who | Reads |
+|---|---|
+| anyone with the link | `public/state` — the route only |
+| family (on the list) | the same route + "Ask the trip" (aiAsk gives the model the route, travellers and flight times — no prices) |
+| editors / owner | `plan/state`, `private/state`, history, documents, proposals, usage |
+
+## `trips/usa2027/public/state` (anyone can read — generated, never edited)
+Written by the functions on every write (`writeDocs` → `routeView(plan)`, `docs/js/shared/route.js`): `settings` (title, subtitle, dates, contactText), `itinerary` (`tripNights`, `stops[]` with resolved `nights`/`start`/`end` after the chosen options, labels, notes), `holidays`, `travellers` (count), `version`, `updatedAt`. No prices, rows, categories, options, checklist or private data — `tests/route.test.mjs` fails if any other number or a money sign appears. Stop notes are public: the stop editor says so.
+
+## `trips/usa2027/plan/state` (editors only)
 | Key | Contents |
 |---|---|
 | `settings` | title, subtitle, `startDate`/`endDate`, `fx.planningRate` (₪ per $ used for all totals) + date, `bufferPct`, `cardFeePct`, `perPersonPreset`, `notIncluded[]`, `contactText` |
@@ -31,11 +40,13 @@ No factors = lump sum. `price` = `{low, typical, high, currency}` or a `table` k
 ## Itinerary
 Stops are walked in order. Anchors split the trip into stretches: trip start, every stop with an `anchorDate`, trip end. In each stretch, fixed nights are summed and the single `fill` stop gets the remainder. Too many nights → warning "חסרים X לילות"; nights left with no fill stop → warning.
 
-## `trips/usa2027/private/state` (family only)
+## `trips/usa2027/private/state` (editors only)
 `items/{itemId}` booking code / confirmation / private note / `documentIds[]`; `flights/{id}` flight segments; `aiSettings` (model, monthly budget, daily caps, `includePrivateInAsk`).
 
 ## Collections
 `changes/{id}` (history with `ops` + `inverseOps` for undo), `proposals/{id}` (AI), `documents/{id}` (uploaded files' metadata), `usage/{yyyy-mm}` (AI spend), `backups/{id}` (before each import), `config/access` (editors / family emails), `users/{uid}/asks`.
 
 ## Changes
-Every edit is a list of ops (`docs/js/shared/ops.js`): `create`, `update` (dotted paths + `before` values), `archive`/`restore`, `delete`, `choose`. `prepareCommit` (`shared/commit.js`) checks conflicts in order, validates, applies, bumps `version`, recomputes `derived` and adds a public "what changed" line generated from the public ops only.
+Every edit is a list of ops (`docs/js/shared/ops.js`): `create`, `update` (dotted paths + `before` values), `archive`/`restore`, `delete`, `choose`. `prepareCommit` (`shared/commit.js`) checks conflicts in order, validates, applies, bumps `version`, recomputes `derived` and adds a "what changed" line (on the plan, editors only) generated from the plan ops only. The functions refuse every change with a clear message while `plan/state` doesn't exist (`requireTripData`): the owner first loads the opening data.
+
+Backups and `adminImport` use `{plan, priv}`; files made before 2026-10-25 used `{pub, priv}` and still load.

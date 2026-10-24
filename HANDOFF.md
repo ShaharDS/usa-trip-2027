@@ -1,7 +1,44 @@
 # USA Trip 2027 hub — HANDOFF
 
-_Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules and the file map; this file is the
-**state of play, what was verified, and what is left**._
+_Written 2026-10-25, end of the build session; updated 2026-10-25 (second session: three access levels + the two live bugs).
+Read `CLAUDE.md` for the rules and the file map; this file is the **state of play, what was verified, and what is left**._
+
+## 0. Latest session (2026-10-25, second) — NOT deployed, NOT committed yet
+**Two live bugs Shahar hit, both diagnosed:**
+- *"פריט שניסיתם לשנות כבר לא קיים" when moving a home section:* the live database had **no trip data** (`public/state` 404 —
+  opening data never loaded). The page fell back to the seed and let the editor edit it; the server then found nothing to
+  change. Fixed: editors with no data now get a "עוד אין נתוני טיול" card with the **טען נתוני פתיחה** button (owner), and
+  every write function refuses with that message (`requireTripData`) instead of "the item was deleted".
+- *"מפתח ה-API של Claude לא תקין או חסר":* secret **version 1 was not a Claude key** (didn't start with `sk-ant-`; Anthropic
+  401 invalid x-api-key). Shahar added **version 2** — tested from this PC: valid (models list, Sonnet 5.5, fallback beta,
+  web search all 200). **The deployed AI functions are still pinned to version 1** → redeploy needed. `toHttpsError` now
+  logs the real Anthropic status/type ("Claude API call failed") so the next failure is visible in the logs.
+
+**Shahar's new access rule, implemented (this replaces the §8 ticket below):**
+| Who | Sees |
+|---|---|
+| anyone with the link | the route only — title, dates, stops/nights, holidays, traveller count. No prices, no AI, no nav. |
+| family (signed in, on the list) | the route + **Ask AI**. Still **no prices**: `aiAsk` gives them `familyContext()` (route + flight times) and a prompt that declines cost questions. |
+| editors / owner | everything as before (sum, categories, options, docs, history, editing, AI proposals). |
+- Sign-in moved to an **account bar at the top of every page** ("כניסה" / "מחובר/ת: X · role · יציאה").
+- Data: the trip moved to `trips/usa2027/plan/state` (editors only); `public/state` is now a **generated price-free route**
+  (`routeView()` in `docs/js/shared/route.js`, written by `writeDocs` on every change). `private/state`, history,
+  documents (Firestore + Storage), proposals, usage → editors only. In-memory key `pub` renamed `plan` everywhere.
+- **Decision I made (tell Shahar, reversible):** documents/tickets are now **editors only** — they show prices.
+- WhatsApp preview text + `og.jpg` now say "המסלול המעודכן" instead of "כמה זה עולה?".
+- Verified: `npm test` 47/47 (4 new route tests: no amounts can leak), functions build, rules 11/11, emulator e2e 9/9
+  (incl. family AI gets no prices, public route has no price keys, route change reaches the public doc, empty-DB message);
+  browser: demo public/family/owner at 375 + desktop with the audit clean; emulators: owner → load card → load → move
+  section saved on the server.
+
+**To go live (each needs Shahar's OK — outward-facing):**
+1. `firebase.cmd deploy --only functions,firestore:rules --project usa-trip-2027-shahar` (functions pick up key v2;
+   storage rules only after the bucket exists).
+2. Commit + push to `main` (GitHub Pages serves `/docs`). Deploy functions/rules **first**, then push — the new site
+   reads `plan/state`.
+3. Shahar signs in → "טען נתוני פתיחה" (now on the home page) → Settings → גישה: add family / editors.
+4. Optional: disable/destroy the bad secret version 1 (`firebase.cmd functions:secrets:destroy ANTHROPIC_API_KEY@1`).
+
 
 ## 1. Goal (from Shahar)
 - One place for the family's USA trip costs, easy for his non-technical father: "how much will it cost, and what is booked?".
@@ -30,7 +67,7 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
 | Billing | **Blaze since 2026-10-25** — linked (with Shahar's OK) to the same billing account as PalGate: `billingAccounts/010B1C-5DC32F-DFB4BC` "Firebase Payment" (ILS). Budget alert "USA Trip 2027 — alert at 3 ILS" (≈ $1, 50% / 100%, this project only). Shahar wants it free: family usage stays in the free quotas; Claude API is billed separately by Anthropic. |
 | Google sign-in | enabled; authorized domains include `shahards.github.io` (checked 2026-10-25) |
 | Storage bucket | **none yet** (no GCS buckets) — Storage → Get started still needed |
-| Claude secret | `ANTHROPIC_API_KEY` version 1 set 2026-10-25 (by Shahar in the Cloud console — `firebase` in PowerShell is blocked by the execution policy; use `firebase.cmd`) |
+| Claude secret | `ANTHROPIC_API_KEY` v1 (2026-10-25) was **not a Claude key** (401). **v2** added by Shahar the same day — valid. Deployed functions still use v1 until redeployed. (`firebase` in PowerShell is blocked by the execution policy; use `firebase.cmd`) |
 
 ### ⚠️ An OLDER trip site already uses this project and the GitHub repo
 - GitHub `ShaharDS/usa-trip-2027` (11 commits, 22–24 Oct 2026) = a single 1.3 MB `index.html` + `.nojekyll`, **live at
@@ -97,7 +134,7 @@ deployed · repo pushed (`main`, old site merged with history into `docs/old/`) 
   receipts / photo translate, forwarding inbox.
 - Separate session started 2026-10-25: move PalGate's functions off Node 20 (its own project, `PalGate/`).
 
-## 8. Ticket for the next upgrade (from Shahar, 2026-10-25): "public sees only the route; everything else after sign-in"
+## 8. ~~Ticket~~ DONE 2026-10-25 (see §0) — with Shahar's stricter rule: family sees no prices either. Original ticket kept for context:
 **Why:** he doesn't like where sign-in sits today (a card inside the "שאלו" / "מסמכים" screens), and the open link should
 show only the final route — not prices.
 

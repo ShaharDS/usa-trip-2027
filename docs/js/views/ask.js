@@ -1,5 +1,6 @@
-// "שאלו את הטיול": family asks in plain Hebrew (typed, or spoken with the keyboard mic); editors can also
-// ask the AI to change something or paste a quote — that returns a proposal to approve, never a direct edit.
+// "שאלו את הטיול": family asks in plain Hebrew (typed, or spoken with the keyboard mic) and gets route-only
+// answers (the server gives the AI no prices for them); editors can also ask the AI to change something or
+// paste a quote — that returns a proposal to approve, never a direct edit.
 import { h, icon, toast } from "../ui/h.js";
 import { backLink, notice, pageHead } from "../components/common.js";
 import { proposalCard } from "../components/proposal.js";
@@ -12,6 +13,8 @@ import { can, store } from "../store.js";
 const MODES = {
   ask: { label: "שאלה", icon: "chat", placeholder: "למשל: כמה עולים המלונות בניו יורק?", button: "לשאול",
     examples: ["כמה עולים המלונות בניו יורק?", "מה כבר הוזמן ומה עוד לא?", "מתי חוזרים הביתה?"] },
+  familyAsk: { label: "שאלה", icon: "chat", placeholder: "למשל: מתי מגיעים לאורלנדו?", button: "לשאול",
+    examples: ["מתי מגיעים לאורלנדו?", "כמה לילות בניו יורק?", "מתי חוזרים הביתה?"] },
   change: { label: "לשנות במשפט", icon: "sparkles", placeholder: "למשל: תוסיף עיר וושינגטון ל-2 לילות אחרי ניו יורק", button: "להכין הצעה",
     examples: ["תוסיף עיר וושינגטון ל-2 לילות אחרי ניו יורק", "תעביר את השייט ל-11 באוקטובר על Wonder עם מרפסת", "תבדוק מחיר עדכני לכרטיסים ליוניברסל"] },
   quote: { label: "הדבקת הצעת מחיר", icon: "file", placeholder: "הדביקו כאן את המייל או הטקסט של הצעת המחיר / אישור ההזמנה", button: "לקרוא ולהציע עדכון", examples: [] },
@@ -77,11 +80,11 @@ function historyCard(rerender) {
 }
 
 export function renderAsk(ctx) {
-  if (!can.family()) return [backLink(), pageHead("שאלו את הטיול"), signInCard("כדי לשאול את ה-AI צריך להיכנס פעם אחת עם חשבון גוגל.")];
+  if (!can.ask()) return [backLink(), pageHead("שאלו את הטיול"), signInCard("כדי לשאול את ה-AI צריך להיכנס פעם אחת עם חשבון גוגל.")];
   const rerender = ctx.rerender;
   const modes = can.edit() ? ["ask", "change", "quote"] : ["ask"];
   if (!modes.includes(state.mode)) state.mode = "ask";
-  const m = MODES[state.mode];
+  const m = !can.edit() && state.mode === "ask" ? MODES.familyAsk : MODES[state.mode];
 
   const textarea = h("textarea", {
     class: "textarea", id: "ask-text", dir: "auto", rows: state.mode === "quote" ? 8 : 4, placeholder: m.placeholder, disabled: state.busy,
@@ -116,6 +119,7 @@ export function renderAsk(ctx) {
     backLink(),
     pageHead("שאלו את הטיול"),
     demoNote,
+    can.edit() ? null : h("p", { class: "meta" }, "ה-AI עונה על המסלול, התאריכים והטיסות. מחירים פתוחים רק לעורכי הטיול."),
     h("section", { class: "card ask-box" },
       modes.length > 1
         ? h("div", { class: "choice-row", role: "group", "aria-label": "מה לעשות", style: { marginBottom: "12px" } },

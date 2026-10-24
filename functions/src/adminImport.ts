@@ -13,32 +13,34 @@ const isObj = (x: unknown): x is Record<string, any> => !!x && typeof x === "obj
 
 export const adminImport = onCall({ region: REGION, memory: "512MiB" }, async (req) => {
   const caller = await requireRole(req, "owner");
-  const { pub, priv } = (req.data || {}) as { pub?: unknown; priv?: unknown };
-  if (!isObj(pub)) badRequest("הקובץ לא נראה כמו נתוני טיול.");
+  const data = (req.data || {}) as { plan?: unknown; pub?: unknown; priv?: unknown };
+  const plan = isObj(data.plan) ? data.plan : data.pub; // backups made before 2026-10-25 call the plan "pub"
+  const priv = data.priv;
+  if (!isObj(plan)) badRequest("הקובץ לא נראה כמו נתוני טיול.");
   const changeRef = db.collection(paths.changes).doc();
   const backupRef = db.collection(paths.backups).doc(changeRef.id);
   const now = new Date().toISOString();
   return db.runTransaction(async (tx) => {
     const current = await readDocs(tx);
     const nextPriv = isObj(priv) ? priv : current.priv;
-    const nextPub: Record<string, any> = { ...pub, schemaVersion: SCHEMA_VERSION };
-    const errors = validateDocs({ pub: nextPub, priv: nextPriv });
+    const nextPlan: Record<string, any> = { ...plan, schemaVersion: SCHEMA_VERSION };
+    const errors = validateDocs({ plan: nextPlan, priv: nextPriv });
     if (errors.length) {
       const messageHe = `הנתונים לא תקינים: ${errors[0]}`;
       throw new HttpsError("invalid-argument", messageHe, { messageHe, errors: errors.slice(0, 20) });
     }
-    const version = (current.pub.version || 0) + 1;
-    const result = computeTrip(nextPub, { skipOptions: true });
-    nextPub.version = version;
-    nextPub.updatedAt = now;
-    nextPub.updatedByLabel = caller.label;
-    nextPub.derived = derivedSummary(result, now);
-    nextPub.recent = [
+    const version = (current.plan.version || 0) + 1;
+    const result = computeTrip(nextPlan, { skipOptions: true });
+    nextPlan.version = version;
+    nextPlan.updatedAt = now;
+    nextPlan.updatedByLabel = caller.label;
+    nextPlan.derived = derivedSummary(result, now);
+    nextPlan.recent = [
       { version, changeId: changeRef.id, at: now, byLabel: caller.label, source: "system", summary: "נטענו נתוני טיול חדשים", deltaIlsTyp: 0, refs: [] },
-      ...(Array.isArray(nextPub.recent) ? nextPub.recent : []),
+      ...(Array.isArray(nextPlan.recent) ? nextPlan.recent : []),
     ].slice(0, RECENT_MAX);
-    tx.set(backupRef, { at: now, by: caller.label, pub: current.pub, priv: current.priv });
-    writeDocs(tx, { pub: nextPub, priv: nextPriv });
+    tx.set(backupRef, { at: now, by: caller.label, plan: current.plan, priv: current.priv });
+    writeDocs(tx, { plan: nextPlan, priv: nextPriv });
     tx.set(changeRef, {
       at: now, by: { uid: caller.uid, label: caller.label }, source: "system", summary: "נטענו נתוני טיול חדשים (גיבוי של הקודמים נשמר)",
       ops: [], inverseOps: [], baseVersion: version - 1, newVersion: version, deltaIlsTyp: 0, backupId: backupRef.id, undoneBy: null,

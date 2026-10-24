@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Tickets and booking confirmations: family can read, editors can upload. Never public.
+// Tickets and booking confirmations: editors only (they show prices). Never public.
 // Files are read with getBlob() through these rules — the app never creates public download links.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -19,16 +19,13 @@ service firebase.storage {
     function isEditor() {
       return signedIn() && email() in access().editors;
     }
-    function isFamily() {
-      return signedIn() && (email() in access().editors || email() in access().family);
-    }
     function okType() {
       return (request.resource.contentType == 'application/pdf' && request.resource.size < 20 * 1024 * 1024)
         || (request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.size < 10 * 1024 * 1024);
     }
 
     match /trips/{tripId}/docs/{docId}/{fileName} {
-      allow read: if isFamily();
+      allow read: if isEditor();
       allow create: if resource == null && isEditor() && okType()
         && docId.matches('[A-Za-z0-9_-]{1,40}')
         && fileName.matches('[A-Za-z0-9._-]{1,100}');

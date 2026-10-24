@@ -2,20 +2,21 @@
 
 אתר אחד שעונה על השאלה "כמה כל הטיול עולה, ומה כבר סגור?" — לכל המשפחה, בעברית, בטלפון.
 
-- **כולם (בלי כניסה):** הסכום הכולל, לאן הולך הכסף, מה כבר סגור, המסלול, אפשרויות שאנחנו שוקלים.
-- **משפחה (כניסה אחת עם גוגל):** גם כרטיסים ואישורי הזמנה, ושאלות ל-AI ("כמה עולים המלונות בניו יורק?").
-- **עורכים:** משנים הכול — ידנית או במשפט ל-AI ("תוסיף עיר וושינגטון ל-2 לילות"). ה-AI רק מציע; עורך מאשר.
+- **כולם (בלי כניסה):** רק המסלול — ערים, תאריכים, לילות וחגים. בלי מחירים ובלי AI.
+- **משפחה (כניסה אחת עם גוגל, כפתור "כניסה" בראש כל עמוד):** גם שאלות ל-AI על המסלול ("מתי מגיעים לאורלנדו?"). עדיין בלי מחירים — גם ה-AI לא מקבל אותם.
+- **עורכים:** הכול — הסכום, לאן הולך הכסף, מה סגור, אפשרויות, מסמכים, היסטוריה, ושינויים ידנית או במשפט ל-AI ("תוסיף עיר וושינגטון ל-2 לילות"). ה-AI רק מציע; עורך מאשר.
 
 **הכול נתונים:** ערים ועצירות, קטגוריות, שורות, מחירים, מספר נוסעים, חדרים ורכבים, אפשרויות (למשל השייט), ואפילו סדר החלקים בעמוד הבית — הכול נערך מתוך האתר, בלי לגעת בקוד.
 
 ## איך זה עובד
 ```mermaid
 flowchart LR
-  V[דפדפן: צופה] -- קריאה ישירה --> P[(Firestore: מסמך ציבורי)]
+  V[דפדפן: כולם/משפחה] -- קריאה ישירה --> P[(Firestore: מסלול ציבורי, בלי מחירים)]
   F[דפדפן: משפחה/עורך] -- כניסה עם גוגל --> A[Firebase Auth]
   F -- כל שינוי --> CF[Cloud Functions<br/>me-west1]
-  CF -- בודק, מחשב, שומר היסטוריה --> P
-  CF --> Q[(מסמך פרטי)]
+  CF -- בודק, מחשב, שומר היסטוריה --> PL[(תוכנית עם מחירים — עורכים)]
+  CF -- מפיק מחדש מהתוכנית --> P
+  CF --> Q[(מסמך פרטי — עורכים)]
   CF -- שאלות/הצעות --> C[Claude API<br/>המפתח רק בשרת]
   F -- כרטיסים --> S[(Storage פרטי)]
 ```
@@ -50,7 +51,7 @@ flowchart LR
    firebase functions:artifacts:setpolicy
    ```
 9. **GitHub:** צרו repo ציבורי `usa-trip-2027`, דחפו, ו-Settings → Pages → Branch `main` / folder `/docs`.
-10. **באתר:** היכנסו עם גוגל → הגדרות → גיבוי → **"טען נתוני פתיחה"** → הגדרות → גישה: הוסיפו את אבא ושאר המשפחה (ועורכים).
+10. **באתר:** לחצו "כניסה" למעלה → **"טען נתוני פתיחה"** (מופיע בעמוד הבית כל עוד אין נתונים; גם בהגדרות → גיבוי) → הגדרות → גישה: הוסיפו את המשפחה ("משפחה" = מסלול ו-AI בלי מחירים) ועורכים ("עורך" = רואים מחירים ומשנים).
 
 ## שימוש יומיומי
 - **לשנות מחיר:** "מצב עריכה" → קטגוריה → "עריכה" על השורה. כל חישוב מתעדכן מיד. "ביטול" בהודעה הקופצת או בהיסטוריה מבטל.
@@ -84,18 +85,18 @@ npm run test:all
 
 A Hebrew, right-to-left website that answers "how much will the whole trip cost, and what is already booked?" for an 8-person family trip (30 Sep – 18 Oct 2027), readable by a non-technical parent on a phone.
 
-- **Public link (no login):** total, where the money goes, how much is locked in, the route, options being considered.
-- **Family (one Google sign-in):** tickets & confirmations, and "Ask the trip" (Claude answers in plain Hebrew; keyboard dictation works).
-- **Editors:** change everything by hand or by asking Claude; Claude only *proposes* (a reviewed list of changes), an editor approves.
+- **Public link (no login):** the route only — cities, dates, nights, holidays. No prices, no AI.
+- **Family (one Google sign-in; the "כניסה" button is at the top of every page):** also "Ask the trip" about the route (Claude answers in plain Hebrew; keyboard dictation works). Still no prices — the model isn't given any for them.
+- **Editors:** everything — the total, categories, options, documents, history — and change it by hand or by asking Claude; Claude only *proposes* (a reviewed list of changes), an editor approves.
 
-Everything is data: stops, categories, rows, prices, travellers, units, options and the home-page layout live in Firestore (`trips/usa2027/public/state` and `private/state`). The engine in `docs/js/shared/` is pure JS shared by the browser and the Cloud Functions.
+Everything is data: stops, categories, rows, prices, travellers, units, options and the home-page layout live in Firestore (`trips/usa2027/plan/state` and `private/state`, editors only). The functions regenerate the price-free `public/state` route from the plan on every change. The engine in `docs/js/shared/` is pure JS shared by the browser and the Cloud Functions.
 
 **Layout**
 | Path | What |
 |---|---|
 | `docs/` | the static site (GitHub Pages) — `js/shared` engine, `js/views` screens, `js/edit` editor, `data/seed-data.json` opening data |
 | `functions/` | Cloud Functions (TypeScript, Node 24, me-west1): `commitChange`, `undoChange`, `whoami`, `getAccess`/`setAccess`, `adminImport`, `aiAsk`, `aiPropose`, `applyProposal`/`rejectProposal`, `addDocument` |
-| `firestore.rules`, `storage.rules` | access rules (public summary readable by anyone; everything else family / editors; no browser writes to trip data) |
+| `firestore.rules`, `storage.rules` | access rules (the price-free route readable by anyone; plan, private data, history and documents editors only; no browser writes to trip data) |
 | `seed/reference-prices.md` | researched prices — background knowledge for the AI, not rows |
 | `tests/` | unit tests (`npm test`), rules tests and emulator end-to-end tests (`npm run test:all`) |
 | `notes/` | `ai.md` (Claude usage, verified SDK shapes, costs), `data-model.md`, `runbook.md` |

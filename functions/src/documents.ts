@@ -1,4 +1,4 @@
-// Tickets and confirmations. The browser uploads the file to Storage (rules: editors only), then calls
+// Tickets and confirmations (editors only — they carry prices). The browser uploads the file to Storage, then calls
 // addDocument. The file is read by Claude in a step WITHOUT tools (structured JSON only), and those facts —
 // never the raw document — feed the proposal step, which suggests: mark the row booked, real price,
 // deadlines, private booking code, flight segments. An editor approves as usual.
@@ -6,7 +6,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { getStorage } from "firebase-admin/storage";
 import { db, paths, REGION, TRIP_ID } from "./lib/admin.js";
 import { requireRole } from "./lib/access.js";
-import { badRequest, readDocs } from "./lib/state.js";
+import { badRequest, readDocs, requireTripData } from "./lib/state.js";
 import { aiSettingsOf, reserve, settle } from "./lib/caps.js";
 import { ANTHROPIC_API_KEY, addUsage, createMessage, emptyUsage, textOf, toHttpsError } from "./lib/claude.js";
 import { EXTRACT_SYSTEM } from "./lib/prompts.js";
@@ -68,6 +68,7 @@ export const addDocument = onCall({ region: REGION, secrets: [ANTHROPIC_API_KEY]
   }
 
   const docs = await readDocs();
+  requireTripData(docs);
   const settings = aiSettingsOf(docs.priv);
   const res = await reserve(caller, "extract", 0.5, settings);
   const usage = emptyUsage();
@@ -109,7 +110,7 @@ export const addDocument = onCall({ region: REGION, secrets: [ANTHROPIC_API_KEY]
       result.ops.push(op);
       result.lines.push(`המסמך "${title}" צורף לשורה`);
       result.working = {
-        pub: result.working.pub,
+        plan: result.working.plan,
         priv: { ...result.working.priv, items: { ...(result.working.priv?.items || {}), [itemId]: { ...(cur || {}), documentIds: ids } } },
       };
     }

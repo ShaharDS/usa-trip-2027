@@ -13,7 +13,7 @@ test("valid ops pass and return the new documents", () => {
     { t: "update", e: "items", id: "hotel_road", set: { "rule.time.stopIds": ["road", "dc"] } },
   ], { version: 3 });
   assert.equal(r.ok, true, r.errors?.join("\n"));
-  assert.equal(r.docs.pub.stops.dc.v, 3);
+  assert.equal(r.docs.plan.stops.dc.v, 3);
 });
 
 test("bad values are rejected with Hebrew messages", () => {

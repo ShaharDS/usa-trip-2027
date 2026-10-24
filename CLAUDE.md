@@ -14,8 +14,10 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    `docs/js/shared/schema.js` (+ engine/renderer), not a one-off in a view.
 2. **High-level rows only** (flights, a hotel per city, car rental, parks, cruise, food, extras) — not souvenirs/lockers/Wi-Fi.
    Detailed research is AI background in `seed/reference-prices.md`, not rows.
-3. **Three levels:** public link (cost summary, no personal data, no login) · family (one Google sign-in: documents + Ask AI) ·
-   editors (edit everything, approve AI proposals). The owner manages the email lists in-app (`setAccess`).
+3. **Three levels (Shahar, 2026-10-25):** public link = **the route only** (dates, stops, nights, holidays — no prices, no AI) ·
+   family (one Google sign-in, "כניסה" button at the top of every page) = route + Ask AI, **still no prices** (the model gets
+   the route only) · editors = everything: prices, edit, documents, history, approve AI proposals. The owner manages the
+   email lists in-app (`setAccess`).
 4. **AI only proposes.** Every Claude edit becomes a proposal (before ← after lines with checkboxes); an editor taps אשר.
    AI v1 = Ask the trip + edit-by-sentence + paste a quote + upload a ticket. Weekly watch / email alerts / forgot-audit = later.
 5. Holidays do not constrain the cruise (they are timeline markers only). Shahar's 5 sailings × Utopia/Wonder quotes are the
@@ -33,8 +35,11 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
 3. **Secrets never in the repo** (it is public for GitHub Pages): Claude key = Firebase secret `ANTHROPIC_API_KEY`;
    `OWNER_EMAIL` in `functions/.env`; emulator files `functions/.env.local` (CLAUDE_FAKE=1) and `functions/.secret.local`.
    Never type or print the real API key — the owner sets it with `firebase functions:secrets:set`.
-4. **Booking codes / private notes / flights / documents are private** (`private/state`, Storage). Never let them reach
-   `public/state` (the public "what changed" text is regenerated server-side from public ops only).
+4. **Prices never reach anyone but editors.** `plan/state` (whole trip, prices) and `private/state` (booking codes, notes,
+   flights) are editors only; so are history, proposals, usage and documents (they all carry amounts). `public/state` is
+   generated from the plan by `routeView()` (`docs/js/shared/route.js`) inside `writeDocs` on every write — never write it
+   any other way, and never add a field to it without checking `tests/route.test.mjs`. Family's `aiAsk` uses
+   `familyContext()` (route + flight times), never `tripContext()`.
 5. **Claude API usage:** model `claude-sonnet-5-5` (Shahar's choice; changeable in Settings → AI), `thinking: {type: "adaptive"}`, effort per feature,
    `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`, `tool_choice: auto` (forced choice 400s on Sonnet 5.5 / Opus 5.5),
    strict tools, no temperature/top_p, streaming `finalMessage()`. Shapes verified against `@anthropic-ai/sdk` 1.3.0 —
@@ -60,11 +65,13 @@ USA Trip 2027/
     js/main.js              boot, routing → views, nav, edit bar, render guard
     js/store.js router.js   state + memoized engine result; hash routes
     js/shared/              PURE engine: schema, engine (computeTrip, itinerary), ops (+undo), validate, format (Hebrew),
-                            commit (prepareCommit/prepareUndo), aitools (AI tool schemas → ops), deadlines
-    js/views/               home (renders `sections`), category, options, route, print, ask, docs, settings, history, signin, footer
+                            commit (prepareCommit/prepareUndo), aitools (AI tool schemas → ops), deadlines,
+                            route (routeView: plan → price-free public route)
+    js/views/               home (editors: renders `sections`), route (renderRouteHome = the whole site for public/family),
+                            category, options, print, ask, docs, settings (+ setupCard when no data), history, signin, footer
     js/edit/                kit (form controls), forms (row/category/stop/section/option/question), tools, sections, stops
     js/components/          common (badges, chips, share), proposal (AI review card)
-    js/data/                rest (public REST read), live (Firestore lite/full), session (sign-in → whoami → data), commit
+    js/data/                rest (public route via REST), live (editors: live plan + private), session (sign-in → whoami → data), commit
     js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables), storage (getBlob only)
     js/ui/                  h (DOM + automatic <bdi>), speech (dictation/read-aloud), resize (photos ≤1600px)
     js/dev/audit.js         father-friendly audit (run via the browser console / pane)
@@ -92,5 +99,9 @@ USA Trip 2027/
 - The functions emulator sometimes fails "Failed to load function definition … fetch failed" right after another emulator run — just rerun.
 - Stopping a background `firebase emulators:start` leaves java/node listening; find them by port and stop those PIDs only.
 - A hash-only URL change doesn't reload the page: after editing JS, navigate with a new query string (`?r=N`).
+- In-memory documents are `{plan, priv}` (`store.docs`, functions `Docs`); `store.route` is the public route. `store.docs.plan`
+  is `undefined` while loading and `null` when the database has no trip (editors then get `setupCard`, and the functions
+  refuse changes via `requireTripData`).
+- Demo mode: `?demo` = what anyone sees, `?demo=family`, `?demo=editor|owner`; the top bar's buttons switch between them.
 - Auth emulator: sign in from page JS with `GoogleAuthProvider.credential(JSON.stringify({sub,email,email_verified:true}))`;
   set `localStorage.usaTrip.hadSession = "1"` so the session restores on reload.

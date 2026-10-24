@@ -33,7 +33,7 @@ export async function commit(ops, { summary, source = "manual", proposalId } = {
     return { changeId };
   }
   try {
-    return await callFunction("commitChange", { ops, summary: prepared.change.summary, baseVersion: before.pub.version || 0, proposalId: proposalId || null });
+    return await callFunction("commitChange", { ops, summary: prepared.change.summary, baseVersion: before.plan.version || 0, proposalId: proposalId || null });
   } catch (err) {
     setState({ docs: before });
     throw new CommitError(err.message, err.details?.errors || []);

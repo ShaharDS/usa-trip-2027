@@ -101,12 +101,14 @@ const rule = T.obj({
 });
 
 /**
- * Entities. `doc` says which Firestore document holds them (public = anyone can read; private = family only).
+ * Entities. `doc` says which Firestore document holds them: "plan" (the whole trip with prices) and
+ * "private" (booking codes, flights, AI settings) — both editors only. Nobody else reads either: anyone
+ * with the link reads the price-free route document that route.js derives from the plan on every write.
  * `singleton` entities have exactly one record stored directly at `path` (id "_").
  */
 export const ENTITIES = {
   settings: {
-    doc: "public", singleton: true, path: "settings", labelHe: "הגדרות",
+    doc: "plan", singleton: true, path: "settings", labelHe: "הגדרות",
     fields: {
       title: T.str(80, { required: true }),
       subtitle: T.str(120),
@@ -121,15 +123,15 @@ export const ENTITIES = {
     },
   },
   groups: {
-    doc: "public", path: "groups", labelHe: "קבוצת נוסעים",
+    doc: "plan", path: "groups", labelHe: "קבוצת נוסעים",
     fields: { label: T.str(40, { required: true }), count: T.int(0, 50, { required: true }), note: T.str(120) },
   },
   presets: {
-    doc: "public", path: "presets", labelHe: "מי נספר",
+    doc: "plan", path: "presets", labelHe: "מי נספר",
     fields: { label: T.str(40, { required: true }), weights: T.map(T.num(0, 1), 20, { required: true }) },
   },
   stops: {
-    doc: "public", path: "stops", labelHe: "עצירה במסלול",
+    doc: "plan", path: "stops", labelHe: "עצירה במסלול",
     fields: {
       label: T.str(60, { required: true }),
       kind: T.en(STOP_KINDS, { required: true }),
@@ -141,11 +143,11 @@ export const ENTITIES = {
     },
   },
   units: {
-    doc: "public", path: "units", labelHe: "יחידות (חדרים / רכבים)",
+    doc: "plan", path: "units", labelHe: "יחידות (חדרים / רכבים)",
     fields: { label: T.str(40, { required: true }), count: T.int(0, 50, { required: true }), icon: T.en(ICONS) },
   },
   categories: {
-    doc: "public", path: "categories", labelHe: "קטגוריה",
+    doc: "plan", path: "categories", labelHe: "קטגוריה",
     fields: {
       label: T.str(40, { required: true }),
       icon: T.en(ICONS, { required: true }),
@@ -154,7 +156,7 @@ export const ENTITIES = {
     },
   },
   items: {
-    doc: "public", path: "items", labelHe: "שורת עלות",
+    doc: "plan", path: "items", labelHe: "שורת עלות",
     fields: {
       categoryId: T.ref("categories", { required: true }),
       label: T.str(80, { required: true }),
@@ -178,11 +180,11 @@ export const ENTITIES = {
     },
   },
   optionGroups: {
-    doc: "public", path: "optionGroups", labelHe: "שאלה עם אפשרויות",
+    doc: "plan", path: "optionGroups", labelHe: "שאלה עם אפשרויות",
     fields: { label: T.str(60, { required: true }), question: T.str(120), chosen: T.ref("options") },
   },
   options: {
-    doc: "public", path: "options", labelHe: "אפשרות",
+    doc: "plan", path: "options", labelHe: "אפשרות",
     fields: {
       groupId: T.ref("optionGroups", { required: true }),
       label: T.str(80, { required: true }),
@@ -191,7 +193,7 @@ export const ENTITIES = {
     },
   },
   sections: {
-    doc: "public", path: "sections", labelHe: "חלק בעמוד הבית",
+    doc: "plan", path: "sections", labelHe: "חלק בעמוד הבית",
     fields: {
       type: T.en(SECTION_TYPES, { required: true }),
       title: T.str(60),
@@ -200,11 +202,11 @@ export const ENTITIES = {
     },
   },
   checklist: {
-    doc: "public", path: "checklist", labelHe: "משימה",
+    doc: "plan", path: "checklist", labelHe: "משימה",
     fields: { label: T.str(120, { required: true }), done: T.bool(), dueDate: T.date(), itemId: T.ref("items") },
   },
   holidays: {
-    doc: "public", path: "holidays", labelHe: "חג",
+    doc: "plan", path: "holidays", labelHe: "חג",
     fields: {
       label: T.str(40, { required: true }),
       start: T.date({ required: true }),
@@ -212,7 +214,7 @@ export const ENTITIES = {
       kind: T.en(["jewish", "us", "other"]),
     },
   },
-  // ---- private document (family only) ----
+  // ---- private document (editors only) ----
   privateItems: {
     doc: "private", path: "items", labelHe: "פרטי הזמנה",
     fields: {
@@ -250,8 +252,8 @@ export const ENTITIES = {
 
 export const ENTITY_NAMES = Object.keys(ENTITIES);
 
-/** Entities whose records the viewer page lists (everything public except settings). */
-export const PUBLIC_COLLECTIONS = ENTITY_NAMES.filter((e) => ENTITIES[e].doc === "public" && !ENTITIES[e].singleton);
+/** Record collections of each document (singletons excluded). */
+export const PLAN_COLLECTIONS = ENTITY_NAMES.filter((e) => ENTITIES[e].doc === "plan" && !ENTITIES[e].singleton);
 export const PRIVATE_COLLECTIONS = ENTITY_NAMES.filter((e) => ENTITIES[e].doc === "private" && !ENTITIES[e].singleton);
 
 export const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -262,13 +264,13 @@ export function newId(prefix = "id") {
   return `${prefix}_${rand}`;
 }
 
-/** Empty public + private documents with the right top-level keys. */
+/** Empty plan + private documents with the right top-level keys. */
 export function emptyDocs() {
-  const pub = { schemaVersion: SCHEMA_VERSION, version: 0, updatedAt: null, updatedByLabel: "", recent: [] };
+  const plan = { schemaVersion: SCHEMA_VERSION, version: 0, updatedAt: null, updatedByLabel: "", recent: [] };
   const priv = { schemaVersion: SCHEMA_VERSION };
   for (const [name, def] of Object.entries(ENTITIES)) {
-    const target = def.doc === "public" ? pub : priv;
+    const target = def.doc === "plan" ? plan : priv;
     if (!(def.path in target)) target[def.path] = def.singleton ? {} : {};
   }
-  return { pub, priv };
+  return { plan, priv };
 }

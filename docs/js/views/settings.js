@@ -10,6 +10,7 @@ import { choices, compact, dateInput, diffOp, errorBox, field, fieldset, numberI
 import { nextOrder, run } from "../edit/tools.js";
 import { can, setState, store } from "../store.js";
 import { callFunction } from "../fb/api.js";
+import { routeView } from "../shared/route.js";
 
 const TABS = [
   { id: "general", label: "כללי", icon: "settings" },
@@ -150,7 +151,7 @@ function access(ctx) {
   const name = textInput("", () => {}, { placeholder: "למשל: אבא" });
   let role = "family";
   const draw = () => box.replaceChildren(
-    ...[["editors", "עורכים (יכולים לשנות)"], ["family", "משפחה (רואים מסמכים ושואלים את ה-AI)"]].map(([key, title]) =>
+    ...[["editors", "עורכים (רואים מחירים ויכולים לשנות)"], ["family", "משפחה (מסלול ושאלות ל-AI, בלי מחירים)"]].map(([key, title]) =>
       h("div", { style: { marginBottom: "14px" } }, h("h3", {}, title),
         Object.keys(data[key] || {}).length
           ? h("ul", { class: "check-list" }, Object.entries(data[key]).map(([mail, info]) => h("li", {},
@@ -169,7 +170,7 @@ function access(ctx) {
   callFunction("getAccess", {}).then((d) => { data = d; draw(); }).catch((err) => errors.show([err.message]));
   return [
     errors,
-    h("section", { class: "card" }, h("h2", {}, icon("users"), "מי נכנס לאתר"), h("p", { class: "card-sub" }, "את הסכום הכולל כולם רואים בלי כניסה. מסמכים ושאלות ל-AI — רק לחשבונות גוגל שברשימה."), box),
+    h("section", { class: "card" }, h("h2", {}, icon("users"), "מי נכנס לאתר"), h("p", { class: "card-sub" }, "את המסלול כולם רואים בלי כניסה, בלי מחירים. משפחה: גם שאלות ל-AI (עדיין בלי מחירים). עורכים: הכל — מחירים, עריכה ומסמכים."), box),
     h("section", { class: "card" },
       h("h2", {}, icon("plus"), "הוספת אדם"),
       field("כתובת Gmail", email),
@@ -207,22 +208,41 @@ function downloadJson(obj, name) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
-function backup(ctx) {
+/** Replace the whole trip (owner). The server keeps a backup of what was there; the live listener brings the result. */
+async function importDocs(docs, label, errors) {
+  if (store.demo) {
+    setState({ docs: { plan: docs.plan, priv: docs.priv || store.docs.priv }, route: routeView(docs.plan) });
+    toast(`${label} — נטען (במצב הדגמה, לא נשמר)`);
+    return;
+  }
+  try {
+    await callFunction("adminImport", { plan: docs.plan, priv: docs.priv || null });
+    toast(`${label} — נטען`);
+  } catch (err) {
+    errors.show(err.details?.errors || [err.message]);
+  }
+}
+
+const loadOpeningData = async (errors) =>
+  importDocs({ plan: await fetch("data/seed-data.json", { cache: "no-cache" }).then((r) => r.json()) }, "נתוני הפתיחה", errors);
+
+/** Shown to editors while the database has no trip yet (editing would fail). The owner loads the data right here. */
+export function setupCard() {
+  const errors = errorBox();
+  return [
+    pageHead("עוד אין נתוני טיול"),
+    errors,
+    h("section", { class: "card" },
+      h("p", {}, "האתר מחובר, אבל עוד לא נטענו אליו נתוני הטיול. עד אז אי אפשר לערוך, ומי שנכנס רואה מסלול ראשוני."),
+      can.owner()
+        ? h("button", { type: "button", class: "btn", onclick: () => loadOpeningData(errors) }, icon("refresh"), "טען נתוני פתיחה")
+        : notice("בעל האתר צריך להיכנס וללחוץ ״טען נתוני פתיחה״.", "info", "info")),
+  ];
+}
+
+function backup() {
   const errors = errorBox();
   const stamp = new Date().toISOString().slice(0, 10);
-  const importDocs = async (docs, label) => {
-    if (store.demo) {
-      setState({ docs: { pub: docs.pub, priv: docs.priv || store.docs.priv } });
-      toast(`${label} — נטען (במצב הדגמה, לא נשמר)`);
-      return;
-    }
-    try {
-      await callFunction("adminImport", { pub: docs.pub, priv: docs.priv || null });
-      toast(`${label} — נטען`);
-    } catch (err) {
-      errors.show(err.details?.errors || [err.message]);
-    }
-  };
   const fileInput = h("input", {
     type: "file", accept: "application/json,.json", class: "input",
     onchange: async (e) => {
@@ -230,7 +250,8 @@ function backup(ctx) {
       if (!file) return;
       try {
         const json = JSON.parse(await file.text());
-        await importDocs(json.pub ? json : { pub: json }, "הגיבוי");
+        const plan = json.plan || json.pub || json; // backups made before 2026-10-25 call the plan "pub"
+        await importDocs({ plan, priv: json.priv }, "הגיבוי", errors);
       } catch {
         errors.show(["הקובץ לא נראה כמו גיבוי של האתר."]);
       }
@@ -241,16 +262,13 @@ function backup(ctx) {
     h("section", { class: "card" },
       h("h2", {}, icon("file"), "גיבוי"),
       h("p", { class: "card-sub" }, "שומר קובץ עם כל נתוני הטיול (כולל פרטים פרטיים, אם נכנסתם)."),
-      h("button", { type: "button", class: "btn", onclick: () => downloadJson({ pub: store.docs.pub, priv: store.docs.priv }, `usa-trip-backup-${stamp}.json`) }, icon("file"), "הורדת גיבוי")),
+      h("button", { type: "button", class: "btn", onclick: () => downloadJson({ plan: store.docs.plan, priv: store.docs.priv }, `usa-trip-backup-${stamp}.json`) }, icon("file"), "הורדת גיבוי")),
     can.owner() || store.demo
       ? h("section", { class: "card" },
         h("h2", {}, icon("upload"), "טעינת נתונים"),
         h("p", { class: "card-sub" }, "מחליף את כל נתוני הטיול. אפשר לבטל דרך ״היסטוריה״."),
         field("מקובץ גיבוי", fileInput),
-        h("button", {
-          type: "button", class: "btn btn-secondary",
-          onclick: async () => { const seed = await fetch("data/seed-data.json", { cache: "no-cache" }).then((r) => r.json()); importDocs({ pub: seed }, "נתוני הפתיחה"); },
-        }, icon("refresh"), "טען נתוני פתיחה"))
+        h("button", { type: "button", class: "btn btn-secondary", onclick: () => loadOpeningData(errors) }, icon("refresh"), "טען נתוני פתיחה"))
       : null,
   ];
 }

@@ -1,5 +1,6 @@
-// Home screen: rendered entirely from state.sections (the layout is data — editors and the AI can add,
-// hide, reorder and retitle sections). Unknown section types are skipped.
+// Editors' home screen (the cost summary): rendered entirely from state.sections (the layout is data —
+// editors and the AI can add, hide, reorder and retitle sections). Unknown section types are skipped.
+// Everyone else gets renderRouteHome (views/route.js) instead — they never see prices.
 import { h, icon, safeStorage } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
 import { SECTION_HE } from "../shared/schema.js";
@@ -211,8 +212,8 @@ function checklist(ctx) {
 function docsShortcut(ctx) {
   return h("section", { class: "card" },
     h("h2", {}, icon("file"), ctx.section.title || "כרטיסים ואישורי הזמנה"),
-    h("p", { class: "card-sub" }, can.family() ? "כל הכרטיסים והאישורים במקום אחד." : "לבני המשפחה בלבד — נכנסים פעם אחת עם חשבון גוגל."),
-    h("a", { class: "btn btn-secondary", href: "#/docs" }, icon(can.family() ? "file" : "lock"), can.family() ? "למסמכים" : "כניסה למשפחה"));
+    h("p", { class: "card-sub" }, "כל הכרטיסים והאישורים במקום אחד (רק לעורכים)."),
+    h("a", { class: "btn btn-secondary", href: "#/docs" }, icon("file"), "למסמכים"));
 }
 
 function askBox(ctx) {

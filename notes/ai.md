@@ -3,7 +3,7 @@
 ## Features (v1)
 | Function | Who | What |
 |---|---|---|
-| `aiAsk` | family | Plain-Hebrew answer from the trip data + engine output + recent changes. Optional `web_search` (max 2) for general facts. Read-only. Saved in `users/{uid}/asks`. |
+| `aiAsk` | family, editors | Editors: plain-Hebrew answer from the trip data + engine output + recent changes (+ price research). Family: `FAMILY_ASK_SYSTEM` + `familyContext()` = the public route, traveller groups and flight times only — no prices, no price research, no history; the prompt tells the model to decline cost questions. Optional `web_search` (max 2) for general facts. Read-only. Saved in `users/{uid}/asks`. |
 | `aiPropose` | editors | `mode: "sentence"` (with `web_search`, max 5) or `"quote"` (pasted text, no web). Tool loop → proposal in `trips/usa2027/proposals/{id}`. |
 | `addDocument` | editors | Uploaded PDF/image → step 1: structured `BookingFacts` (no tools) → step 2: proposal in `"extraction"` mode (+ links the document to the touched rows). |
 | `applyProposal` / `rejectProposal` | editors | Commit the ticked lines as one change (`source: "ai"`, `approvedBy`), or close the proposal. Stale if the trip changed meanwhile. |

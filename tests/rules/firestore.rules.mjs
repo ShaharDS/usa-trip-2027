@@ -16,9 +16,11 @@ before(async () => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, "config/access"), { editors: { "editor@example.com": { label: "עורך" } }, family: { "dad@example.com": { label: "אבא" } } });
-    await setDoc(doc(db, "trips/usa2027/public/state"), { version: 1, settings: { title: "x" } });
+    await setDoc(doc(db, "trips/usa2027/public/state"), { version: 1, settings: { title: "x" }, itinerary: { stops: [] } });
+    await setDoc(doc(db, "trips/usa2027/plan/state"), { version: 1, items: { a: { price: { typical: 100, currency: "USD" } } } });
     await setDoc(doc(db, "trips/usa2027/private/state"), { items: { a: { bookingRef: "SECRET" } } });
     await setDoc(doc(db, "trips/usa2027/changes/c1"), { summary: "x" });
+    await setDoc(doc(db, "trips/usa2027/documents/d1"), { title: "x" });
     await setDoc(doc(db, "trips/usa2027/proposals/p1"), { createdBy: { uid: "dad" } });
     await setDoc(doc(db, "trips/usa2027/proposals/p2"), { createdBy: { uid: "someone" } });
     await setDoc(doc(db, "trips/usa2027/usage/2027-01"), { costUsd: 1 });
@@ -29,35 +31,44 @@ after(async () => env?.cleanup());
 const anon = () => env.unauthenticatedContext().firestore();
 const as = (uid, email, verified) => env.authenticatedContext(uid, google(email, verified)).firestore();
 
-test("anyone can read the public summary, nobody can write it", async () => {
+test("anyone can read the public route, nobody can write it", async () => {
   await assertSucceeds(getDoc(doc(anon(), "trips/usa2027/public/state")));
   await assertFails(setDoc(doc(anon(), "trips/usa2027/public/state"), { version: 99 }));
   await assertFails(setDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/public/state"), { version: 99 }));
 });
 
-test("private data: family yes, strangers and anonymous no", async () => {
-  await assertFails(getDoc(doc(anon(), "trips/usa2027/private/state")));
-  await assertFails(getDoc(doc(as("x", "stranger@gmail.com"), "trips/usa2027/private/state")));
-  await assertSucceeds(getDoc(doc(as("dad", "dad@example.com"), "trips/usa2027/private/state")));
-  await assertSucceeds(getDoc(doc(as("dad", "DAD@example.com"), "trips/usa2027/private/state")), "email case doesn't matter");
-  await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/private/state")));
-  await assertFails(setDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/private/state"), {}));
+test("prices (the plan) and private data: editors only — not family, strangers or anonymous", async () => {
+  for (const path of ["trips/usa2027/plan/state", "trips/usa2027/private/state"]) {
+    await assertFails(getDoc(doc(anon(), path)), `anonymous: ${path}`);
+    await assertFails(getDoc(doc(as("x", "stranger@gmail.com"), path)), `stranger: ${path}`);
+    await assertFails(getDoc(doc(as("dad", "dad@example.com"), path)), `family: ${path}`);
+    await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), path)), `editor: ${path}`);
+    await assertSucceeds(getDoc(doc(as("ed", "EDITOR@example.com"), path)), "email case doesn't matter");
+    await assertFails(setDoc(doc(as("ed", "editor@example.com"), path), {}), `no browser writes: ${path}`);
+  }
 });
 
 test("an unverified email or a non-Google sign-in gets nothing", async () => {
-  await assertFails(getDoc(doc(as("dad", "dad@example.com", false), "trips/usa2027/private/state")));
-  const pw = env.authenticatedContext("dad2", { email: "dad@example.com", email_verified: true, firebase: { sign_in_provider: "password" } }).firestore();
-  await assertFails(getDoc(doc(pw, "trips/usa2027/private/state")));
+  await assertFails(getDoc(doc(as("ed", "editor@example.com", false), "trips/usa2027/plan/state")));
+  const pw = env.authenticatedContext("ed2", { email: "editor@example.com", email_verified: true, firebase: { sign_in_provider: "password" } }).firestore();
+  await assertFails(getDoc(doc(pw, "trips/usa2027/plan/state")));
 });
 
-test("history and proposals", async () => {
-  await assertSucceeds(getDoc(doc(as("dad", "dad@example.com"), "trips/usa2027/changes/c1")));
-  await assertFails(getDoc(doc(anon(), "trips/usa2027/changes/c1")));
-  await assertSucceeds(getDoc(doc(as("dad", "dad@example.com"), "trips/usa2027/proposals/p1")), "own proposal");
-  await assertFails(getDoc(doc(as("dad", "dad@example.com"), "trips/usa2027/proposals/p2")), "someone else's");
-  await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/proposals/p2")));
-  await assertFails(getDoc(doc(as("dad", "dad@example.com"), "trips/usa2027/usage/2027-01")));
-  await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/usage/2027-01")));
+test("history, documents, proposals and usage: editors only (they carry prices)", async () => {
+  for (const path of ["trips/usa2027/changes/c1", "trips/usa2027/documents/d1", "trips/usa2027/proposals/p1", "trips/usa2027/proposals/p2", "trips/usa2027/usage/2027-01"]) {
+    await assertFails(getDoc(doc(anon(), path)), `anonymous: ${path}`);
+    await assertFails(getDoc(doc(as("dad", "dad@example.com"), path)), `family: ${path}`);
+    await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), path)), `editor: ${path}`);
+  }
+});
+
+test("family may read their own AI answers only", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "users/dad/asks/a1"), { question: "?", answer: "!" });
+  });
+  await assertSucceeds(getDoc(doc(as("dad", "dad@example.com"), "users/dad/asks/a1")));
+  await assertFails(getDoc(doc(as("ed", "editor@example.com"), "users/dad/asks/a1")));
+  await assertFails(setDoc(doc(as("dad", "dad@example.com"), "users/dad/asks/a2"), { question: "x" }));
 });
 
 test("the access list is not readable or writable from the browser", async () => {

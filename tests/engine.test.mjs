@@ -50,11 +50,11 @@ test("an early sailing that cannot fit gives a 'nights short' warning", () => {
 
 test("adding a city before the cruise shortens Orlando and updates totals", () => {
   const docs = seedDocs();
-  const before = computeTrip(docs.pub);
+  const before = computeTrip(docs.plan);
   const { docs: next } = applyOps(docs, [
     { t: "create", e: "stops", id: "dc", v: { label: "וושינגטון", kind: "city", icon: "landmark", nights: 2, order: 1.5 } },
   ]);
-  const after = computeTrip(next.pub);
+  const after = computeTrip(next.plan);
   assert.deepEqual(nightsOf(after.itinerary), { nyc: 6, dc: 2, road: 2, orlando: 5, cruise: 3, after: 0 });
   // Orlando house: 2 fewer nights x $385; cars: 2 fewer days; food: 2 fewer nights for 7 people? (dc not in food stops)
   const house = (r) => r.items.house_orlando.amount.usd.typ;
@@ -126,7 +126,7 @@ test("booked items with an actual amount collapse the range", () => {
   const { docs: next } = applyOps(docs, [
     { t: "update", e: "items", id: "hotel_nyc", set: { status: "booked", actual: { amount: 7900, currency: "USD" } } },
   ]);
-  const r = computeTrip(next.pub);
+  const r = computeTrip(next.plan);
   const row = r.items.hotel_nyc;
   assert.equal(row.mode, "actual");
   assert.equal(row.amount.usd.low, 7900);
@@ -139,7 +139,7 @@ test("ILS prices convert with the planning rate", () => {
   const { docs: next } = applyOps(docs, [
     { t: "update", e: "items", id: "local_transport", set: { "price.currency": "ILS", "price.low": 1555, "price.typical": 3110, "price.high": 4665 } },
   ]);
-  const r = computeTrip(next.pub);
+  const r = computeTrip(next.plan);
   assert.ok(near(r.items.local_transport.amount.usd.typ, 1000));
   assert.ok(near(r.items.local_transport.amount.ils.typ, 3110));
 });
@@ -149,13 +149,13 @@ test("items tied to an option only count while it is chosen", () => {
   const { docs: next } = applyOps(docs, [
     { t: "create", e: "items", id: "balcony_upgrade", v: { categoryId: "cruise", label: "שדרוג", optionId: "utopia_bal", rule: {}, price: { typical: 100, currency: "USD" }, status: "estimate" } },
   ]);
-  assert.equal(computeTrip(next.pub).items.balcony_upgrade.included, false);
-  assert.equal(computeTrip(next.pub, { choose: { ship: "utopia_bal" } }).items.balcony_upgrade.included, true);
+  assert.equal(computeTrip(next.plan).items.balcony_upgrade.included, false);
+  assert.equal(computeTrip(next.plan, { choose: { ship: "utopia_bal" } }).items.balcony_upgrade.included, true);
 });
 
 test("archived records are ignored", () => {
   const docs = seedDocs();
-  const base = computeTrip(docs.pub).total.usd.typ;
+  const base = computeTrip(docs.plan).total.usd.typ;
   const { docs: next } = applyOps(docs, [{ t: "archive", e: "items", id: "cars_gas" }]);
-  assert.ok(near(base - computeTrip(next.pub).total.usd.typ, 540 * 1.1));
+  assert.ok(near(base - computeTrip(next.plan).total.usd.typ, 540 * 1.1));
 });

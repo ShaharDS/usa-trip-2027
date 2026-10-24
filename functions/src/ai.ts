@@ -1,11 +1,12 @@
-// The AI assistant: "Ask the trip" (family) and change proposals from a sentence or a pasted quote (editors).
+// The AI assistant: "Ask the trip" (family: route only, no prices; editors: everything) and change proposals
+// from a sentence or a pasted quote (editors).
 import { onCall } from "firebase-functions/v2/https";
 import { db, REGION } from "./lib/admin.js";
 import { requireRole } from "./lib/access.js";
-import { readDocs } from "./lib/state.js";
+import { readDocs, requireTripData } from "./lib/state.js";
 import { aiSettingsOf, reserve, settle } from "./lib/caps.js";
 import { ANTHROPIC_API_KEY, createWithPauses, textOf, toHttpsError, urlsOf } from "./lib/claude.js";
-import { ASK_SYSTEM, referencePrices, tripContext } from "./lib/prompts.js";
+import { ASK_SYSTEM, FAMILY_ASK_SYSTEM, familyContext, referencePrices, tripContext } from "./lib/prompts.js";
 import { requireText, runProposal, saveProposal } from "./lib/propose.js";
 
 // invoker "public": anyone may reach the endpoint; who may USE it is checked inside (requireRole). Stated
@@ -16,21 +17,36 @@ export const aiAsk = onCall(AI_OPTS, async (req) => {
   const caller = await requireRole(req, "family");
   const question = requireText(req.data?.question, 1000, "מה תרצו לשאול?");
   const docs = await readDocs();
+  requireTripData(docs);
   const settings = aiSettingsOf(docs.priv);
+  const seesPrices = caller.role === "editor" || caller.role === "owner";
   const res = await reserve(caller, "ask", 0.15, settings);
   let cost = 0;
   try {
-    const history = (docs.pub.recent || []).map((e: any) => ({ at: e.at, by: e.byLabel, change: e.summary, totalChangeIls: e.deltaIlsTyp }));
     const today = new Date().toISOString().slice(0, 10);
+    // Family: the route only — no prices, no price research, no change history (it carries amounts).
+    const system = seesPrices
+      ? [
+        { type: "text", text: `${ASK_SYSTEM}\n\n## General background research (not trip facts)\n${referencePrices()}`, cache_control: { type: "ephemeral" } },
+        {
+          type: "text",
+          text: tripContext(docs, {
+            includePrivate: settings.includePrivateInAsk,
+            history: (docs.plan.recent || []).map((e: any) => ({ at: e.at, by: e.byLabel, change: e.summary, totalChangeIls: e.deltaIlsTyp })),
+          }),
+          cache_control: { type: "ephemeral" },
+        },
+      ]
+      : [
+        { type: "text", text: FAMILY_ASK_SYSTEM },
+        { type: "text", text: familyContext(docs), cache_control: { type: "ephemeral" } },
+      ];
     const { msg, usage } = await createWithPauses({
       model: settings.model,
       max_tokens: 4000,
       thinking: { type: "adaptive" },
       output_config: { effort: "low" },
-      system: [
-        { type: "text", text: `${ASK_SYSTEM}\n\n## General background research (not trip facts)\n${referencePrices()}`, cache_control: { type: "ephemeral" } },
-        { type: "text", text: tripContext(docs, { includePrivate: settings.includePrivateInAsk, history }), cache_control: { type: "ephemeral" } },
-      ],
+      system,
       messages: [{ role: "user", content: `היום ${today}. השאלה: ${question}` }],
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 2 }],
     } as any);
@@ -54,6 +70,7 @@ export const aiPropose = onCall(AI_OPTS, async (req) => {
   const mode = req.data?.mode === "quote" ? "quote" : "sentence";
   const text = requireText(req.data?.text, mode === "quote" ? 12000 : 1500, mode === "quote" ? "הדביקו את הצעת המחיר." : "מה לשנות?");
   const docs = await readDocs();
+  requireTripData(docs);
   const settings = aiSettingsOf(docs.priv);
   const res = await reserve(caller, `propose-${mode}`, mode === "quote" ? 0.4 : 0.8, settings);
   let cost = 0;

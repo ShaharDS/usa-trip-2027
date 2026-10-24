@@ -161,7 +161,7 @@ const isTemp = (id) => typeof id === "string" && id.startsWith("$");
 
 function recordOf(docs, e, id) {
   const def = ENTITIES[e];
-  const doc = def.doc === "public" ? docs.pub : docs.priv;
+  const doc = def.doc === "plan" ? docs.plan : docs.priv;
   return def.singleton ? doc?.[def.path] : doc?.[def.path]?.[id];
 }
 
@@ -215,12 +215,12 @@ function setIfGiven(set, input, map) {
  * `allowedUrls`: Set of URLs seen in this call's web searches — other source URLs are dropped.
  * @param {string} name
  * @param {any} input
- * @param {{pub: any, priv: any}} docs
+ * @param {{plan: any, priv: any}} docs
  * @param {{allowedUrls?: Set<string> | null}} [opts]
  * @returns {any[]}
  */
 export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
-  const pub = docs.pub;
+  const plan = docs.plan;
   const sources = (list) => {
     if (!Array.isArray(list)) return undefined;
     const ok = list.filter((s) => s?.url && /^https:\/\//.test(s.url) && (!allowedUrls || allowedUrls.has(s.url)));
@@ -228,7 +228,7 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
   };
   switch (name) {
     case "add_stop": {
-      const v = { label: input.label, kind: input.kind, order: orderAfter(pub.stops, input.after_stop_id) };
+      const v = { label: input.label, kind: input.kind, order: orderAfter(plan.stops, input.after_stop_id) };
       if (input.fill) v.fill = true;
       else v.nights = Math.max(0, Math.round(input.nights ?? 1));
       if (has(input.anchor_date) && input.anchor_date) v.anchorDate = input.anchor_date;
@@ -238,7 +238,7 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     }
     case "update_stop": {
       requireExisting(docs, "stops", input.stop_id, "עצירה");
-      const rec = pub.stops[input.stop_id];
+      const rec = plan.stops[input.stop_id];
       const set = {};
       setIfGiven(set, input, { label: "label", kind: "kind", icon: "icon", note: "note" });
       if (has(input.nights)) set.nights = Math.max(0, Math.round(input.nights));
@@ -251,13 +251,13 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
       requireExisting(docs, "stops", input.stop_id, "עצירה");
       return [{ t: "archive", e: "stops", id: input.stop_id }];
     case "add_category": {
-      const v = { label: input.label, icon: input.icon, color: input.color, order: nextOrder(pub.categories) };
+      const v = { label: input.label, icon: input.icon, color: input.color, order: nextOrder(plan.categories) };
       if (input.note) v.note = input.note;
       return [{ t: "create", e: "categories", id: input.temp_id, v }];
     }
     case "update_category": {
       requireExisting(docs, "categories", input.category_id, "קטגוריה");
-      const rec = pub.categories[input.category_id];
+      const rec = plan.categories[input.category_id];
       const set = {};
       setIfGiven(set, input, { label: "label", icon: "icon", color: "color", note: "note" });
       if (!Object.keys(set).length) throw new Error("לא צוין מה לשנות בקטגוריה");
@@ -267,7 +267,7 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
       if (!has(input.price_typical)) throw new Error("חסר מחיר רגיל (price_typical)");
       if (!input.label) throw new Error("חסר שם לשורה");
       const v = {
-        categoryId: input.category_id, label: input.label, order: nextOrder(pub.items), rule: itemRule(input), price: itemPrice(input),
+        categoryId: input.category_id, label: input.label, order: nextOrder(plan.items), rule: itemRule(input), price: itemPrice(input),
         status: input.status || "estimate", tag: input.status === "quote" ? undefined : "E",
       };
       if (!v.tag) delete v.tag;
@@ -280,7 +280,7 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     }
     case "update_item": {
       requireExisting(docs, "items", input.item_id, "שורה");
-      const rec = pub.items[input.item_id];
+      const rec = plan.items[input.item_id];
       const set = {};
       setIfGiven(set, input, { label: "label", category_id: "categoryId", note: "note", status: "status", option_id: "optionId" });
       const touchesRule = ["people", "people_count", "unit_id", "time_by", "time_stop_ids", "count", "count_label"].some((k) => has(input[k]));
@@ -302,23 +302,23 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     case "set_unit_count": {
       requireExisting(docs, "units", input.unit_id, "יחידה");
       const n = Math.max(0, Math.round(input.count));
-      return [{ t: "update", e: "units", id: input.unit_id, set: { count: n }, before: { count: pub.units[input.unit_id].count ?? null } }];
+      return [{ t: "update", e: "units", id: input.unit_id, set: { count: n }, before: { count: plan.units[input.unit_id].count ?? null } }];
     }
     case "add_unit":
-      return [{ t: "create", e: "units", id: input.temp_id, v: { label: input.label, count: Math.max(0, Math.round(input.count)), order: nextOrder(pub.units) } }];
+      return [{ t: "create", e: "units", id: input.temp_id, v: { label: input.label, count: Math.max(0, Math.round(input.count)), order: nextOrder(plan.units) } }];
     case "set_traveler_count": {
       requireExisting(docs, "groups", input.group_id, "קבוצת נוסעים");
       const n = Math.max(0, Math.round(input.count));
-      return [{ t: "update", e: "groups", id: input.group_id, set: { count: n }, before: { count: pub.groups[input.group_id].count ?? null } }];
+      return [{ t: "update", e: "groups", id: input.group_id, set: { count: n }, before: { count: plan.groups[input.group_id].count ?? null } }];
     }
     case "add_option_group": {
-      const v = { label: input.label, order: nextOrder(pub.optionGroups) };
+      const v = { label: input.label, order: nextOrder(plan.optionGroups) };
       if (input.question) v.question = input.question;
       return [{ t: "create", e: "optionGroups", id: input.temp_id, v }];
     }
     case "add_option": {
       if (!isTemp(input.group_id)) requireExisting(docs, "optionGroups", input.group_id, "שאלה");
-      const v = { groupId: input.group_id, label: input.label, order: nextOrder(Object.fromEntries(Object.entries(pub.options || {}).filter(([, o]) => o.groupId === input.group_id))) };
+      const v = { groupId: input.group_id, label: input.label, order: nextOrder(Object.fromEntries(Object.entries(plan.options || {}).filter(([, o]) => o.groupId === input.group_id))) };
       if (input.details) v.details = input.details;
       if (has(input.patch_stop_id)) {
         const p = {};
@@ -330,10 +330,10 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     }
     case "choose_option": {
       if (!isTemp(input.group_id)) requireExisting(docs, "optionGroups", input.group_id, "שאלה");
-      return [{ t: "choose", groupId: input.group_id, optionId: input.option_id, before: pub.optionGroups?.[input.group_id]?.chosen ?? null }];
+      return [{ t: "choose", groupId: input.group_id, optionId: input.option_id, before: plan.optionGroups?.[input.group_id]?.chosen ?? null }];
     }
     case "update_settings": {
-      const s = pub.settings || {};
+      const s = plan.settings || {};
       const set = {};
       setIfGiven(set, input, { title: "title", start_date: "startDate", end_date: "endDate", buffer_pct: "bufferPct", card_fee_pct: "cardFeePct" });
       if (has(input.planning_rate)) {
@@ -347,17 +347,17 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     }
     case "add_deadline": {
       if (!isTemp(input.item_id)) requireExisting(docs, "items", input.item_id, "שורה");
-      const rec = pub.items?.[input.item_id];
+      const rec = plan.items?.[input.item_id];
       const deadlines = [...(rec?.deadlines || []), { kind: input.kind, date: input.date, ...(input.label ? { label: input.label } : {}) }];
       return [{ t: "update", e: "items", id: input.item_id, set: { deadlines }, before: { deadlines: rec?.deadlines ?? null } }];
     }
     case "add_checklist_row":
-      return [{ t: "create", e: "checklist", id: `$todo${Object.keys(pub.checklist || {}).length + 1}_${Math.random().toString(36).slice(2, 6)}`, v: { label: input.label, done: false, order: nextOrder(pub.checklist), ...(input.due_date ? { dueDate: input.due_date } : {}) } }];
+      return [{ t: "create", e: "checklist", id: `$todo${Object.keys(plan.checklist || {}).length + 1}_${Math.random().toString(36).slice(2, 6)}`, v: { label: input.label, done: false, order: nextOrder(plan.checklist), ...(input.due_date ? { dueDate: input.due_date } : {}) } }];
     case "add_section":
-      return [{ t: "create", e: "sections", id: input.temp_id, v: { type: input.type, visible: true, order: nextOrder(pub.sections), ...(input.title ? { title: input.title } : {}), ...(input.text ? { text: input.text } : {}) } }];
+      return [{ t: "create", e: "sections", id: input.temp_id, v: { type: input.type, visible: true, order: nextOrder(plan.sections), ...(input.title ? { title: input.title } : {}), ...(input.text ? { text: input.text } : {}) } }];
     case "update_section": {
       requireExisting(docs, "sections", input.section_id, "חלק בעמוד");
-      const rec = pub.sections[input.section_id];
+      const rec = plan.sections[input.section_id];
       const set = {};
       setIfGiven(set, input, { title: "title", text: "text", visible: "visible" });
       if (!Object.keys(set).length) throw new Error("לא צוין מה לשנות");
@@ -365,13 +365,13 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     }
     case "move_section": {
       requireExisting(docs, "sections", input.section_id, "חלק בעמוד");
-      const list = activeList(pub.sections).filter((s) => s.id !== input.section_id);
+      const list = activeList(plan.sections).filter((s) => s.id !== input.section_id);
       const pos = Math.min(Math.max(1, Math.round(input.position)), list.length + 1);
-      list.splice(pos - 1, 0, { id: input.section_id, ...pub.sections[input.section_id] });
+      list.splice(pos - 1, 0, { id: input.section_id, ...plan.sections[input.section_id] });
       return list
         .map((s, i) => ({ s, order: i + 1 }))
-        .filter(({ s, order }) => (pub.sections[s.id].order ?? null) !== order)
-        .map(({ s, order }) => ({ t: "update", e: "sections", id: s.id, set: { order }, before: { order: pub.sections[s.id].order ?? null } }));
+        .filter(({ s, order }) => (plan.sections[s.id].order ?? null) !== order)
+        .map(({ s, order }) => ({ t: "update", e: "sections", id: s.id, set: { order }, before: { order: plan.sections[s.id].order ?? null } }));
     }
     case "set_booking_private": {
       if (!isTemp(input.item_id)) requireExisting(docs, "items", input.item_id, "שורה");

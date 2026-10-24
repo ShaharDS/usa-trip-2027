@@ -86,7 +86,7 @@ export async function runProposal(docs: Docs, mode: Mode, userText: string, mode
         const v = validateOps(working, resolved, { maxOps: MAX_OPS });
         if (!v.ok) throw new Error(v.errors.slice(0, 3).join("; "));
         const described = resolved.map((op) => describeOp(op, working));
-        working = { pub: v.docs.pub, priv: v.docs.priv };
+        working = { plan: v.docs.plan, priv: v.docs.priv };
         ops.push(...resolved);
         lines.push(...described);
         const ids = Object.entries(tempMap).map(([t, real]) => `${t}=${real}`).join(", ");
@@ -108,8 +108,8 @@ export async function runProposal(docs: Docs, mode: Mode, userText: string, mode
 
 /** Store a proposal for review. Returns what the approval screen needs. */
 export async function saveProposal(caller: Caller, mode: Mode, input: string, docs: Docs, result: ProposalResult, extra: Record<string, unknown> = {}) {
-  const before = computeTrip(docs.pub, { skipOptions: true }).total.ils.typ;
-  const after = computeTrip(result.working.pub, { skipOptions: true }).total.ils.typ;
+  const before = computeTrip(docs.plan, { skipOptions: true }).total.ils.typ;
+  const after = computeTrip(result.working.plan, { skipOptions: true }).total.ils.typ;
   const ref = db.collection(paths.proposals).doc();
   const summaryHe = result.refused
     ? "ה-AI לא יכול לעזור בבקשה הזו."
@@ -126,7 +126,7 @@ export async function saveProposal(caller: Caller, mode: Mode, input: string, do
     sources: result.sources,
     deltaIlsTyp: Math.round(after - before),
     totalAfterIls: Math.round(after),
-    baseVersion: docs.pub.version || 0,
+    baseVersion: docs.plan.version || 0,
     costUsd: Math.round(result.usage.costUsd * 10000) / 10000,
     models: result.usage.models,
     rejectedTools: result.rejectedTools,

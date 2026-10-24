@@ -26,8 +26,9 @@ after(async () => env?.cleanup());
 
 const st = (uid, email) => (email ? env.authenticatedContext(uid, google(email)) : env.unauthenticatedContext()).storage();
 
-test("tickets: family can read, strangers cannot", async () => {
-  await assertSucceeds(getBytes(ref(st("dad", "dad@example.com"), "trips/usa2027/docs/d1/ticket.pdf")));
+test("tickets: editors can read; family, strangers and anonymous cannot (tickets show prices)", async () => {
+  await assertSucceeds(getBytes(ref(st("ed", "editor@example.com"), "trips/usa2027/docs/d1/ticket.pdf")));
+  await assertFails(getBytes(ref(st("dad", "dad@example.com"), "trips/usa2027/docs/d1/ticket.pdf")));
   await assertFails(getBytes(ref(st(), "trips/usa2027/docs/d1/ticket.pdf")));
   await assertFails(getBytes(ref(st("x", "stranger@gmail.com"), "trips/usa2027/docs/d1/ticket.pdf")));
 });

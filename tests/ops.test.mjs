@@ -33,7 +33,7 @@ test("inverse ops restore the documents exactly", () => {
 
 test("randomized round trips are the identity", () => {
   const docs = seedDocs();
-  const itemIds = Object.keys(docs.pub.items);
+  const itemIds = Object.keys(docs.plan.items);
   for (let i = 0; i < 50; i++) {
     const ops = [];
     for (let j = 0; j < 4; j++) {
@@ -52,7 +52,7 @@ test("randomized round trips are the identity", () => {
 
 test("version stamps touched records", () => {
   const { docs, touched } = applyOps(seedDocs(), [{ t: "update", e: "items", id: "food", set: { "price.typical": 80 } }], { version: 7 });
-  assert.equal(docs.pub.items.food.v, 7);
+  assert.equal(docs.plan.items.food.v, 7);
   assert.deepEqual(touched, [{ e: "items", id: "food" }]);
 });
 

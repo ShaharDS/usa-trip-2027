@@ -71,14 +71,25 @@ test("full flow: owner → access → editor edits → viewer sees → undo", as
   assert.equal((await call("whoami", {}, stranger)).role, "public");
   assert.equal((await call("whoami", {})).role, "public");
 
+  // before the opening data is loaded, edits get a clear "load the data first" (not "the item was deleted").
+  // Start from an empty database: the AI test file may have run first.
+  await fetch(`http://127.0.0.1:8080/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: "DELETE" });
+  const op = { t: "update", e: "items", id: "hotel_nyc", set: { "price.typical": 420 }, before: { "price.typical": 460 } };
+  const empty = await rejects(call("commitChange", { ops: [op] }, owner), "FAILED_PRECONDITION");
+  assert.match(empty.message, /טען נתוני פתיחה/);
+
   // owner loads the opening data
-  await rejects(call("adminImport", { pub: seed }, editor), "PERMISSION_DENIED");
-  const imported = await call("adminImport", { pub: seed }, owner);
+  await rejects(call("adminImport", { plan: seed }, editor), "PERMISSION_DENIED");
+  const imported = await call("adminImport", { plan: seed }, owner);
   assert.ok(imported.version >= 1);
 
-  // anyone can read the public doc over REST; the private doc needs family
-  const pub = await readRest("trips/usa2027/public/state");
-  assert.equal(pub.status, 200);
+  // anyone can read the public route over REST — and it has no prices; the plan and the private doc are closed
+  const route = await readRest("trips/usa2027/public/state");
+  assert.equal(route.status, 200);
+  const routeText = JSON.stringify(route.json);
+  for (const word of ["price", "items", "categories", "derived", "hotel_nyc"]) assert.ok(!routeText.includes(`"${word}"`), `public route has "${word}"`);
+  assert.equal(route.json.fields.itinerary.mapValue.fields.stops.arrayValue.values.length, 5);
+  assert.equal((await readRest("trips/usa2027/plan/state")).status, 403);
   assert.equal((await readRest("trips/usa2027/private/state")).status, 403);
 
   // owner adds people
@@ -89,17 +100,19 @@ test("full flow: owner → access → editor edits → viewer sees → undo", as
   assert.ok(access.family["dad@example.com"]);
   await rejects(call("setAccess", { remove: "owner@example.com" }, owner), "INVALID_ARGUMENT");
   assert.equal((await call("whoami", {}, dad)).role, "family");
-  assert.equal((await readRest("trips/usa2027/private/state", dad)).status, 200);
+  // family sees the route like everyone else, but never the prices or private details
+  assert.equal((await readRest("trips/usa2027/plan/state", dad)).status, 403);
+  assert.equal((await readRest("trips/usa2027/private/state", dad)).status, 403);
+  assert.equal((await readRest("trips/usa2027/plan/state", editor)).status, 200);
 
   // editor changes a price; family and strangers cannot
-  const op = { t: "update", e: "items", id: "hotel_nyc", set: { "price.typical": 420 }, before: { "price.typical": 460 } };
   await rejects(call("commitChange", { ops: [op] }, dad), "PERMISSION_DENIED");
   await rejects(call("commitChange", { ops: [op] }, stranger), "PERMISSION_DENIED");
   await rejects(call("commitChange", { ops: [op] }), "UNAUTHENTICATED");
-  const done = await call("commitChange", { ops: [op], summary: "client text is not trusted on the public doc" }, editor);
+  const done = await call("commitChange", { ops: [op], summary: "client text is not trusted on the change list" }, editor);
   assert.ok(done.changeId);
 
-  const after = (await readRest("trips/usa2027/public/state")).json.fields;
+  const after = (await readRest("trips/usa2027/plan/state", editor)).json.fields;
   assert.equal(Number(after.items.mapValue.fields.hotel_nyc.mapValue.fields.price.mapValue.fields.typical.integerValue), 420);
   const recent0 = after.recent.arrayValue.values[0].mapValue.fields;
   assert.match(recent0.summary.stringValue, /מלון בניו יורק/);
@@ -115,16 +128,23 @@ test("full flow: owner → access → editor edits → viewer sees → undo", as
 
   // undo restores the old price
   await call("undoChange", { changeId: done.changeId }, editor);
-  const back = (await readRest("trips/usa2027/public/state")).json.fields;
+  const back = (await readRest("trips/usa2027/plan/state", editor)).json.fields;
   assert.equal(Number(back.items.mapValue.fields.hotel_nyc.mapValue.fields.price.mapValue.fields.typical.integerValue), 460);
   await rejects(call("undoChange", { changeId: done.changeId }, editor), "INVALID_ARGUMENT");
 
-  // private details: editor can write, family can read, public never sees them
+  // private details: editors only, never in the public route
   await call("commitChange", { ops: [{ t: "create", e: "privateItems", id: "hotel_nyc", v: { bookingRef: "ABC123" } }] }, editor);
-  const priv = await readRest("trips/usa2027/private/state", dad);
+  const priv = await readRest("trips/usa2027/private/state", editor);
   assert.equal(priv.json.fields.items.mapValue.fields.hotel_nyc.mapValue.fields.bookingRef.stringValue, "ABC123");
   const pubText = JSON.stringify((await readRest("trips/usa2027/public/state")).json);
   assert.ok(!pubText.includes("ABC123"), "booking code must never reach the public document");
+
+  // a route change reaches the public route right away (New York 6 → 5 nights; Orlando fills the rest)
+  await call("commitChange", { ops: [{ t: "update", e: "stops", id: "nyc", set: { nights: 5 }, before: { nights: 6 } }] }, editor);
+  const stops = (await readRest("trips/usa2027/public/state")).json.fields.itinerary.mapValue.fields.stops.arrayValue.values.map((v) => v.mapValue.fields);
+  const nightsOf = (id) => Number(stops.find((x) => x.id.stringValue === id).nights.integerValue);
+  assert.equal(nightsOf("nyc"), 5);
+  assert.equal(nightsOf("orlando"), 8);
 });
 
 test("a second owner account (OWNER_EMAIL list) is a full owner and can't be removed", async () => {
@@ -137,6 +157,6 @@ test("a second owner account (OWNER_EMAIL list) is a full owner and can't be rem
   await call("setAccess", { add: "cousin@example.com", role: "family", label: "בת דודה" }, owner2);
   await rejects(call("setAccess", { remove: "owner2@example.com" }, owner), "INVALID_ARGUMENT");
   await rejects(call("setAccess", { remove: "owner@example.com" }, owner2), "INVALID_ARGUMENT");
-  const r = await call("adminImport", { pub: seed }, owner2);
+  const r = await call("adminImport", { pub: seed }, owner2); // a backup made before the rename still loads
   assert.ok(r.version >= 1);
 });

@@ -284,6 +284,28 @@
 .nav a[aria-current="page"] .icon { stroke-width: 2.5; }
 
 /* ---------- banners ---------- */
+/* Account bar: always the first thing on the page — who you are and the sign-in / sign-out button. */
+.account-bar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px;
+  padding: 6px var(--gutter);
+}
+.account-who {
+  display: block; /* not flex: the automatic <bdi> around "AI" / emails must stay inside the sentence */
+  font-size: var(--fs-meta); color: var(--muted);
+  min-width: 0;
+}
+.account-who .icon { vertical-align: -3px; margin-inline-end: 6px; }
+.account-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--tap); padding: 6px 18px;
+  border-radius: var(--radius-sm); border: 2px solid var(--primary);
+  background: var(--primary); color: #fff;
+  font-weight: 800; font-size: 17px; text-decoration: none;
+  margin-inline-start: auto;
+}
+.account-btn:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
 .demo-banner {
   background: #FFF6E5; color: #5C3B06;
   font-size: var(--fs-meta); text-align: center;
@@ -339,7 +361,7 @@
   font-size: var(--fs-label);
   box-shadow: 0 10px 30px rgba(0,0,0,.25);
 }
-.toast button { background: transparent; color: var(--gold); border: 0; font-weight: 800; min-height: 40px; }
+.toast button { background: transparent; color: var(--gold); border: 0; font-weight: 800; min-height: var(--tap); min-width: var(--tap); }
 
 /* ---------- AI ---------- */
 .ask-box .textarea { min-height: 140px; font-size: 20px; }

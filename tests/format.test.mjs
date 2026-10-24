@@ -68,7 +68,7 @@ test("warnings in plain Hebrew", () => {
 
 test("whole-object updates are described by the leaves that changed", () => {
   const docs = seedDocs();
-  const price = { ...docs.pub.items.hotel_nyc.price, typical: 420 };
+  const price = { ...docs.plan.items.hotel_nyc.price, typical: 420 };
   assert.equal(
     describeOp({ t: "update", e: "items", id: "hotel_nyc", set: { price } }, docs),
     "\"מלון בניו יורק\" — מחיר: $460 ← $420",
@@ -83,7 +83,7 @@ test("whole-object updates are described by the leaves that changed", () => {
 
 test("private details and flights are described by their row", () => {
   const docs = seedDocs();
-  assert.equal(describeOp({ t: "create", e: "privateItems", id: "flights_intl", v: { bookingRef: "X" } }, docs), "שמירת פרטים פרטיים (רק למשפחה) לשורה \"טיסות לארה״ב וחזרה\"");
+  assert.equal(describeOp({ t: "create", e: "privateItems", id: "flights_intl", v: { bookingRef: "X" } }, docs), "שמירת פרטים פרטיים (רק לעורכים) לשורה \"טיסות לארה״ב וחזרה\"");
   assert.equal(describeOp({ t: "create", e: "flights", id: "f1", v: { carrier: "LY", number: "1", date: "2027-09-30" } }, docs), "רישום טיסה LY1 ב-30 בספטמבר");
   assert.equal(
     describeOp({ t: "update", e: "items", id: "hotel_nyc", set: { status: "booked", actual: { amount: 7900, currency: "USD" } } }, docs),
