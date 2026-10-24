@@ -5,7 +5,7 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { db, paths } from "./admin.js";
 import type { Caller } from "./access.js";
 
-export const AI_DEFAULTS = { model: "claude-opus-5-5", monthlyBudgetUsd: 25, dailyCapFamily: 15, dailyCapEditor: 40, includePrivateInAsk: false };
+export const AI_DEFAULTS = { model: "claude-sonnet-5-5", monthlyBudgetUsd: 25, dailyCapFamily: 15, dailyCapEditor: 40, includePrivateInAsk: false };
 export type AiSettings = typeof AI_DEFAULTS;
 
 export function aiSettingsOf(priv: any): AiSettings {

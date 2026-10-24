@@ -35,8 +35,8 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    Never type or print the real API key — the owner sets it with `firebase functions:secrets:set`.
 4. **Booking codes / private notes / flights / documents are private** (`private/state`, Storage). Never let them reach
    `public/state` (the public "what changed" text is regenerated server-side from public ops only).
-5. **Claude API usage:** model `claude-opus-5-5` (setting), `thinking: {type: "adaptive"}`, effort per feature,
-   `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`, `tool_choice: auto` (forced choice 400s on Opus 5.5),
+5. **Claude API usage:** model `claude-sonnet-5-5` (Shahar's choice; changeable in Settings → AI), `thinking: {type: "adaptive"}`, effort per feature,
+   `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`, `tool_choice: auto` (forced choice 400s on Sonnet 5.5 / Opus 5.5),
    strict tools, no temperature/top_p, streaming `finalMessage()`. Shapes verified against `@anthropic-ai/sdk` 1.3.0 —
    see `notes/ai.md` before changing them.
 6. **Edit Hebrew files only with the Edit/Write tools** (PowerShell 5.1 corrupts UTF-8). `npm test` runs `check-utf8`.

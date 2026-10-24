@@ -19,7 +19,7 @@ function lastUserText(params: any): string {
 }
 
 function message(content: any[], stop: string) {
-  return { id: id("msg"), type: "message", role: "assistant", model: "claude-opus-5-5", content, stop_reason: stop, stop_details: null, usage: usage() } as any;
+  return { id: id("msg"), type: "message", role: "assistant", model: "claude-sonnet-5-5", content, stop_reason: stop, stop_details: null, usage: usage() } as any;
 }
 
 export function fakeMessage(params: any): any {

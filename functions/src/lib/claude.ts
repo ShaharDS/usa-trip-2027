@@ -2,14 +2,14 @@
 // Request shapes checked against @anthropic-ai/sdk 1.3.0 types (see notes/ai.md):
 //   client.beta.messages.stream({...}).finalMessage(), betas ["server-side-fallback-2026-07-01"],
 //   fallbacks: "default", thinking {type:"adaptive"}, output_config {effort, format}, web_search_20260209.
-// No temperature / top_p (rejected by the API). Opus 5.5 rejects forced tool_choice, so tools use "auto".
+// No temperature / top_p (rejected by the API). Sonnet 5.5 (and Opus 5.5) reject forced tool_choice, so tools use "auto".
 import Anthropic from "@anthropic-ai/sdk";
 import { defineSecret } from "firebase-functions/params";
 import { HttpsError } from "firebase-functions/v2/https";
 import { fakeMessage } from "./claudeFake.js";
 
 export const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-export const DEFAULT_MODEL = "claude-opus-5-5";
+export const DEFAULT_MODEL = "claude-sonnet-5-5"; // Shahar's choice (2026-10-25): no need for Opus here
 export const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 /** $ per million tokens. Unknown models are priced conservatively. */

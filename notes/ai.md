@@ -13,8 +13,8 @@ Later (data already in place): weekly watch (deadlines on items, `private.flight
 ## Request shapes (verified against `@anthropic-ai/sdk` 1.3.0 type definitions, 24 Oct 2026)
 - `client.beta.messages.stream(params).finalMessage()` — streaming avoids HTTP timeouts on long turns.
 - `betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"` (`BetaFallbacksParam = Array<…> | "default"`).
-- `model: "claude-opus-5-5"` (changeable in Settings → AI), `thinking: { type: "adaptive" }` (cannot be disabled on Opus 5.5), `output_config: { effort, format? }` with `format: { type: "json_schema", schema }` for extraction.
-- Tools: custom tools with `strict: true` (every property required, optional ones nullable, `additionalProperties: false`), `tool_choice: { type: "auto" }` (Opus 5.5 rejects forced tool choice). Server tool `{ type: "web_search_20260209", name: "web_search", max_uses }`.
+- `model: "claude-sonnet-5-5"` (Shahar's choice 2026-10-25; changeable in Settings → AI), `thinking: { type: "adaptive" }` (Sonnet 5.5 rejects `disabled`), `output_config: { effort, format? }` with `format: { type: "json_schema", schema }` for extraction.
+- Tools: custom tools with `strict: true` (every property required, optional ones nullable, `additionalProperties: false`), `tool_choice: { type: "auto" }` (Sonnet 5.5 and Opus 5.5 reject forced tool choice). Server tool `{ type: "web_search_20260209", name: "web_search", max_uses }`.
 - Prompt caching: two system blocks with `cache_control: { type: "ephemeral" }` — instructions + reference prices, then the trip context (deterministic `stableStringify`, so the same data version is byte-identical). Today's date and the question go in the user turn.
 - Stop reasons handled: `pause_turn` (continue, up to 3×), `refusal` (friendly Hebrew message), `tool_use` (loop, ≤ 8 turns, ≤ 60 ops), `end_turn`.
 - Never sent: `temperature`, `top_p`, `top_k`, assistant prefill.
@@ -22,7 +22,7 @@ Later (data already in place): weekly watch (deadlines on items, `private.flight
 - Usage: `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, `server_tool_use.web_search_requests`; priced by `msg.model` (the model that actually answered).
 
 ## Costs (prices in `functions/src/lib/claude.ts`)
-Opus 5.5: $4 / $20 per M input/output tokens, cache read $0.20, web search $0.01 each. Rough: question ≈ $0.02–0.09, sentence proposal with search ≈ $0.10–0.30, document ≈ $0.10. Limits: `trips/usa2027/usage/{yyyy-mm}` — daily caps per person (family 15, editors 40, owner 80) and a monthly budget ($25 default); every call reserves an estimate first, then settles the real cost.
+Sonnet 5.5: $2 / $10 per M input/output tokens, cache read $0.20, web search $0.01 each. Rough: question ≈ $0.01–0.05, sentence proposal with search ≈ $0.05–0.15, document ≈ $0.05. Typical month ≈ $6. Limits: `trips/usa2027/usage/{yyyy-mm}` — daily caps per person (family 15, editors 40, owner 80) and a monthly budget ($25 default); every call reserves an estimate first, then settles the real cost.
 
 ## Safety
 - AI never writes: tool call → `toolCallToOps` (`docs/js/shared/aitools.js`) → `validateOps` on a working copy → proposal lines. `applyProposal` re-validates against the current trip.

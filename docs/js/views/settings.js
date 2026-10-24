@@ -194,7 +194,7 @@ function ai(ctx) {
         field("שאלות ביום — משפחה", numberInput(draft.dailyCapFamily ?? 15, (n) => { draft.dailyCapFamily = Math.round(n ?? 0); })),
         field("פעולות ביום — עורכים", numberInput(draft.dailyCapEditor ?? 40, (n) => { draft.dailyCapEditor = Math.round(n ?? 0); }))),
       fieldset("לתת ל-AI לראות קודי הזמנה ופרטים פרטיים?", choices([{ value: false, label: "לא (מומלץ)" }, { value: true, label: "כן" }], !!draft.includePrivateInAsk, (v) => { draft.includePrivateInAsk = v; })),
-      field("מודל", textInput(draft.model || "claude-opus-5-5", (v) => { draft.model = v.trim(); }, { dir: "ltr" }), "ברירת מחדל: claude-opus-5-5")),
+      field("מודל", textInput(draft.model || "claude-sonnet-5-5", (v) => { draft.model = v.trim(); }, { dir: "ltr" }), "ברירת מחדל: claude-sonnet-5-5")),
     saveBar(() => saveOps([store.docs.priv.aiSettings ? diffOp("aiSettings", "_", s, compact(draft), ["monthlyBudgetUsd", "dailyCapFamily", "dailyCapEditor", "includePrivateInAsk", "model"]) : { t: "create", e: "aiSettings", id: "_", v: compact(draft) }], errors, "נשמר ✓"), { onCancel: () => history.back() }),
   ];
 }
