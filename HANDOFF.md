@@ -76,6 +76,8 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
 Done 2026-10-25: Blaze + ₪3 alert · Google sign-in + `shahards.github.io` authorized · Claude secret · all 11 functions
 deployed · repo pushed (`main`, old site merged with history into `docs/old/`) · Pages = `main` / `/docs` (built).
 
+0. Done 2026-10-25 at Shahar's request: `config/access` created with editors = the owner account + his second account
+   (so his second account can sign in and edit here, and edit the old site's prices). Family list still empty.
 1. Shahar signs in on the live site **with the owner account** (the one in `functions/.env` — the first sign-in was with his
    second account, which is correctly "not on the list"; the page now says so and offers "החלפת חשבון גוגל").
    That bootstraps `config/access`. Then Settings → גישה → add his second account (editor) so it can edit the old site's
