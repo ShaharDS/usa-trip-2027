@@ -24,11 +24,13 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
 | Project | **`usa-trip-2027-shahar`** ("USA Trip 2027"), number 768226421972 |
 | Web app | `trip-site` — config already in `docs/js/config.js` |
 | Firestore | `(default)` exists, Native, location **eur3** (plan said me-west1 — fine, can't be changed) |
-| Rules / functions | **not deployed** (Cloud Functions API not enabled yet — normal before the first deploy) |
+| Functions | **all 11 deployed 2026-10-25** (Node 24, me-west1). First deploy hit Google's first-time races; aiAsk/aiPropose had to be deleted + recreated to get the `allUsers` invoker binding (now `invoker: "public"` in code). Artifact cleanup policy (1 day) already existed. Smoke test: whoami 200, all others 401 without sign-in. |
+| Firestore rules | **NOT deployed yet** — the older site's rules are still live. Our rules now include its `overrides` block, but its editors come from `config/access`, which doesn't exist until the owner signs in once (whoami bootstraps him) and adds heyshahar@ in Settings → גישה. (Claude was blocked from writing the access list itself — a permission grant is the owner's action.) |
+| Auth authorized domains | `usa-trip-2027-shahar.firebaseapp.com`, `.web.app`, `shahards.github.io` — **no `localhost`**, so signing in from the local server needs localhost added (or sign in on the published site). |
 | Billing | **Blaze since 2026-10-25** — linked (with Shahar's OK) to the same billing account as PalGate: `billingAccounts/010B1C-5DC32F-DFB4BC` "Firebase Payment" (ILS). Budget alert "USA Trip 2027 — alert at 3 ILS" (≈ $1, 50% / 100%, this project only). Shahar wants it free: family usage stays in the free quotas; Claude API is billed separately by Anthropic. |
 | Google sign-in | enabled; authorized domains include `shahards.github.io` (checked 2026-10-25) |
 | Storage bucket | **none yet** (no GCS buckets) — Storage → Get started still needed |
-| Claude secret | **not set** (`ANTHROPIC_API_KEY` not found in this project or PalGate's) |
+| Claude secret | `ANTHROPIC_API_KEY` version 1 set 2026-10-25 (by Shahar in the Cloud console — `firebase` in PowerShell is blocked by the execution policy; use `firebase.cmd`) |
 
 ### ⚠️ An OLDER trip site already uses this project and the GitHub repo
 - GitHub `ShaharDS/usa-trip-2027` (11 commits, 22–24 Oct 2026) = a single 1.3 MB `index.html` + `.nojekyll`, **live at

@@ -64,6 +64,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The earlier single-page trip site (repo root index.html) keeps its live price edits here:
+    // public read, editors write {v, by, at}. Kept so that site keeps working while it is still in use.
+    match /overrides/{docId} {
+      allow read: if true;
+      allow delete: if isEditor();
+      allow create, update: if isEditor()
+        && request.resource.data.keys().hasOnly(['v', 'by', 'at'])
+        && request.resource.data.v is number
+        && request.resource.data.v >= 0
+        && request.resource.data.v <= 1000000
+        && docId.size() <= 120;
+    }
+
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null && request.auth.uid == uid && isFamily()

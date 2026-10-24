@@ -77,3 +77,16 @@ test("everything else is closed", async () => {
   await assertFails(getDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/backups/b1")));
   await assertFails(setDoc(doc(as("ed", "editor@example.com"), "random/doc"), { a: 1 }));
 });
+
+test("old single-page site: overrides stay publicly readable and editor-writable", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "overrides/flight.rt.A"), { v: 1000, by: "x", at: "2026-10-22" });
+  });
+  await assertSucceeds(getDoc(doc(anon(), "overrides/flight.rt.A")));
+  const ed = as("ed", "editor@example.com");
+  await assertSucceeds(setDoc(doc(ed, "overrides/flight.rt.B"), { v: 1200, by: "ed", at: "2026-10-25" }));
+  await assertFails(setDoc(doc(ed, "overrides/flight.rt.C"), { v: 1200, by: "ed", at: "x", extra: 1 }));
+  await assertFails(setDoc(doc(ed, "overrides/flight.rt.D"), { v: -5, by: "ed", at: "x" }));
+  await assertFails(setDoc(doc(as("dad", "dad@example.com"), "overrides/flight.rt.E"), { v: 1, by: "dad", at: "x" }), "family can't edit");
+  await assertFails(setDoc(doc(anon(), "overrides/flight.rt.F"), { v: 1, by: "x", at: "x" }));
+});

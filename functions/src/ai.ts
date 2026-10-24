@@ -8,7 +8,9 @@ import { ANTHROPIC_API_KEY, createWithPauses, textOf, toHttpsError, urlsOf } fro
 import { ASK_SYSTEM, referencePrices, tripContext } from "./lib/prompts.js";
 import { requireText, runProposal, saveProposal } from "./lib/propose.js";
 
-const AI_OPTS = { region: REGION, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, memory: "512MiB" as const };
+// invoker "public": anyone may reach the endpoint; who may USE it is checked inside (requireRole). Stated
+// explicitly so a redeploy always restores the binding (a half-failed first deploy can leave it missing).
+const AI_OPTS = { region: REGION, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, memory: "512MiB" as const, invoker: "public" as const };
 
 export const aiAsk = onCall(AI_OPTS, async (req) => {
   const caller = await requireRole(req, "family");
