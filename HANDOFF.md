@@ -76,12 +76,10 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
 Done 2026-10-25: Blaze + ₪3 alert · Google sign-in + `shahards.github.io` authorized · Claude secret · all 11 functions
 deployed · repo pushed (`main`, old site merged with history into `docs/old/`) · Pages = `main` / `/docs` (built).
 
-0. Done 2026-10-25 at Shahar's request: `config/access` created with editors = the owner account + his second account
-   (so his second account can sign in and edit here, and edit the old site's prices). Family list still empty.
-1. Shahar signs in on the live site **with the owner account** (the one in `functions/.env` — the first sign-in was with his
-   second account, which is correctly "not on the list"; the page now says so and offers "החלפת חשבון גוגל").
-   That bootstraps `config/access`. Then Settings → גישה → add his second account (editor) so it can edit the old site's
-   prices again, and his father / family.
+0. Done 2026-10-25 at Shahar's request: **both of his Google accounts are owners** (`OWNER_EMAIL` in `functions/.env` is a
+   comma-separated list) and both are on the editors list in `config/access` (so either can load data, manage people,
+   edit here and edit the old site's prices). Family list still empty.
+1. Shahar signs in (either account) → Settings → גישה → adds his father / family.
 2. Settings → Backup → "טען נתוני פתיחה". One live AI question + one sentence proposal (a few cents).
 3. Storage → Get started (only needed for ticket uploads), then `firebase deploy --only storage`.
 4. Real-phone checklist (README): iPhone via WhatsApp → Safari, Android Chrome, keyboard dictation, Hebrew read-aloud,
