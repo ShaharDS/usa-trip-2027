@@ -387,6 +387,23 @@ td.struck { color: #94a3b8; text-decoration: line-through; }
 .h-paid { font-size: 14px; margin-top: 4px; }
 @media (max-width: 600px) { .pay-sum { grid-template-columns: 1fr; } .pay-sum > div { flex-direction: row; justify-content: space-between; align-items: center; } }
 .sec-paid { font-size: 16px; margin: 4px 0 8px; }
+
+/* ---------- flight options ---------- */
+.fchoose { border: 2px solid #bfdbfe; background: #f8fbff; border-radius: 14px; padding: 12px 14px; margin: 14px 0; }
+.fchoose h3 { margin: 0 0 8px; font-size: 22px; }
+.fopts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.fopt { text-align: right; border: 2px solid #cbd5e1; background: #fff; border-radius: 12px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; font: inherit; color: inherit; }
+.fopt b { font-size: 18px; }
+.fopt small { color: #475569; font-size: 15px; }
+.fopt.on { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 2px #93c5fd; }
+.fo-pp { font-size: 22px; font-weight: 800; color: #1d4ed8; }
+.fo-grp, .fo-tot { font-size: 15px; color: #334155; }
+.fo-best { background: #dcfce7; color: #166534; border-radius: 8px; padding: 0 6px; font-weight: 700; }
+.fo-legs { margin: 10px 0 6px; padding-inline-start: 18px; font-size: 16px; line-height: 1.7; }
+.fo-legs small { color: #64748b; }
+.fo-note { background: #f1f5f9; border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: 16px; }
+.fo-note.warn { background: #fff7ed; border: 1px solid #fdba74; }
+.fo-cmp td.best { background: #f0fdf4; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -876,6 +893,54 @@ const DEFAULT_PARAMS = {
   pax: 7, infant: "lap", tier: "mid",
 };
 
+
+/* ===== FLIGHT OPTIONS (Skyscanner, 24.10.2026, one way per person, economy, estimates) ===== */
+PLACES.jfkApt = { name: "מלון ליד שדה התעופה JFK", short: "ליד JFK", lat: 40.668, lng: -73.80 };
+const FLIGHT_SRC = "Skyscanner, 24.10.2026 · כיוון אחד לאדם, מחלקת תיירים · הערכה";
+const FP = {
+  "flt.out.ly.w1": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
+  "flt.out.ly.w2": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 4.10"],
+  "flt.out.iz.w1": [612, "ארקיע ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
+  "flt.out.hifly.w2": [374, "HiFly Malta ישירה, תל אביב ← ניו יורק (JFK), 4.10 · יוצאת 00:05, נוחתת כ-06:00"],
+  "flt.ret.ly.mia.1810": [1449, "אל על ישירה, מיאמי (MIA) ← תל אביב, 18.10"],
+  "flt.ret.ly.mia.1910": [1274, "אל על ישירה, מיאמי (MIA) ← תל אביב, 19.10"],
+  "flt.ret.ly.mia.2110": [845, "אל על ישירה, מיאמי (MIA) ← תל אביב, 21.10"],
+  "flt.ret.mco": [800, "אורלנדו (MCO) ← תל אביב, עצירה אחת"],
+  "flt.ret.jfk.1810": [391, "HiFly Malta ישירה, ניו יורק (JFK) ← תל אביב, 18.10"],
+  "flt.ret.jfk.1910": [375, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 19.10"],
+  "flt.ret.jfk.2110": [637, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 21.10 (הערכה, עוד לא במכירה)"],
+  "flt.dom": [220, "טיסה פנימית מיאמי/אורלנדו ← ניו יורק (JFK)"],
+  "bag.dom": [45, "מזוודה ראשונה בטיסה הפנימית"],
+};
+const FP_NOTE = {
+  "flt.out.iz.w1": "הזול ביותר עם עצירה: Iberia דרך מדריד, $584",
+  "flt.ret.ly.mia.2110": "חלופה עם עצירה: TAP דרך ליסבון, $775",
+  "flt.ret.jfk.1810": "אל על באותו יום: $697",
+  "flt.ret.jfk.1910": "אל על באותו יום: $697",
+  "flt.ret.jfk.2110": "ב-18–19.10 ארקיע עלתה כ-$375, אז ייתכן שיירד. אל על $807, LOT דרך ורשה $885",
+  "flt.dom": "MIA: כ-$195–261 (American, Delta) · MCO: Delta $219, JetBlue $244",
+};
+const FOPT = {
+  A: { short: "אל על ישירות", label: (r) => "אל על לניו יורק, חזרה " + (r.legs.some((l) => l.type === "flight" && l.from === "mco") ? "מאורלנדו (עם עצירה)" : "ישירה ממיאמי") },
+  A2: { short: "הלוך זול", label: () => "HiFly הלוך לניו יורק, חזרה באל על ממיאמי" },
+  B: { short: "הלוך-חזור לניו יורק + טיסה פנימית", label: () => "הלוך-חזור לניו יורק, וטיסה פנימית לניו יורק בסוף" },
+};
+const FLIGHT_NOTES = {
+  hifly: "HiFly נוחתת בניו יורק כ-06:00, והצ׳ק-אין במנהטן ב-15:00. אפשר לבקש צ׳ק-אין מוקדם (תלוי בזמינות, לפעמים $50–100 לחדר), או להזמין גם את הלילה הקודם (כ-$1,000–1,500 נוסף). לא נכלל בסכום.",
+  jfk: "בסוף: לילה ליד שדה התעופה JFK במקום ליד שדה התעופה של מיאמי. הטיסה הפנימית צריכה לנחות ב-JFK ולא ב-LaGuardia (מ-LGA אין שאטל למלונות, ומונית עולה $80–150).",
+  bags: "מזוודות: בארקיע וב-HiFly כלולות מזוודה של 23 ק״ג, טרולי של 8 ק״ג ותיק קטן (מזוודה שנייה: $110 לכיוון). באל על Classic כלולה מזוודה של 23 ק״ג. עגלה וכיסא בטיחות בחינם. בטיסה הפנימית מזוודה ראשונה כ-$45 לאדם (נכלל בסכום).",
+  infant: "התינוק: באל על כ-10% ממחיר מבוגר ועוד מסים (עריסה בטיסה רק עד גיל 9 חודשים, אז על הברכיים). בארקיע וב-HiFly מחיר התינוק לא מאומת (מקור חלש: $150–190), לאמת מול ארקיע. בטיסה הפנימית תינוק על הברכיים בחינם.",
+  israir: "חלופה שלא בחישוב: ישראייר טסה ישירות תל אביב–JFK מספטמבר 2026. בתאריך דומה בספטמבר נראה כ-$530 לכיוון, כולל מזוודה.",
+  routeG: "הצעה מצוות הקרוז: 30.9 ← 19.10, קרוז 15–18.10 בסוף, פארקים לפני, טיסה פנימית אחרי העגינה ב-18.10, לילה ליד JFK וטיסה הביתה בארקיע ב-19.10. זה בדיוק מסלול A (Utopia) או B (Wonder) עם האפשרות \"הלוך-חזור לניו יורק + טיסה פנימית\", ולכן לא נוסף מסלול חדש.",
+};
+(() => {
+  const E = ROUTES.find((r) => r.id === "E"), F = ROUTES.find((r) => r.id === "F");
+  E.noteB = "יוניברסל 12–13.10 (לינה באורלנדו 11–14.10). מחזירים את הרכבים במיאמי בבוקר של יום הקרוז ונוסעים במונית לנמל. אחרי הקרוז: 2 לילות ליד שדה התעופה של מיאמי, ב-20.10 טיסה פנימית ל-JFK, לילה ליד JFK וטיסה הביתה ב-21.10.";
+  E.taglineB = "4.10–21.10: ניו יורק, נסיעה, 2 ימי יוניברסל, קרוז ממיאמי, 2 לילות במיאמי ולילה ליד JFK";
+  F.noteB = "אורלנדו 11–14.10 (3 לילות), לילה ליד הנמל 14–15.10, קרוז 15–18.10, יוניברסל 18–19.10. ההשכרה השנייה היא הלוך-חזור (איסוף והחזרה באורלנדו או ליד הנמל): בלי דמי החזרה לכיוון אחד ובלי 3.5 שעות נסיעה למיאמי, אז נשאר בערך עוד חצי יום לפארקים. ב-20.10 בבוקר מחזירים את הרכבים ב-MCO, טסים ל-JFK, לילה ליד JFK וטיסה הביתה ב-21.10.";
+  F.taglineB = "4.10–21.10: ניו יורק, נסיעה, 3 לילות באורלנדו, לילה ליד הנמל, קרוז, יוניברסל 18–19.10, טיסה פנימית מאורלנדו ולילה ליד JFK";
+})();
+
 /* ===== RESEARCH CONTENT (checked 22.10.2026) ===== */
 const CHECKED = "22.10.2026";
 
@@ -980,6 +1045,8 @@ const HOTEL_TIERS = {
   sav: { econ: { name: "The Juliette · 3 חדרי שינה", range: "$237–310", n: 273 }, mid: { name: "Residence Inn Savannah", range: "$285–390", n: 337 } },
   orl: { econ: { name: "Westgate Lakes Resort", range: "$188–305", n: 246 }, mid: { name: "Universal Dockside · 2 סוויטות", range: "$684–793 (8 לילות בהזמנה אחת: כ-$585)", n: 790, nLong: 585, real: true } },
   mia: { econ: { name: "Hampton Inn Brickell (לפני) / Embassy Suites MIA (אחרי)", range: "$283–508", n: 405 }, mid: { name: "Residence Inn Miami Airport", range: "$757–870", n: 815 } },
+  jfkApt: { econ: { name: "Courtyard JFK Airport · 2 חדרים", range: "$450–600", n: 525, crib: true, notes: ["שאטל חינם 24/7 ל-JFK", "אם העריסה נספרת בתפוסת החדר, צריך חדר שלישי: $670–900 בסך הכול"] },
+    mid: { name: "Residence Inn JFK · סוויטה + סטודיו עם מטבחונים", range: "$490–640", n: 565, notes: ["ארוחת בוקר ושאטל חינם 24/7 ל-JFK", "✅ עריסה חינם, חדרים מחוברים"] } },
   miaApt: { econ: { name: "Embassy Suites Miami Airport", range: "$280–510", n: 395 }, mid: { name: "Residence Inn Miami Airport", range: "$760–870", n: 815 } },
 };
 /* Optional add-on (בינוני only): Royal Pacific nights on park days = free unlimited Express at USF+IOA */
@@ -1093,7 +1160,7 @@ const ALL_ROUTES = ROUTE_ORDER.map((id) => ROUTES.find((r) => r.id === id)).filt
 const DEFAULT_ARRIVAL = "2027-09-30";
 
 /* ---------- schedule engine ---------- */
-const phaseOf = (place) => (place === "nyc" ? "nyc" : place === "orl" ? "parks" : place === "mia" || place === "pc" || place === "miaApt" ? "beach" : "road");
+const phaseOf = (place) => (place === "jfkApt" ? "air" : place === "nyc" ? "nyc" : place === "orl" ? "parks" : place === "mia" || place === "pc" || place === "miaApt" ? "beach" : "road");
 const bidi = (t) => (typeof t === "string" ? t.replace(/\$?\d+(?:[.:,]\d+)*(?:\s?[–-]\s?\$?\d+(?:[.:,]\d+)*)+/g, (m) => "\u2066" + m + "\u2069") : t);
 const ltr = (t) => (typeof t === "string" ? t.replace(/[A-Za-z$][A-Za-z0-9$,.'&\/ –-]*[A-Za-z0-9]/g, (m) => "\u2066" + m + "\u2069") : t);
 const dRange = (a, b) => { const A = D(a), B = D(b); return "\u2066" + (A.getUTCMonth() === B.getUTCMonth() ? A.getUTCDate() + "–" + dm(b) : dm(a) + "–" + dm(b)) + "\u2069"; };
@@ -1114,7 +1181,7 @@ function groupsOf(sch) {
   groups.forEach((g) => { g.nights = g.key === "home" ? 0 : g.dates.length; g.start = g.dates[0]; g.endOut = add(g.dates[g.dates.length - 1], 1); });
   return groups;
 }
-const CAT = { nyc: "ניו יורק", road: "מסע ברכב", parks: "אורלנדו", beach: "חוף ונמל", cruise: "קרוז" };
+const CAT = { air: "לילה ליד JFK", nyc: "ניו יורק", road: "מסע ברכב", parks: "אורלנדו", beach: "חוף ונמל", cruise: "קרוז" };
 function breakdown(sch) {
   const runs = [];
   groupsOf(sch).filter((g) => g.key !== "home").forEach((g) => {
@@ -1213,7 +1280,7 @@ function computeSchedule(route, shift, cutPlace, autoFix) {
         else push(d, { phase: phaseOf(s.place), place: s.place, title: d === s.start ? "הגעה ל" + P(s.place).short : "יום ב" + P(s.place).short, detail: d === s.start ? "" : "יום חופשי לטיולים" });
       }
     }
-    if (s.type === "drive" && s.xfer) push(s.date, { phase: "drive", title: s.title, detail: s.note || "" });
+    if (s.type === "drive" && s.xfer) push(s.date, { phase: s.dphase || "drive", title: s.title, detail: s.note || "" });
     else if (s.type === "drive") push(s.date, { phase: "drive", title: "נסיעה: " + P(s.from).short + " ← " + P(s.to).short, detail: "כ-" + s.miles + " מייל · כ-" + s.hours + " שעות" + (s.note ? " · " + s.note : "") });
     if (s.type === "cruise") {
       for (let k = 0; k <= s.nights; k++) {
@@ -1279,6 +1346,46 @@ function hotelLines(sch, p) {
   return hotelStops(sch, p).map((x, i) => { cnt[x.k] = (cnt[x.k] || 0) + 1;
     return { k: "hotel." + x.k + (cnt[x.k] > 1 ? "." + cnt[x.k] : ""), hotelIdx: i, g: "מלונות", label: "מלון · " + P(x.k).short + " · " + x.n + (x.n === 1 ? " לילה" : " לילות") + " · " + CAR_TIERS[p.tier].label, v: x.h.v, w: [1, 1, 1], kind: x.h.est ? "הערכה (אמצע הטווח)" : "הצעת מחיר 2027" }; });
 }
+/* ---------- flight options ---------- */
+const ddmm = (d) => d.slice(8, 10) + d.slice(5, 7);
+const flightOpts = (r) => (r.direction !== "ns" ? [] : r.window === 2 ? ["A", "A2", "B"] : ["A", "B"]);
+function routeWithFlight(r, fo, base) {
+  const w = r.window === 2 ? "w2" : "w1";
+  const outId = fo === "A" ? "flt.out.ly." + w : w === "w2" ? "flt.out.hifly.w2" : "flt.out.iz.w1";
+  const R = { ...r, fo, outId, outbound: { ...r.outbound, label: FP[outId][1] } };
+  if (fo !== "B") return R;
+  const legs = r.legs.map((l) => ({ ...l }));
+  const pre = legs.slice(0, legs.findIndex((l) => l.type === "flight"));
+  let homeDate = add(base.flightDate, 1);
+  if (r.window === 2) {
+    homeDate = base.flightDate;
+    let li = -1; for (let i = pre.length - 1; i >= 0; i--) if (pre[i].nights) { li = i; break; }
+    if (li >= 0 && pre[li].place === "miaApt") {
+      if (pre[li].nights > 1) pre[li].nights -= 1;
+      else { pre.splice(li, 1); if (pre[li - 1] && pre[li - 1].type === "drive" && pre[li - 1].to === "miaApt") pre.splice(li - 1, 1); }
+    }
+  }
+  let last = null; for (let i = pre.length - 1; i >= 0; i--) { const l = pre[i]; if (l.type === "cruise") { last = l.port; break; } if (l.nights) { last = l.place; break; } }
+  const mco = last === "orl" || last === "pc";
+  const carBack = last === "orl" && r.orlCar !== false ? "בבוקר מחזירים את הרכבים בשדה התעופה של אורלנדו (MCO). " : "";
+  const retId = "flt.ret.jfk." + ddmm(homeDate);
+  R.legs = [...pre,
+    { type: "drive", from: mco ? "mco" : "miaAir", to: "jfkApt", miles: 0, hours: 3, noCar: true, xfer: true, dphase: "flight", domFlight: true,
+      title: "טיסה פנימית: " + (mco ? "אורלנדו (MCO)" : "מיאמי (MIA)") + " ← ניו יורק (JFK)",
+      note: carBack + "כ-3 שעות טיסה · כ-$220 לאדם (הערכה) · לנחות ב-JFK ולא ב-LaGuardia · שאטל חינם מהשדה למלון" },
+    { type: "stay", place: "jfkApt", nights: 1, min: 1, flex: false, label: "לילה ליד שדה התעופה JFK" },
+    { type: "flight", from: "jfk", to: "tlv", nonstop: true, hours: "כ-11", depart: "לפי חברה", label: FP[retId] ? FP[retId][1] : "ניו יורק (JFK) ← תל אביב", sources: [] }];
+  if (r.car2) R.car2 = { id: "car.second." + r.id + ".B", v: 400, label: "השכרה שנייה 18–20.10 הלוך-חזור (איסוף והחזרה באורלנדו או ליד הנמל), בלי דמי החזרה לכיוון אחד (הערכה)" };
+  if (r.noteB) R.note = r.noteB;
+  if (r.taglineB) R.tagline = r.taglineB;
+  return R;
+}
+function scheduleFor(r, fo, shift, cut, autoFix) {
+  if (!fo) return computeSchedule(r, shift, cut, autoFix);
+  const base = fo === "B" ? computeSchedule(r, shift, cut, autoFix) : null;
+  return computeSchedule(routeWithFlight(r, fo, base), shift, cut, autoFix);
+}
+
 /* ---------- edit mode UI ---------- */
 const EditCtx = React.createContext({ editing: false });
 const sailEmbark = (s) => "2027-10-" + String(parseInt(s.date, 10)).padStart(2, "0");
@@ -1333,7 +1440,7 @@ function Actual({ line }) {
 function priceRegistry() {
   const G = [];
   const add = (g, label, id, base, unit) => { let x = G.find((y) => y.g === g); if (!x) G.push((x = { g, items: [] })); if (!x.items.some((i) => i.id === id)) x.items.push({ label, id, base, unit }); };
-  ALL_ROUTES.forEach((r) => { const f = r.legs.find((l) => l.type === "flight") || {}; if (!r.outbound.options && !f.options) add("טיסות", "מסלול " + r.id + ": הלוך-חזור לאדם", "flight.rt." + r.id, DEFAULT_PARAMS.out + (f.price || 0), "לאדם"); });
+  Object.entries(FP).forEach(([id, [b, l]]) => add("טיסות", l, id, b, id.startsWith("bag") ? "לאדם" : "לאדם, כיוון אחד"));
   [["toMIA", "תל אביב ← מיאמי"], ["toMCO", "תל אביב ← אורלנדו"], ["fromNYC", "ניו יורק ← תל אביב"]].forEach(([k, l]) => (REV_FLIGHTS[k] || []).forEach((o) => add("טיסות", l + " · " + o.label.split(" · ")[0], "flight.opt." + k + "." + o.id, o.price, "לאדם, כיוון אחד")));
   Object.entries(HOTEL_TIERS).forEach(([k, H]) => ["econ", "mid"].forEach((t) => { if (!H[t]) return; add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · " + H[t].name, "hotel." + k + "." + t, H[t].n, "ללילה, לכולם"); if (H[t].nLong) add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · 6 לילות ומעלה", "hotel." + k + "." + t + ".long", H[t].nLong, "ללילה, לכולם"); }));
   ALL_ROUTES.forEach((r) => { const occ = {}; r.legs.forEach((l) => { if (!l.hotel) return; occ[l.place] = (occ[l.place] || 0) + 1; ["econ", "mid"].forEach((t) => l.hotel[t] && add("מלונות", "מסלול " + r.id + " · " + P(l.place).short + " · " + CAR_TIERS[t].label + " · " + l.hotel[t].name, "hotel." + r.id + "." + l.place + occ[l.place] + "." + t, l.hotel[t].total, "סה״כ לשהייה")); }); });
@@ -1344,7 +1451,7 @@ function priceRegistry() {
   add("קרוז", "טיפים (gratuities)", "cruise.grat", 18.5, "לאדם ללילה");
   add("רכבים", "רכב בינוני (מיניוואן), כולל החזרה", "car.mid", DEFAULT_PARAMS.car, "לרכב");
   add("רכבים", "רכב חסכוני", "car.econ", null, "לרכב");
-  ALL_ROUTES.forEach((r) => { add("רכבים", "מסלול " + r.id + ": תוספת דמי החזרה", "car.drop." + r.id, r.dropExtraPerCar ?? 0, "לרכב"); if (r.car2) add("רכבים", "מסלול " + r.id + ": " + r.car2.label, "car.second." + r.id, r.car2.v, "סה״כ"); add("רכבים", "מסלול " + r.id + ": הסעות", "transfers." + r.id, r.transfers ?? 0, "סה״כ"); });
+  ALL_ROUTES.forEach((r) => { add("רכבים", "מסלול " + r.id + ": תוספת דמי החזרה", "car.drop." + r.id, r.dropExtraPerCar ?? 0, "לרכב"); if (r.car2) { add("רכבים", "מסלול " + r.id + ": " + r.car2.label, "car.second." + r.id, r.car2.v, "סה״כ"); add("רכבים", "מסלול " + r.id + " עם טיסה פנימית: השכרה שנייה הלוך-חזור", "car.second." + r.id + ".B", 400, "סה״כ"); } add("רכבים", "מסלול " + r.id + ": הסעות", "transfers." + r.id, r.transfers ?? 0, "סה״כ"); });
   [["uni.ticket.1", "כרטיס יום אחד", 189.99], ["uni.ticket.2", "כרטיס יומיים", 359.98], ["uni.ticket.3.early", "כרטיס 3 ימים (תאריך זול)", 451.99], ["uni.ticket.3.mid", "כרטיס 3 ימים (תאריך בינוני)", 485.99], ["uni.ticket.3.peak", "כרטיס 3 ימים (תאריך יקר)", 571.99]].forEach(([id, l, b]) => add("יוניברסל", l, id, b, "לאדם, לפני מס"));
   add("יוניברסל", "Express Pass ליום", "uni.express.day", 164.99, "לאדם");
   add("יוניברסל", "חניה בפארק ליום", "uni.parking.day", 35, "לרכב");
@@ -1364,13 +1471,25 @@ function computeBudget(sch, p, rp) {
   const roadN = (nb.dc || 0) + (nb.chs || 0) + (nb.sav || 0) + (nb.wil || 0) + (nb.wlm || 0);
   const portN = (nb.mia || 0) + (nb.pc || 0) + (nb.miaApt || 0);
   const flight = sch.segs.find((s) => s.type === "flight");
-  const ret = flight.options ? optPrice(flight.options, rp.retOpt || flight.def) : (rp.ret ?? flight.price);
-  const out = r.outbound.options ? optPrice(r.outbound.options, rp.outOpt || r.outbound.def) : p.out;
-  const rtBase = r.outbound.options || flight.options ? out + ret : ov("flight.rt." + r.id, out + ret);
+  let ret, out, outId = null, retId = null, outLabel = null, retLabel = null, dom = 0, bag = 0;
+  if (r.fo) {
+    outId = r.outId; out = ov(outId, FP[outId][0]); outLabel = FP[outId][1];
+    const dd = ddmm(flight.date);
+    retId = flight.from === "jfk" ? "flt.ret.jfk." + dd : flight.from === "mco" ? "flt.ret.mco" : "flt.ret.ly.mia." + dd;
+    if (!FP[retId]) retId = null;
+    ret = retId ? ov(retId, FP[retId][0]) : flight.price; retLabel = retId ? FP[retId][1] : flight.label;
+    if (r.fo === "B") { dom = ov("flt.dom", FP["flt.dom"][0]); bag = ov("bag.dom", FP["bag.dom"][0]); }
+  } else {
+    ret = flight.options ? optPrice(flight.options, rp.retOpt || flight.def) : (rp.ret ?? flight.price);
+    out = r.outbound.options ? optPrice(r.outbound.options, rp.outOpt || r.outbound.def) : p.out;
+  }
+  const rtBase = out + ret;
   const ps = r.outbound.options ? rtBase : (rp.rt ?? rtBase);
   const infF = p.infant === "lap" ? 0.1 : p.infant === "seat" ? 1 : 0;
   const seatW = [2, 2, 3].map((x) => x * p.pax / 7);
-  const fl = { rt: ps, rtBase, out, ret, pax: p.pax, infF, infant: p.infant, seated: ps * p.pax, inf: ps * infF, total: ps * (p.pax + infF) };
+  const fl = { rt: ps, rtBase, out, ret, pax: p.pax, infF, infant: p.infant, seated: ps * p.pax, inf: ps * infF, total: ps * (p.pax + infF),
+    outId, retId, outLabel, retLabel, dom, bag, domTotal: dom * p.pax, bags: bag * p.pax, pp: ps + dom };
+  fl.all = fl.total + fl.domTotal + fl.bags;
   const cr = sch.cruise;
   const cabin = TIER_CABIN[p.tier] || "balcony";
   const pp = ov(cruiseId(cr.ship, cr.embark || cr.start, cabin), cr.pricePP[cabin]);
@@ -1389,7 +1508,9 @@ function computeBudget(sch, p, rp) {
   const fuel = (sch.miles * 2) / p.mpg * p.gas;
   const W_PAX = [2, 2, 3], W_HEAD = [2, 3, 3], W_EQ = [1, 1, 1];
   const lines = [
-    { k: "flights", g: "טיסות", label: "טיסות הלוך-חזור: " + p.pax + " × " + usd(ps) + (p.infant === "lap" ? " + תינוק על הברכיים (כ-10%)" : p.infant === "seat" ? " + תינוק במושב משלו" : ""), v: fl.total, parts: [seatW[0] * ps, seatW[1] * ps + fl.inf, seatW[2] * ps], kind: r.outbound.options ? "אינדיקטיבי" : "הערכה" },
+    { k: "flights", g: "טיסות", label: (dom ? "טיסות בינלאומיות הלוך-חזור: " : "טיסות הלוך-חזור: ") + p.pax + " × " + usd(ps) + (p.infant === "lap" ? " + תינוק על הברכיים (כ-10%)" : p.infant === "seat" ? " + תינוק במושב משלו" : ""), v: fl.total, parts: [seatW[0] * ps, seatW[1] * ps + fl.inf, seatW[2] * ps], kind: r.outbound.options ? "אינדיקטיבי" : "הערכה" },
+    ...(dom ? [{ k: "domflight", g: "טיסות", label: "טיסה פנימית ל-JFK: " + p.pax + " × " + usd(dom) + " (תינוק על הברכיים בחינם)", v: fl.domTotal, w: W_PAX, kind: "הערכה" },
+      { k: "bags", g: "טיסות", label: "מזוודה ראשונה בטיסה הפנימית: " + p.pax + " × " + usd(bag), v: fl.bags, w: W_PAX, kind: "הערכה" }] : []),
     ...hotelLines(sch, p),
     ...(rpx ? [{ k: "rpx", g: "מלונות", label: "תוספת: לינה ב-Royal Pacific עם Express · " + rpx.text, v: rpx.v, w: W_EQ, kind: rpx.real ? "הצעת מחיר 2027" : "הערכה" }] : []),
     { k: "uni", g: "יוניברסל", label: "כרטיסי יוניברסל ×7 · " + pd + " ימים", v: uni, w: W_PAX, kind: "מחירי 2026 + מס" },
@@ -1399,7 +1520,7 @@ function computeBudget(sch, p, rp) {
     { k: "grat", g: "קרוז", label: "טיפים בקרוז (8 × " + cr.nights + " לילות × $18.50)", v: PARTY.guests * cr.nights * ov("cruise.grat", 18.5), w: W_HEAD, kind: "מקור" },
     { k: "cars", g: "רכבים", label: "2 רכבים, רמה " + (CAR_TIERS[p.tier] || CAR_TIERS.mid).label + (carPriced(p.tier) ? "" : " (המחיר יתעדכן כשתיפתח ההזמנה; בינתיים לפי הערכת בינוני)"), v: 2 * carPer(p) + 2 * (rp.drop ?? ov("car.drop." + r.id, r.dropExtraPerCar ?? 0)), w: W_HEAD, kind: "הערכה" },
     { k: "fuel", g: "רכבים", label: "דלק (" + sch.miles.toLocaleString("en-US") + " מייל × 2 רכבים) ואגרות", v: fuel + p.tolls, w: W_HEAD, kind: "הערכה" },
-    ...(r.car2 ? [{ k: "car2", g: "רכבים", label: r.car2.label, v: ov("car.second." + r.id, r.car2.v), w: W_HEAD, kind: "הערכה" }] : []),
+    ...(r.car2 ? [{ k: "car2", g: "רכבים", label: r.car2.label, v: ov(r.car2.id || "car.second." + r.id, r.car2.v), w: W_HEAD, kind: "הערכה" }] : []),
     { k: "transfers", g: "רכבים", label: "הסעות (ואן ל-8, הסעות לנמל)", v: rp.transfers ?? ov("transfers." + r.id, r.transfers ?? 0), w: W_HEAD, kind: "הערכה" },
     { k: "food", g: "אוכל", label: "אוכל · 7 × " + landDays + " ימים ביבשה", v: 7 * landDays * p.food, w: W_PAX, kind: "הערכה" },
     { k: "esta", g: "שונות", label: "ESTA × 8 ($40.62)", v: PARTY.guests * 40.62, w: W_HEAD, kind: "מקור" },
@@ -1417,7 +1538,7 @@ function computeBudget(sch, p, rp) {
 
 /* ---------- UI pieces ---------- */
 const PHASE = {
-  flight: { label: "טיסה", color: "#64748b" }, nyc: { label: "ניו יורק", color: "#2563eb" },
+  flight: { label: "טיסה", color: "#64748b" }, air: { label: "ליד JFK", color: "#475569" }, nyc: { label: "ניו יורק", color: "#2563eb" },
   drive: { label: "נסיעה", color: "#d97706" }, road: { label: "מסע ברכב", color: "#f59e0b" },
   parks: { label: "אורלנדו", color: "#7c3aed" }, beach: { label: "חוף ונמל", color: "#0ea5e9" }, cruise: { label: "קרוז", color: "#0d9488" },
 };
@@ -1604,10 +1725,35 @@ function InfoList({ items }) {
 }
 
 function legLabel(list, id) { const o = REV_FLIGHTS[list].find((x) => x.id === id) || REV_FLIGHTS[list][0]; return o.label; }
+function FlightChooser({ x, pick }) {
+  if (!x.opts || x.opts.length < 2) return null;
+  const best = x.opts.reduce((a, b) => (b.bud.total < a.bud.total ? b : a));
+  const fl = x.bud.fl;
+  const ids = [fl.outId, fl.retId, fl.dom ? "flt.dom" : null].filter(Boolean);
+  return html`<div className="fchoose">
+    <h3>✈️ איך טסים?</h3>
+    <div className="fopts">${x.opts.map((o) => html`<button key=${o.fo} className=${"fopt" + (o.fo === x.fo ? " on" : "")} onClick=${() => pick(o.fo)} aria-pressed=${o.fo === x.fo}>
+      <b>${FOPT[o.fo].short}</b><small>${FOPT[o.fo].label(x.base)}</small>
+      <span className="fo-pp"><bdi>${usd(o.bud.fl.pp)}</bdi> לאדם</span>
+      <span className="fo-grp">טיסות לכל הקבוצה: <bdi>${usd(o.bud.fl.all)}</bdi></span>
+      <span className="fo-tot">כל הטיול: <bdi>${usd(o.bud.total)}</bdi>${o === best ? html` <span className="fo-best">הכי זול</span>` : null}</span>
+    </button>`)}</div>
+    <ul className="fo-legs">
+      <li>הלוך: ${bidi(fl.outLabel)} · <${Price} id=${fl.outId} base=${FP[fl.outId][0]} /> <${Kind} k="הערכה" />${FP_NOTE[fl.outId] ? html`<small> (${bidi(FP_NOTE[fl.outId])})</small>` : null}</li>
+      ${fl.dom ? html`<li>טיסה פנימית ל-JFK: <${Price} id="flt.dom" base=${FP["flt.dom"][0]} /> לאדם <${Kind} k="הערכה" /><small> (${bidi(FP_NOTE["flt.dom"])})</small></li>` : null}
+      <li>חזור: ${bidi(fl.retLabel || "")} · ${fl.retId ? html`<${Price} id=${fl.retId} base=${FP[fl.retId][0]} />` : usd(fl.ret)} <${Kind} k="הערכה" />${fl.retId && FP_NOTE[fl.retId] ? html`<small> (${bidi(FP_NOTE[fl.retId])})</small>` : null}</li>
+    </ul>
+    ${fl.outId === "flt.out.hifly.w2" ? html`<div className="fo-note warn">⚠ ${bidi(FLIGHT_NOTES.hifly)}</div>` : null}
+    ${x.fo === "B" ? html`<div className="fo-note">🏨 ${bidi(FLIGHT_NOTES.jfk)}</div>` : null}
+    <${Explain} title="מזוודות, תינוק וחלופות">
+      <p>${bidi(FLIGHT_NOTES.bags)}</p><p>${bidi(FLIGHT_NOTES.infant)}</p><p>${bidi(FLIGHT_NOTES.israir)}</p><p className="muted small">${FLIGHT_SRC}</p>
+    </${Explain}>
+  </div>`;
+}
 function FlightCalc({ r, sch, bud, p, sp, rp, setRpMany }) {
   const f = flightOf(sch), fl = bud.fl;
-  const outLbl = r.outbound.options ? legLabel(r.outbound.options, rp.outOpt || r.outbound.def) : r.outbound.label + " (הערכה $" + fl.out + ")";
-  const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
+  const outLbl = r.outbound.options ? legLabel(r.outbound.options, rp.outOpt || r.outbound.def) : (fl.outLabel || r.outbound.label) + " ($" + fl.out + ", הערכה)";
+  const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : fl.retLabel ? fl.retLabel + " ($" + fl.ret + ", הערכה)" : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
   const combos = r.outbound.options && f.options ? REV_FLIGHTS[r.outbound.options].flatMap((o) => REV_FLIGHTS[f.options].map((t) => ({ k: o.id + "|" + t.id, price: optP(r.outbound.options, o) + optP(f.options, t), label: o.label.split(" · ")[0] + " + " + t.label.split(" · ")[0] }))).sort((a, b) => a.price - b.price) : null;
   const curCombo = (rp.outOpt || r.outbound.def) + "|" + (rp.retOpt || f.def);
   return html`<div className="fcalc">
@@ -1620,12 +1766,14 @@ function FlightCalc({ r, sch, bud, p, sp, rp, setRpMany }) {
         <small className="muted">${p.infant === "lap" ? "כ-10% ממחיר כרטיס (הערכה)" : p.infant === "seat" ? "מחושב כמו מושב רגיל (הערכה; מחיר ילד לא נבדק). צריך כיסא בטיחות מאושר" : "לא נכלל בחישוב"}</small></div>
     </div>
     ${combos ? html`<label className="sel"><span>שילוב טיסות הלוך-חזור (מחיר לאדם, אינדיקטיבי)</span><select value=${curCombo} onChange=${(e) => { const [o, t] = e.target.value.split("|"); setRpMany({ outOpt: o, retOpt: t }); }}>${combos.map((c) => html`<option key=${c.k} value=${c.k}>${c.label} · $${c.price.toLocaleString("en-US")}</option>`)}</select></label>`
-      : html`<${Slider} label="מחיר הלוך-חזור לאדם" value=${fl.rt} min=${1000} max=${3200} step=${20} onChange=${(v) => setRpMany({ rt: v })} fmt=${usd} note=${"לפי המחקר: " + usd(fl.rtBase) + " (הלוך $" + fl.out + " הערכה + חזור $" + fl.ret + ")"} />`}
+      : html`<${Slider} label=${fl.dom ? "מחיר הלוך-חזור בינלאומי לאדם" : "מחיר הלוך-חזור לאדם"} value=${fl.rt} min=${600} max=${3200} step=${20} onChange=${(v) => setRpMany({ rt: v })} fmt=${usd} note=${"לפי המחקר: " + usd(fl.rtBase) + " (הלוך $" + fl.out + " + חזור $" + fl.ret + ", הערכה)"} />`}
     <table className="tbl fc-tbl"><tbody>
       <tr><td>הלוך-חזור לאדם<div className="legs">הלוך: ${bidi(outLbl)}<br/>חזור: ${bidi(retLbl)}</div></td><td className="num">${usd(fl.rt)}</td></tr>
       <tr><td>× ${fl.pax} נוסעים</td><td className="num">${usd(fl.seated)}</td></tr>
       ${fl.infF ? html`<tr><td>תינוק ${fl.infant === "lap" ? "על הברכיים (כ-10%)" : "במושב משלו"}</td><td className="num">${usd(fl.inf)}</td></tr>` : null}
-    </tbody><tfoot><tr><td>סה״כ טיסות</td><td className="num">${usd(fl.total)}</td></tr></tfoot></table>
+      ${fl.dom ? html`<tr><td>טיסה פנימית ל-JFK: ${fl.pax} × ${usd(fl.dom)} <${Kind} k="הערכה" /><div className="legs">תינוק על הברכיים בחינם</div></td><td className="num">${usd(fl.domTotal)}</td></tr>
+        <tr><td>מזוודה ראשונה בטיסה הפנימית: ${fl.pax} × ${usd(fl.bag)} <${Kind} k="הערכה" /></td><td className="num">${usd(fl.bags)}</td></tr>` : null}
+    </tbody><tfoot><tr><td>סה״כ טיסות</td><td className="num">${usd(fl.all)}</td></tr></tfoot></table>
   </div>`;
 }
 
@@ -1715,9 +1863,14 @@ function App() {
   const doPrint = () => { document.querySelectorAll("details.explain").forEach((d) => (d.open = true)); setPrinting(true); setTimeout(() => { window.print(); setPrinting(false); }, 400); };
 
   const all = useMemo(() => ALL_ROUTES.map((r) => {
-    const sch = computeSchedule(r, shift, cut, autoFix);
-    return { r, sch, bud: computeBudget(sch, p, rps[r.id] || {}) };
+    const rpr = rps[r.id] || {};
+    const fos = flightOpts(r);
+    const fo = fos.length ? (fos.includes(rpr.fo) ? rpr.fo : "A") : null;
+    const opts = (fos.length ? fos : [null]).map((f) => { const sch = scheduleFor(r, f, shift, cut, autoFix); return { fo: f, sch, bud: computeBudget(sch, p, f === fo ? rpr : { ...rpr, rt: undefined }) }; });
+    const c = opts.find((o) => o.fo === fo) || opts[0];
+    return { r: c.sch.route, base: r, sch: c.sch, bud: c.bud, opts, fo };
   }), [shift, cut, autoFix, p, rps, ovVer]);
+  const pickFlight = (fo) => setRps({ ...rps, [sel]: { ...rp, fo, rt: undefined } });
   const cur = all.find((x) => x.r.id === sel);
   const sch = cur.sch, bud = cur.bud, R0 = cur.r;
   const inWin = (w) => all.filter((x) => x.r.window === w);
@@ -1797,6 +1950,7 @@ function App() {
       <p className="plain">${bidi(plainSummary(sch))}</p>
       <${RouteStrip} sch=${sch} />
       <${Included} sch=${sch} bud=${bud} />
+      <${FlightChooser} x=${cur} pick=${pickFlight} />
       ${R0.note && html`<p className="muted">${bidi(R0.note)}</p>`}
       ${sch.flags.filter((f) => f.level !== "info").length ? html`<div className="flags">${sch.flags.filter((f) => f.level !== "info").map((f, i) => html`<${Flag} key=${i} f=${f} />`)}</div>` : null}
       <div className="itin-map">
@@ -1836,6 +1990,14 @@ function App() {
       <div className="flags">${sch.flags.length ? sch.flags.map((f, i) => html`<${Flag} key=${i} f=${f} />`) : html`<div className="flag ok"><span className="dot"></span>אין בעיות במסלול הזה</div>`}</div>
     </div>
 
+    <div className="card">
+      <h2>איזו טיסה הכי זולה בכל מסלול?</h2>
+      <p className="muted small">סה״כ לכל הטיול ברמה שנבחרה (${CAR_TIERS[p.tier].label}), לכל 8 הנוסעים. ✅ = הכי זול במסלול.</p>
+      <div className="tbl-wrap"><table className="tbl fo-cmp"><thead><tr><th>מסלול</th>${["A", "A2", "B"].map((k) => html`<th key=${k}>${FOPT[k].short}</th>`)}</tr></thead>
+        <tbody>${all.filter((x) => x.opts.length > 1).map((x) => { const best = x.opts.reduce((a, b) => (b.bud.total < a.bud.total ? b : a)); return html`<tr key=${x.base.id}><td><b>${x.base.id}</b> · ${bidi(cleanName(x.base))}</td>${["A", "A2", "B"].map((k) => { const o = x.opts.find((y) => y.fo === k); return html`<td key=${k} className=${"num" + (o === best ? " best" : "")}>${o ? html`${o === best ? "✅ " : ""}${usd(o.bud.total)}<div className="muted small">${usd(o.bud.fl.pp)} לאדם</div>` : "—"}</td>`; })}</tr>`; })}</tbody></table></div>
+      <p className="muted small">במסלולים ההפוכים (R1–R3) כבר חוזרים מניו יורק, אז אין בחירה. ${bidi(FLIGHT_NOTES.israir)}</p>
+      <div className="fo-note">💡 ${bidi(FLIGHT_NOTES.routeG)}</div>
+    </div>
     <div className="card">
       <h2>השוואה בין מסלולים</h2>
       <p className="muted small">בוחרים עד 3 מסלולים להשוואה.</p>
@@ -1972,8 +2134,9 @@ function App() {
     <div className="card">
       <h2>הטיסות במסלול ${R0.id}</h2>
       <p className="lead-s">מחיר אחד הלוך-חזור לאדם, כפול מספר הנוסעים. ${R0.direction === "sn" || flight.from !== "jfk" ? "הטיסה הלוך והטיסה חזרה הן מערים שונות, והמחיר הוא סכום שתיהן." : ""}</p>
+      <${FlightChooser} x=${cur} pick=${pickFlight} />
       <${FlightCalc} r=${R0} sch=${sch} bud=${bud} p=${p} sp=${sp} rp=${rp} setRpMany=${setRpMany} />
-      <${Explain}><p>טיסות לאוקטובר 2027 עוד לא נמכרות. המחירים כאן לפי טיסות דומות ב-2026 (טיסת הלוך לניו יורק: הערכה של $800, כי אל על הלוך-חזור התחיל ב-$1,181 באוקטובר 2026). במסלולים ההפוכים: Google Flights ל-16.9.2027 כתאריך ייצוג. אפשר לבחור חברה ומחיר בלשונית "תקציב".</p></${Explain}>
+      <${Explain}><p>טיסות לאוקטובר 2027 עוד לא נמכרות. במסלולים שמתחילים בניו יורק המחירים הם הערכה לפי ${FLIGHT_SRC}. במסלולים ההפוכים: Google Flights ל-16.9.2027 כתאריך ייצוג. אפשר לבחור חברה ומחיר בלשונית "תקציב".</p></${Explain}>
     </div>
     <div className="card">
       <h2>אפשרויות בכיוון ההפוך (מיאמי ← ניו יורק)</h2>
@@ -2029,6 +2192,7 @@ function App() {
           return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}${(() => { const L = bud.lines.find((l) => l.hotelIdx === xi); return L ? html`<div className="h-paid"><${Actual} line=${L} /></div>` : null; })()}</td></tr>`; })}
           ${bud.rpx ? html`<tr><td colSpan="4">תוספת Royal Pacific עם Express: ${ltr(bud.rpx.text)}</td><td className="num">${usd(bud.rpx.v)}</td></tr>` : null}</tbody>
         <tfoot><tr><td colSpan="4">סה״כ מלונות</td><td className="num">${usd(bud.lines.filter((l) => l.g === "מלונות").reduce((s, l) => s + l.v, 0))}</td></tr></tfoot></table></div>
+      ${sch.nightsBy.jfkApt ? html`<div className="fo-note">🏨 לילה ליד JFK. חלופה: TWA Hotel בתוך שדה התעופה, 2 חדרים כ-$630–860, עריסה בחינם (ביום ראשון 17.10 ייתכן כ-$200 יותר). הטיסה הפנימית צריכה לנחות ב-JFK ולא ב-LaGuardia.</div>` : null}
       <p className="muted small">⚠ ${CRIB_NOTE}. בשישי ושבת המחירים בדרך כלל גבוהים ב-50%–100%. ביטול חינם: מלונות יוניברסל עד 6 ימים לפני; Hilton ו-Marriott בדרך כלל יום-יומיים לפני (לא נבדק לכל מלון).</p>
     </div>
     <div className="card">
