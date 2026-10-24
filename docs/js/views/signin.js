@@ -31,6 +31,34 @@ export function signInCard(reason) {
   preloadAuth();
   const status = h("p", { class: "meta", "aria-live": "polite" });
   const inApp = isInAppBrowser();
+  const signInButton = (label) => h("button", {
+    type: "button", class: "btn btn-block",
+    onclick: () => {
+      status.textContent = "פותח חלון של גוגל…";
+      startSession();
+      // A new Google sign-in replaces the current account (the chooser is always shown).
+      signInWithGoogle().then(() => { status.textContent = "נכנסתם — בודק הרשאות…"; }).catch((err) => {
+        status.textContent = err?.code === "auth/popup-blocked"
+          ? "הדפדפן חסם את החלון. לחצו שוב על הכפתור."
+          : err?.code === "auth/popup-closed-by-user" ? "החלון נסגר. אפשר לנסות שוב." : "הכניסה לא הצליחה. נסו שוב.";
+      });
+    },
+  }, icon("login"), label);
+
+  // Signed in, but the server hasn't answered yet / this account isn't on the list.
+  if (store.user && !inApp) {
+    const who = h("bdi", {}, store.user.email || "");
+    if (!store.roleChecked) {
+      return h("section", { class: "card" }, h("h2", {}, icon("clock"), "בודק הרשאות…"), h("p", { class: "card-sub" }, "נכנסת בתור ", who, "."));
+    }
+    return h("section", { class: "card" },
+      h("h2", {}, icon("lock"), "החשבון הזה עוד לא ברשימה"),
+      notice(h("span", {}, "נכנסת בתור ", who, ". החשבון הזה לא נמצא ברשימת המשפחה של האתר."), "", "info"),
+      h("p", { class: "card-sub" }, "אם יש לך חשבון גוגל אחר שכן ברשימה — החליפו חשבון. אחרת בקשו משחר להוסיף אתכם, ואז היכנסו שוב."),
+      signInButton("החלפת חשבון גוגל"),
+      status);
+  }
+
   return h("section", { class: "card" },
     h("h2", {}, icon("lock"), "כניסה לבני המשפחה"),
     h("p", { class: "card-sub" }, reason || "הכניסה פותחת את המסמכים ואת השאלות ל-AI. את הסכום הכולל רואים גם בלי כניסה."),
@@ -41,18 +69,7 @@ export function signInCard(reason) {
         /Android/i.test(navigator.userAgent)
           ? h("a", { class: "btn", style: { marginInlineStart: "8px" }, href: `intent://${SITE_URL.replace(/^https:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end` }, "פתיחה בכרום")
           : null)
-      : h("button", {
-        type: "button", class: "btn btn-block",
-        onclick: () => {
-          status.textContent = "פותח חלון של גוגל…";
-          startSession();
-          signInWithGoogle().then(() => { status.textContent = "נכנסתם! טוען…"; }).catch((err) => {
-            status.textContent = err?.code === "auth/popup-blocked"
-              ? "הדפדפן חסם את החלון. לחצו שוב על הכפתור."
-              : err?.code === "auth/popup-closed-by-user" ? "החלון נסגר. אפשר לנסות שוב." : "הכניסה לא הצליחה. נסו שוב.";
-          });
-        },
-      }, icon("login"), "כניסה עם חשבון גוגל"),
+      : signInButton("כניסה עם חשבון גוגל"),
     status);
 }
 

@@ -7,6 +7,7 @@ export const store = {
   docs: { pub: null, priv: null },
   role: "public", // public | family | editor | owner
   user: null, // {uid, email, name} when signed in
+  roleChecked: false, // true once the server has said what this account may do
   source: null, // "seed" | "cache" | "firestore"
   demo: false,
   loadedAt: null,

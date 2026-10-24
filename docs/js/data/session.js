@@ -15,19 +15,19 @@ export function startSession() {
     stopLive?.();
     stopLive = null;
     if (!user) {
-      setState({ user: null, role: "public", docs: { pub: store.docs.pub, priv: null } });
+      setState({ user: null, role: "public", roleChecked: true, docs: { pub: store.docs.pub, priv: null } });
       return;
     }
-    setState({ user: { uid: user.uid, email: user.email, name: user.displayName || "" } });
+    setState({ user: { uid: user.uid, email: user.email, name: user.displayName || "" }, role: "public", roleChecked: false });
     let role = "public";
     try {
       const who = await callFunction("whoami", {});
       role = who.role || "public";
-      if (who.label) setState({ user: { ...store.user, name: who.label } });
+      if (who.label && role !== "public") setState({ user: { ...store.user, name: who.label } });
     } catch {
       role = "public";
     }
-    setState({ role });
+    setState({ role, roleChecked: true });
     if (role === "public") return;
     try {
       if (role === "editor" || role === "owner") {

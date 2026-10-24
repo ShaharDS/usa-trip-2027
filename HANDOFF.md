@@ -73,21 +73,18 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
 - **Not verified:** a real Claude API call (only the scripted fake), real phones, deployed rules/functions.
 
 ## 6. Next steps
-**Shahar (only he can):**
-1. ~~Blaze + budget alert~~ — done 2026-10-25 (linked to PalGate's billing account, ₪3 alert).
-2. Authentication → Get started → Sign-in method → **Google** → Enable. Settings → Authorized domains → add `shahards.github.io`.
-3. Storage → Get started → production mode → a US location (e.g. us-central1) if offered.
-4. Terminal: `firebase functions:secrets:set ANTHROPIC_API_KEY --project usa-trip-2027-shahar` and paste the key; in the
-   Anthropic Console set a spend limit for that key's workspace.
-5. github.com → new **public** repository `usa-trip-2027` (account ShaharDS), empty (no README).
+Done 2026-10-25: Blaze + ₪3 alert · Google sign-in + `shahards.github.io` authorized · Claude secret · all 11 functions
+deployed · repo pushed (`main`, old site merged with history into `docs/old/`) · Pages = `main` / `/docs` (built).
 
-**Claude, after he says done (each outward step with his OK):**
-6. Commit the pending files. `firebase deploy` (rules + functions, Node 24). Then `firebase functions:artifacts:setpolicy`.
-7. Add the GitHub remote, push `main`; Shahar enables Settings → Pages → `main` / `/docs`.
-8. Shahar opens `https://shahards.github.io/usa-trip-2027/`, signs in, Settings → Backup → "טען נתוני פתיחה",
-   Settings → גישה → adds his father, family and editors. One live AI question + one sentence proposal (a few cents).
-9. Real-phone checklist (README): iPhone via WhatsApp → Safari, Android Chrome, keyboard dictation, Hebrew read-aloud,
+1. Shahar signs in on the live site **with the owner account** (the one in `functions/.env` — the first sign-in was with his
+   second account, which is correctly "not on the list"; the page now says so and offers "החלפת חשבון גוגל").
+   That bootstraps `config/access`. Then Settings → גישה → add his second account (editor) so it can edit the old site's
+   prices again, and his father / family.
+2. Settings → Backup → "טען נתוני פתיחה". One live AI question + one sentence proposal (a few cents).
+3. Storage → Get started (only needed for ticket uploads), then `firebase deploy --only storage`.
+4. Real-phone checklist (README): iPhone via WhatsApp → Safari, Android Chrome, keyboard dictation, Hebrew read-aloud,
    in-app-browser banner.
+5. **Next upgrade — see §8 (ticket from Shahar).**
 
 ## 7. Open questions / known limits
 - Cruise quotes: taxes/port fees included? price for guests 3–4 and the baby? cabin layout (seed assumes everyone × quote)?
@@ -99,3 +96,29 @@ _Written 2026-10-25, end of the build session. Read `CLAUDE.md` for the rules an
   Trigger Email + Gmail app password, "what did we forget" audit, "what's new" home note, holiday helper, trip-time
   receipts / photo translate, forwarding inbox.
 - Separate session started 2026-10-25: move PalGate's functions off Node 20 (its own project, `PalGate/`).
+
+## 8. Ticket for the next upgrade (from Shahar, 2026-10-25): "public sees only the route; everything else after sign-in"
+**Why:** he doesn't like where sign-in sits today (a card inside the "שאלו" / "מסמכים" screens), and the open link should
+show only the final route — not prices.
+
+**What he wants**
+- **Anyone with the link (no sign-in):** only the final itinerary — cities / legs with dates and nights, holidays, maybe
+  the "fly home" date. **No prices, totals, categories, options or AI** for the public.
+- **Signed in + on the list (family / editors):** everything else — the total and summary, prices per category and row,
+  options and their deltas, adding / editing prices, history, documents, "Ask the trip" and AI proposals.
+- **Sign-in in a clear, obvious place:** e.g. a "כניסה למשפחה" button in the page header / top of the route page
+  (not hidden in the bottom-nav screens), and a visible "מחובר/ת בתור … · יציאה" when signed in.
+
+**Implementation notes (for whoever picks this up)**
+- Data split: today `trips/usa2027/public/state` holds prices and is readable by anyone. Move the costs out of it:
+  public doc = settings (title/dates), stops, holidays, sections needed for the route view; a new family-only doc
+  (e.g. `trips/usa2027/family/state`) = groups, presets, units, categories, items, options, checklist, recent, derived.
+  Update `schema.js` (`doc: "family"`), `ops.js` (third doc), `commit.js`, `validate.js`, rules (family read), REST/live
+  loading (family reads the cost doc after sign-in), `adminImport`, AI context, tests (unit + rules + e2e).
+- The engine needs the cost doc to resolve option-driven nights (cruise sailing `stopPatch`): either store the resolved
+  itinerary in the public doc on every commit (`derived.itinerary`), or keep option groups that move stops public
+  without their prices.
+- Viewer home = route-only layout; signed-in home = today's home. The WhatsApp preview text should stop promising costs.
+- "What changed" lines on the public doc must not mention prices (regenerate public `recent` from route ops only).
+- Acceptance: anonymous REST read of every public path contains no amounts; signed-in family sees today's screens; the
+  audit (`docs/js/dev/audit.js`) still passes; rules tests prove anonymous can't read the cost doc.
