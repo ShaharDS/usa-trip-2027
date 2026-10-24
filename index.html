@@ -404,6 +404,49 @@ td.struck { color: #94a3b8; text-decoration: line-through; }
 .fo-note { background: #f1f5f9; border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: 16px; }
 .fo-note.warn { background: #fff7ed; border: 1px solid #fdba74; }
 .fo-cmp td.best { background: #f0fdf4; font-weight: 700; }
+/* ---------- edit screen (simple) ---------- */
+body.ed-open { overflow: hidden; }
+.ed-screen { position: fixed; inset: 0; z-index: 3000; background: #f8fafc; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.ed-wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 40px; }
+.ed-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: #f8fafc; padding: 8px 0; z-index: 2; border-bottom: 1px solid #e2e8f0; }
+.ed-head h2 { margin: 0; font-size: 1.6rem; }
+.ed-ctx { color: #475569; font-size: 1.05rem; margin-top: 2px; }
+.ed-sum { margin: 14px 0 10px; padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; font-size: 1.15rem; line-height: 1.8; }
+.ed-sum b { font-size: 1.25rem; }
+.ed-sum .ok b { color: #15803d; }
+.ed-sum .due b { color: #b45309; }
+.ed-pick { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.ed-help { color: #475569; margin: 6px 0 14px; font-size: 1.02rem; }
+.sec-cards { display: grid; gap: 14px; }
+.sec-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.sec-card.is-paid { border-color: #86efac; background: #f0fdf4; }
+.sec-h { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sec-h > div { flex: 1; min-width: 0; }
+.sec-h b { display: block; font-size: 1.25rem; }
+.sec-h small { color: #64748b; font-size: .98rem; }
+.sec-ic { font-size: 2rem; line-height: 1; }
+.sec-ok { color: #15803d; font-weight: 700; white-space: nowrap; }
+.sec-in { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.mi { display: flex; flex-direction: column; gap: 6px; }
+.mi-l { font-weight: 600; font-size: 1.05rem; }
+.mi-box { display: flex; align-items: center; direction: ltr; border: 2px solid #cbd5e1; border-radius: 12px; background: #fff; padding: 0 12px; }
+.mi-box:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+.mi-paid .mi-box { border-color: #bbf7d0; }
+.mi-d { font-size: 1.35rem; color: #64748b; font-weight: 700; }
+.mi-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 1.45rem; font-weight: 700; padding: 10px 6px; text-align: left; color: #0f172a; }
+.mi-box input::placeholder { color: #94a3b8; font-weight: 500; }
+.mi-st { min-height: 1.3em; font-size: .98rem; }
+.mi-st.ok { color: #15803d; font-weight: 700; }
+.mi-st.err { color: #b91c1c; }
+.sec-sub { color: #64748b; font-size: .95rem; }
+.linkbtn { background: none; border: 0; padding: 0; color: #2563eb; text-decoration: underline; font: inherit; cursor: pointer; }
+.ed-foot { margin-top: 18px; }
+.ed-done { width: 100%; margin-top: 8px; font-size: 1.15rem; padding: 12px; }
+.sec-tbl td b { font-size: 1.05rem; }
+.st-ic { font-size: 1.2rem; }
+.detail-lines { margin-top: 12px; }
+@media (max-width: 600px) { .sec-in { grid-template-columns: 1fr; } .ed-head h2 { font-size: 1.35rem; } .ed-wrap { padding: 10px 12px 30px; } }
+@media print { .ed-screen { display: none; } }
 </style>
 </head>
 <body>
@@ -1153,7 +1196,8 @@ const P = (k) => PLACES[k] || { name: k, short: k };
 const ROUTE_ORDER = ["B", "A", "C", "D", "R1", "R2", "R3", "E", "F"];
 /* ---------- live price overrides (Firestore; empty = built-in prices) ---------- */
 let OVR = {};
-const hasOv = (id) => !!(OVR[id] && typeof OVR[id].v === "number" && isFinite(OVR[id].v));
+const NEW_KEY = /^(sec|paid)\./;
+const hasOv = (id) => NEW_KEY.test(id) && !!(OVR[id] && typeof OVR[id].v === "number" && isFinite(OVR[id].v));
 const ov = (id, base) => (hasOv(id) ? OVR[id].v : base);
 const cruiseId = (ship, embark, cabin) => "cruise." + ship.split(" ")[0].toLowerCase() + "." + embark + "." + cabin;
 const ALL_ROUTES = ROUTE_ORDER.map((id) => ROUTES.find((r) => r.id === id)).filter(Boolean);
@@ -1392,74 +1436,57 @@ const sailEmbark = (s) => "2027-10-" + String(parseInt(s.date, 10)).padStart(2, 
 const sailId = (s, cabin) => cruiseId(s.ship, sailEmbark(s), cabin);
 const fmtWhen = (t) => { try { const d = t && t.toDate ? t.toDate() : t ? new Date(t) : null; return d ? d.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : ""; } catch (e) { return ""; } };
 const whoShort = (e) => (e ? String(e).split("@")[0] : "");
-function Price({ id, base, onlyEdit }) {
-  const E = React.useContext(EditCtx);
-  const [open, setOpen] = useState(false);
-  const [val, setVal] = useState("");
-  const [busy, setBusy] = useState(false);
-  const edited = hasOv(id), o = OVR[id];
-  const v = ov(id, base);
-  const show = v == null ? "—" : "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 });
-  const meta = edited ? "נערך על ידי " + (E.editing ? o.by : whoShort(o.by)) + (o.at ? " בתאריך " + fmtWhen(o.at) : "") : "";
-  const go = async (fn) => { setBusy(true); const ok = await fn(); setBusy(false); if (ok) setOpen(false); };
-  if (onlyEdit && !E.editing) return null;
-  return html`<span className=${"price" + (edited ? " edited" : "")} title=${meta || undefined}>
-    ${onlyEdit ? null : html`<bdi>${show}</bdi>`}${edited ? html`<span className="ed-mark" aria-label=${meta}>●</span>` : null}
-    ${E.editing ? html`<button className="pencil" title="עריכת מחיר" aria-label="עריכת מחיר" onClick=${(e) => { e.stopPropagation(); setVal(v == null ? "" : String(v)); setOpen(!open); }}>✏️</button>` : null}
-    ${E.editing && open ? html`<span className="ed-pop" onClick=${(e) => e.stopPropagation()}>
-      <input type="number" inputMode="decimal" min="0" step="any" value=${val} onInput=${(e) => setVal(e.target.value)} aria-label="מחיר חדש בדולרים" />
-      <button className="btn small" disabled=${busy || val === "" || !(Number(val) >= 0)} onClick=${() => go(() => E.save(id, Number(val)))}>שמירה</button>
-      <button className="btn ghost small" onClick=${() => setOpen(false)}>ביטול</button>
-      ${edited ? html`<button className="btn ghost small" disabled=${busy} onClick=${() => go(() => E.reset(id))}>החזר למחיר המקורי${base != null ? " (" + usd(base) + ")" : ""}</button>` : null}
-      ${edited ? html`<small className="ed-meta">${meta}</small>` : null}
-      <small className="ed-meta">${id}</small>
-    </span>` : null}
-  </span>`;
+function Price({ base, onlyEdit }) {
+  if (onlyEdit) return null;
+  return html`<span className="price"><bdi>${base == null ? "—" : "$" + Number(base).toLocaleString("en-US", { maximumFractionDigits: 2 })}</bdi></span>`;
 }
-function Actual({ line }) {
-  const E = React.useContext(EditCtx);
-  const [open, setOpen] = useState(false);
-  const [val, setVal] = useState("");
-  const [busy, setBusy] = useState(false);
-  const o = OVR[line.aid];
-  const meta = line.paid && o ? "עודכן על ידי " + whoShort(o.by) + (o.at ? " בתאריך " + fmtWhen(o.at) : "") : "";
-  const go = async (fn) => { setBusy(true); const ok = await fn(); setBusy(false); if (ok) setOpen(false); };
-  return html`<span className="actual" title=${meta || undefined}>
-    ${line.paid ? html`<span className="paid">✅ שולם <bdi>${usd(line.actual)}</bdi></span>` : html`<span className="muted">עוד לא</span>`}
-    ${E.editing ? html`<button className="pencil" title="כמה שילמנו בפועל" aria-label="כמה שילמנו בפועל" onClick=${() => { setVal(line.paid ? String(line.actual) : ""); setOpen(!open); }}>✏️</button>` : null}
-    ${E.editing && open ? html`<span className="ed-pop">
-      <label className="ed-lbl">כמה שילמנו בפועל (דולר, סה״כ לסעיף)</label>
-      <input type="number" inputMode="decimal" min="0" step="any" value=${val} onInput=${(e) => setVal(e.target.value)} aria-label="כמה שילמנו בפועל" />
-      <button className="btn small" disabled=${busy || val === "" || !(Number(val) >= 0)} onClick=${() => go(() => E.save(line.aid, Number(val)))}>שמירה</button>
-      <button className="btn ghost small" onClick=${() => setOpen(false)}>ביטול</button>
-      ${line.paid ? html`<button className="btn ghost small" disabled=${busy} onClick=${() => go(() => E.reset(line.aid))}>מחיקת הסכום ששולם</button>` : null}
-      ${meta ? html`<small className="ed-meta">${meta}</small>` : null}
-    </span>` : null}
-  </span>`;
+/* ---------- budget sections (the only editable things) ---------- */
+const SEC_DEF = [["flights", "✈️", "טיסות"], ["nyc", "🏨", "מלון ניו יורק"], ["cars", "🚙", "רכבים"], ["road", "🚗", "רודטריפ – מלונות בדרך"], ["orl", "🏰", "אורלנדו – מלון"], ["parks", "🎢", "כרטיסים לפארקים"], ["cruise", "🚢", "קרוז"], ["port", "🏨", "לילה אחרון לפני הטיסה"], ["transfers", "🚕", "הסעות"], ["misc", "🍔", "אוכל ושונות"]];
+const SEC_HINT = { flights: "כל הקבוצה, הלוך וחזור", nyc: "", cars: "השכרה, דמי החזרה, דלק, אגרות וחניה", road: "", orl: "", parks: "כולל Express אם יש", cruise: "3 תאים, כולל טיפים", port: "", transfers: "מוניות, ואן והסעות לנמל", misc: "אוכל, ESTA ושונות" };
+const ROAD_P = ["dc", "wil", "wlm", "chs", "sav"];
+function secOf(k) {
+  if (k === "flights" || k === "domflight" || k === "bags") return "flights";
+  if (k.startsWith("hotel.")) { const pl = k.split(".")[1]; return pl === "nyc" ? "nyc" : pl === "orl" ? "orl" : ROAD_P.includes(pl) ? "road" : "port"; }
+  if (k === "rpx") return "orl";
+  if (k === "uni" || k === "express") return "parks";
+  if (k === "cruise" || k === "grat") return "cruise";
+  if (k === "cars" || k === "fuel" || k === "car2" || k === "parking") return "cars";
+  if (k === "transfers") return "transfers";
+  return "misc";
 }
-function priceRegistry() {
-  const G = [];
-  const add = (g, label, id, base, unit) => { let x = G.find((y) => y.g === g); if (!x) G.push((x = { g, items: [] })); if (!x.items.some((i) => i.id === id)) x.items.push({ label, id, base, unit }); };
-  Object.entries(FP).forEach(([id, [b, l]]) => add("טיסות", l, id, b, id.startsWith("bag") ? "לאדם" : "לאדם, כיוון אחד"));
-  [["toMIA", "תל אביב ← מיאמי"], ["toMCO", "תל אביב ← אורלנדו"], ["fromNYC", "ניו יורק ← תל אביב"]].forEach(([k, l]) => (REV_FLIGHTS[k] || []).forEach((o) => add("טיסות", l + " · " + o.label.split(" · ")[0], "flight.opt." + k + "." + o.id, o.price, "לאדם, כיוון אחד")));
-  Object.entries(HOTEL_TIERS).forEach(([k, H]) => ["econ", "mid"].forEach((t) => { if (!H[t]) return; add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · " + H[t].name, "hotel." + k + "." + t, H[t].n, "ללילה, לכולם"); if (H[t].nLong) add("מלונות", P(k).short + " · " + CAR_TIERS[t].label + " · 6 לילות ומעלה", "hotel." + k + "." + t + ".long", H[t].nLong, "ללילה, לכולם"); }));
-  ALL_ROUTES.forEach((r) => { const occ = {}; r.legs.forEach((l) => { if (!l.hotel) return; occ[l.place] = (occ[l.place] || 0) + 1; ["econ", "mid"].forEach((t) => l.hotel[t] && add("מלונות", "מסלול " + r.id + " · " + P(l.place).short + " · " + CAR_TIERS[t].label + " · " + l.hotel[t].name, "hotel." + r.id + "." + l.place + occ[l.place] + "." + t, l.hotel[t].total, "סה״כ לשהייה")); }); });
-  add("מלונות", "ליד הנמל בפורט קנוורל (כשאין נתונים לפי רמה)", "hotel.pc.general", DEFAULT_PARAMS.rooms * DEFAULT_PARAMS.mia, "ללילה, לכולם");
-  const cab = [["interior", "פנימי"], ["ocean", "חלון לים"], ["balcony", "מרפסת"]];
-  SAILINGS.forEach((s) => cab.forEach(([c, l], i) => add("קרוז", s.ship + " " + s.date + " · " + l, sailId(s, c), [s.i, s.o, s.b][i], "לאדם")));
-  ALL_ROUTES.forEach((r) => r.legs.forEach((l) => l.type === "cruise" && cab.forEach(([c, cl]) => add("קרוז", l.ship + " · " + l.embark + " · " + cl, cruiseId(l.ship, l.embark, c), l.pricePP[c], "לאדם"))));
-  add("קרוז", "טיפים (gratuities)", "cruise.grat", 18.5, "לאדם ללילה");
-  add("רכבים", "רכב בינוני (מיניוואן), כולל החזרה", "car.mid", DEFAULT_PARAMS.car, "לרכב");
-  add("רכבים", "רכב חסכוני", "car.econ", null, "לרכב");
-  ALL_ROUTES.forEach((r) => { add("רכבים", "מסלול " + r.id + ": תוספת דמי החזרה", "car.drop." + r.id, r.dropExtraPerCar ?? 0, "לרכב"); if (r.car2) { add("רכבים", "מסלול " + r.id + ": " + r.car2.label, "car.second." + r.id, r.car2.v, "סה״כ"); add("רכבים", "מסלול " + r.id + " עם טיסה פנימית: השכרה שנייה הלוך-חזור", "car.second." + r.id + ".B", 400, "סה״כ"); } add("רכבים", "מסלול " + r.id + ": הסעות", "transfers." + r.id, r.transfers ?? 0, "סה״כ"); });
-  [["uni.ticket.1", "כרטיס יום אחד", 189.99], ["uni.ticket.2", "כרטיס יומיים", 359.98], ["uni.ticket.3.early", "כרטיס 3 ימים (תאריך זול)", 451.99], ["uni.ticket.3.mid", "כרטיס 3 ימים (תאריך בינוני)", 485.99], ["uni.ticket.3.peak", "כרטיס 3 ימים (תאריך יקר)", 571.99]].forEach(([id, l, b]) => add("יוניברסל", l, id, b, "לאדם, לפני מס"));
-  add("יוניברסל", "Express Pass ליום", "uni.express.day", 164.99, "לאדם");
-  add("יוניברסל", "חניה בפארק ליום", "uni.parking.day", 35, "לרכב");
-  Object.entries(RPX).forEach(([k, o]) => { if (o.extra != null) add("יוניברסל", "Royal Pacific עם Express · מסלול " + k, "rpx." + k, o.extra, "תוספת"); else if (o.rate != null) add("יוניברסל", "Royal Pacific ללילה (חלון 1)", "rpx." + k + ".rate", o.rate, "ללילה"); });
-  add("שונות", "אוכל", "param.food", DEFAULT_PARAMS.food, "לאדם ליום");
-  add("שונות", "דלק", "param.gas", DEFAULT_PARAMS.gas, "לגלון");
-  add("שונות", "אגרות", "param.tolls", DEFAULT_PARAMS.tolls, "לכל הנסיעה");
-  return G;
+function secMeta(k, sch) {
+  const r = sch.route, segs = sch.segs, rng = (a, b) => (a && b ? (a === b ? "\u2066" + dm(a) + "\u2069" : dRange(a, b)) : "");
+  const stays = (pl) => segs.filter((x) => (x.type === "stay" || x.type === "parks") && pl.includes(x.place) && x.end > x.start);
+  const span = (l) => (l.length ? rng(l.map((x) => x.start).sort()[0], l.map((x) => x.end).sort().pop()) : "");
+  let label = (SEC_DEF.find((d) => d[0] === k) || [])[2], dates = "", start = null;
+  if (k === "flights") { const dom = segs.find((x) => x.domFlight); dates = "\u2066" + dm(sch.arrival) + "\u2069 ו-\u2066" + (dom ? dm(dom.date) + "\u2069, \u2066" : "") + dm(sch.flightDate) + "\u2069"; start = "0"; }
+  else if (k === "nyc" || k === "road" || k === "orl" || k === "port") {
+    const pl = k === "nyc" ? ["nyc"] : k === "orl" ? ["orl"] : k === "road" ? ROAD_P : ["pc", "mia", "miaApt", "jfkApt"];
+    const l = stays(pl); dates = span(l); start = l.length ? l.map((x) => x.start).sort()[0] : null;
+    if (k === "port") {
+      const n = l.reduce((a, x) => a + diff(x.start, x.end), 0), last = l.length && l[l.length - 1].end === sch.flightDate, port = l.some((x) => x.place === "pc" || x.place === "mia");
+      label = !last ? "מלון ליד הנמל" : (n > 1 ? "לילות אחרונים לפני הטיסה" : "לילה אחרון לפני הטיסה") + (port ? " + ליד הנמל" : "");
+    }
+  } else if (k === "parks") { const d = segs.filter((x) => x.parkDates && x.parkDates.length).flatMap((x) => x.parkDates).sort(); dates = d.length ? rng(d[0], d[d.length - 1]) : ""; start = d[0] || null; }
+  else if (k === "cruise") { const c = sch.cruise; dates = rng(c.start, c.end); start = c.start; }
+  else if (k === "cars") { const d = segs.filter((x) => x.type === "drive" && !x.noCar).map((x) => x.date).sort(); dates = d.length ? rng(d[0], d[d.length - 1]) : ""; start = d[0] || null; }
+  else { dates = "כל הטיול"; start = "9"; }
+  return { label, dates, start: start || "8" };
+}
+function budgetSections(sch, lines, p) {
+  const r = sch.route, fo = r.fo || "x", map = {};
+  lines.forEach((l) => { l.planned = l.v || 0; l.sec = secOf(l.k); (map[l.sec] = map[l.sec] || []).push(l); });
+  const out = SEC_DEF.filter(([k]) => map[k]).map(([k, icon], idx) => {
+    const ls = map[k], raw = ls.reduce((a, l) => a + (l.v || 0), 0), base = Math.round(raw);
+    const pid = "sec." + r.id + "." + fo + "." + p.tier + "." + k, aid = "paid." + r.id + "." + k;
+    const edited = hasOv(pid), planned = edited ? OVR[pid].v : base, paid = hasOv(aid), actual = paid ? OVR[aid].v : null;
+    const m = secMeta(k, sch);
+    return { k, icon, idx, label: m.label, dates: m.dates, start: m.start, hint: SEC_HINT[k], base, raw, planned, edited, pid, aid, paid, actual, v: paid ? actual : planned, lines: ls, by: edited ? OVR[pid].by : null };
+  }).filter((x) => x.base > 0 || x.edited || x.paid);
+  out.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.idx - b.idx));
+  out.forEach((x) => { const f = x.raw ? x.v / x.raw : null;
+    x.lines.forEach((l, i) => { if (f != null) { l.v = (l.v || 0) * f; if (l.parts) l.parts = l.parts.map((y) => y * f); } else { l.v = i === 0 ? x.v : 0; if (l.parts) l.parts = l.parts.map(() => (i === 0 ? x.v / l.parts.length : 0)); } }); });
+  return out;
 }
 const PARAM_OV = { car: "car.mid", food: "param.food", gas: "param.gas", tolls: "param.tolls" };
 const effParams = (raw) => { const p = { ...raw }; Object.entries(PARAM_OV).forEach(([k, id]) => { if (raw[k] === DEFAULT_PARAMS[k]) p[k] = ov(id, raw[k]); }); return p; };
@@ -1525,15 +1552,69 @@ function computeBudget(sch, p, rp) {
     { k: "food", g: "אוכל", label: "אוכל · 7 × " + landDays + " ימים ביבשה", v: 7 * landDays * p.food, w: W_PAX, kind: "הערכה" },
     { k: "esta", g: "שונות", label: "ESTA × 8 ($40.62)", v: PARTY.guests * 40.62, w: W_HEAD, kind: "מקור" },
   ];
-  lines.forEach((l) => { l.planned = l.v || 0; l.aid = "actual." + r.id + "." + l.k;
-    if (hasOv(l.aid)) { l.paid = true; l.actual = OVR[l.aid].v; if (l.parts) l.parts = l.parts.map((x) => (l.planned ? x * l.actual / l.planned : l.actual / l.parts.length)); l.v = l.actual; } });
-  const plannedTotal = lines.reduce((s, l) => s + l.planned, 0);
-  const paidTotal = lines.reduce((s, l) => s + (l.paid ? l.actual : 0), 0);
-  const remaining = lines.reduce((s, l) => s + (l.paid ? 0 : l.v || 0), 0);
+  const secs = budgetSections(sch, lines, p);
+  const plannedTotal = secs.reduce((s, x) => s + x.planned, 0);
+  const paidTotal = secs.reduce((s, x) => s + (x.paid ? x.actual : 0), 0);
+  const remaining = secs.reduce((s, x) => s + (x.paid ? 0 : x.planned), 0);
   lines.forEach((l) => { l.split = l.parts || l.w.map((x) => (l.v || 0) * x / l.w.reduce((a, b) => a + b, 0)); });
   const total = lines.reduce((s, l) => s + (l.v || 0), 0);
   const units = UNITS.map((u, i) => ({ ...u, v: lines.reduce((s, l) => s + l.split[i], 0) }));
-  return { lines, total, units, ticket: tk, fl, cabin, rpx, missing: 0, plannedTotal, paidTotal, remaining };
+  return { lines, secs, total, units, ticket: tk, fl, cabin, rpx, missing: 0, plannedTotal, paidTotal, remaining };
+}
+
+/* ---------- edit screen ---------- */
+const fmtN = (n) => Math.round(n).toLocaleString("en-US");
+function MoneyInput({ id, label, cur, base, ph, kind }) {
+  const E = React.useContext(EditCtx);
+  const show = (v) => (v == null ? "" : fmtN(v));
+  const [val, setVal] = useState(show(cur));
+  const [st, setSt] = useState("");
+  useEffect(() => { setVal(show(cur)); }, [cur, id]);
+  const done = (ok) => { setSt(ok ? "ok" : "err"); if (ok) setTimeout(() => setSt(""), 2500); };
+  const commit = async () => {
+    const d = String(val).replace(/[^0-9]/g, "");
+    if (d === "") { if (kind === "paid" && cur != null) { setSt("saving"); done(await E.reset(id)); } else setVal(show(cur)); return; }
+    const n = parseInt(d, 10);
+    if (cur != null ? Math.round(cur) === n : kind === "plan" && n === base) { setVal(show(cur)); return; }
+    setVal(fmtN(n)); setSt("saving"); done(await E.save(id, n));
+  };
+  return html`<label className=${"mi" + (kind === "paid" ? " mi-paid" : "")}>
+    <span className="mi-l">${label}</span>
+    <span className="mi-box"><span className="mi-d">$</span><input type="text" inputMode="numeric" dir="ltr" autoComplete="off" value=${val} placeholder=${ph} aria-label=${label}
+      onInput=${(e) => setVal(e.target.value)} onBlur=${commit} onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} /></span>
+    <span className=${"mi-st " + st} aria-live="polite">${st === "ok" ? "✓ נשמר" : st === "saving" ? "שומר…" : st === "err" ? "לא נשמר, נסו שוב" : ""}</span>
+  </label>`;
+}
+function EditPanel({ x, p, sp, pickFlight, user, onClose }) {
+  const E = React.useContext(EditCtx);
+  const b = x.bud, r = x.r, fos = x.opts.map((o) => o.fo).filter(Boolean);
+  const undo = (id) => html`<button className="linkbtn" onClick=${() => E.reset(id)}>ביטול שינוי</button>`;
+  useEffect(() => { document.body.classList.add("ed-open"); return () => document.body.classList.remove("ed-open"); }, []);
+  return html`<div className="ed-screen" role="dialog" aria-modal="true" aria-label="עריכת מחירים">
+    <div className="ed-wrap">
+      <div className="ed-head">
+        <div><h2>✏️ עריכת מחירים</h2><div className="ed-ctx">מסלול ${r.id}${x.fo ? " · " + FOPT[x.fo].short : ""} · ${CAR_TIERS[p.tier].label}</div></div>
+        <button className="btn" onClick=${onClose}>סיום</button>
+      </div>
+      <div className="ed-sum"><span>מתוכנן <b>${usd(b.plannedTotal)}</b></span> · <span className="ok">שולם <b>${usd(b.paidTotal)}</b></span> · <span className="due">נשאר <b>${usd(b.remaining)}</b></span></div>
+      <div className="ed-pick">
+        <div className="seg">${Object.entries(CAR_TIERS).map(([k, t]) => html`<button key=${k} className=${p.tier === k ? "on" : ""} onClick=${() => sp("tier")(k)}>${t.label}</button>`)}</div>
+        ${fos.length > 1 ? html`<div className="seg">${fos.map((f) => html`<button key=${f} className=${x.fo === f ? "on" : ""} onClick=${() => pickFlight(f)}>${FOPT[f].short}</button>`)}</div>` : null}
+      </div>
+      <p className="ed-help">כותבים סכום ולוחצים Enter (או יוצאים מהשדה), והוא נשמר מיד לכולם. כל הסכומים בדולרים, לכל הקבוצה.</p>
+      <div className="sec-cards">${b.secs.map((s) => html`<div key=${s.k} className=${"sec-card" + (s.paid ? " is-paid" : "")}>
+        <div className="sec-h"><span className="sec-ic" aria-hidden="true">${s.icon}</span><div><b>${s.label}</b><small>${s.dates}${s.hint ? " · " + s.hint : ""}</small></div>${s.paid ? html`<span className="sec-ok">✅ שולם</span>` : null}</div>
+        <div className="sec-in">
+          <div><${MoneyInput} id=${s.pid} kind="plan" label="כמה זה אמור לעלות" cur=${s.edited ? s.planned : null} base=${s.base} ph=${fmtN(s.base)} />
+            ${s.edited ? html`<div className="sec-sub">ההערכה שלנו: ${usd(s.base)} · ${undo(s.pid)}</div>` : html`<div className="sec-sub">ההערכה שלנו</div>`}</div>
+          <div><${MoneyInput} id=${s.aid} kind="paid" label="כמה שילמנו בפועל" cur=${s.paid ? s.actual : null} base=${null} ph="עוד לא שילמנו" />
+            ${s.paid ? html`<div className="sec-sub">${undo(s.aid)}</div>` : null}</div>
+        </div>
+      </div>`)}</div>
+      <p className="muted small ed-foot">${user ? html`מחובר/ת: <bdi>${user.email}</bdi> · ` : null}הסכום המתוכנן נשמר למסלול, לטיסה ולרמה שבחרתם. הסכום ששולם נשמר למסלול.</p>
+      <button className="btn ed-done" onClick=${onClose}>סיום</button>
+    </div>
+  </div>`;
 }
 
 /* ---------- UI pieces ---------- */
@@ -1888,7 +1969,7 @@ function App() {
   const pane = (id) => "pane" + (tab === id ? " on" : "");
   const cr = sch.cruise;
   const curSailing = SAILINGS.find((s) => cr.ship.startsWith(s.ship) && s.date === dRange(cr.start, cr.end).replace(/[\u2066\u2069]/g, ""));
-  const groups = [...new Set(bud.lines.map((l) => l.g))].map((g) => ({ g, v: bud.lines.filter((l) => l.g === g).reduce((s, l) => s + (l.v || 0), 0) }));
+  const groups = bud.secs.map((x) => ({ g: x.label, v: x.v }));
   const cheapest = all.reduce((a, b) => (b.bud.total < a.bud.total ? b : a));
   const drives = sch.segs.filter((s) => s.type === "drive");
   const stopKeys = new Set(sch.segs.filter((s) => s.type === "stay").map((s) => s.place));
@@ -1899,9 +1980,8 @@ function App() {
       <div className="brand">טיול משפחתי לארה״ב · 2027</div>
       <div className="tier-pick"><span>רמה:</span><div className="seg">${Object.entries(CAR_TIERS).map(([k, t]) => html`<button key=${k} className=${p.tier === k ? "on" : ""} onClick=${() => sp("tier")(k)}>${t.label}</button>`)}</div><small className="muted">מלונות, תא בקרוז ורכבים</small></div>
       <button className="btn ghost print-btn" onClick=${doPrint}>🖨 הדפסה</button>
-      ${fbReady && !editing ? html`<button className="btn ghost edit-btn" onClick=${startEdit}>✏️ מצב עריכה</button>` : null}
+      ${fbReady && !editing ? html`<button className="btn ghost edit-btn" onClick=${startEdit}>✏️ עריכת מחירים</button>` : null}
     </div>
-    ${editing ? html`<div className="edit-bar"><span>✏️ מצב עריכה${user ? html` · <bdi>${user.email}</bdi>` : null}. לחצו על ✏️ ליד מחיר כדי לשנות אותו. השינוי נשמר לכולם.</span><button className="btn small" onClick=${() => setTab("budget")}>כל המחירים</button><button className="btn ghost small" onClick=${stopEdit}>יציאה</button></div>` : null}
     ${edMsg ? html`<div className="edit-msg" role="alert">${edMsg}<button className="btn ghost small" onClick=${() => setEdMsg("")}>סגירה</button></div>` : null}
     <nav className="tabs" role="tablist">${TABS.map(([id, ic, l]) => html`<button key=${id} role="tab" aria-selected=${tab === id} className=${tab === id ? "on" : ""} onClick=${() => setTab(id)}><span className="ic">${ic}</span>${l}</button>`)}</nav>
   </header>
@@ -2054,7 +2134,6 @@ function App() {
           <p>${dRange(cr.start, cr.end)} · ${cr.nights} לילות · יוצאת מ${P(cr.port).short} ב-${cr.depart}, חוזרת ב-${cr.arrive}</p>
           <p>עוצרת ב: ${cr.stops.map((s) => P(s.place).name).join(" ואז ")}</p>
           <p className="big-num">${usd(bud.lines.find((l) => l.k === "cruise").v + bud.lines.find((l) => l.k === "grat").v)} <small>3 תאים עם ${CABIN_HE[bud.cabin]}, כולל טיפים</small></p>
-          <p className="sec-paid">כמה שילמנו בפועל על התאים: <${Actual} line=${bud.lines.find((l) => l.k === "cruise")} /></p>
         </div>
       </div>
       <${Explain}>
@@ -2107,7 +2186,6 @@ function App() {
           <p>${sch.segs.filter((s) => s.parkDates).flatMap((s) => s.parkDates).map((d) => dm(d) + " (" + wd(d) + ")").join(" · ")}</p>
           <p>${bud.ticket ? bud.ticket.label : ""}</p>
           <p className="big-num">${usd(bud.lines.find((l) => l.k === "uni").v)} <small>7 כרטיסים כולל מס (התינוק נכנס חינם)</small></p>
-          <p className="sec-paid">כמה שילמנו בפועל על הכרטיסים: <${Actual} line=${bud.lines.find((l) => l.k === "uni")} /></p>
         </div>
       </div>
       <${Explain}>
@@ -2189,7 +2267,7 @@ function App() {
       <${TierSwitch} p=${p} sp=${sp} sch=${sch} />
       <div className="tbl-wrap"><table className="tbl htiers"><thead><tr><th>איפה</th><th>לילות</th><th className=${p.tier === "econ" ? "on" : ""}>חסכוני</th><th className=${p.tier === "mid" ? "on" : ""}>בינוני</th><th>סה״כ ברמה שנבחרה</th></tr></thead>
         <tbody>${hotelStops(sch, p).map((x, xi) => { const H = x.own ? { econ: { ...x.own.econ, range: x.own.econ.range }, mid: x.own.mid } : HOTEL_TIERS[x.k]; const cell = (t) => H ? html`<td className=${p.tier === t ? "on" : ""}><b>${ltr(H[t].name)}</b><div>${ltr(H[t].range)}${x.own ? "" : " ללילה"} ${H[t].real ? html`<${Kind} k="הצעת מחיר 2027" />` : html`<${Kind} k="הערכה" />`}</div><div className="h-calc">בחישוב: <${Price} id=${x.own ? x.ownBase + t : "hotel." + x.k + "." + t + (H[t].nLong && x.n >= 6 ? ".long" : "")} base=${x.own ? H[t].total : H[t].nLong && x.n >= 6 ? H[t].nLong : H[t].n} /> ${x.own ? "לשהייה" : "ללילה"}</div>${H[t].crib ? html`<div className="crib">⚠ עריסה עוד לא אושרה</div>` : null}${H[t].notes ? html`<ul className="h-notes">${H[t].notes.map((n, i) => html`<li key=${i}>${bidi(n)}</li>`)}</ul>` : null}</td>` : html`<td className=${p.tier === t ? "on" : ""}><span className="muted">אין עדיין נתונים לפי רמה. הערכה כללית: <${Price} id=${"hotel." + x.k + ".general"} base=${p.rooms * p.mia} /> ללילה</span></td>`;
-          return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}${(() => { const L = bud.lines.find((l) => l.hotelIdx === xi); return L ? html`<div className="h-paid"><${Actual} line=${L} /></div>` : null; })()}</td></tr>`; })}
+          return html`<tr key=${x.k + xi}><td>${P(x.k).short}</td><td className="num">${x.n}</td>${cell("econ")}${cell("mid")}<td className="num">${usd(x.h.v)}</td></tr>`; })}
           ${bud.rpx ? html`<tr><td colSpan="4">תוספת Royal Pacific עם Express: ${ltr(bud.rpx.text)}</td><td className="num">${usd(bud.rpx.v)}</td></tr>` : null}</tbody>
         <tfoot><tr><td colSpan="4">סה״כ מלונות</td><td className="num">${usd(bud.lines.filter((l) => l.g === "מלונות").reduce((s, l) => s + l.v, 0))}</td></tr></tfoot></table></div>
       ${sch.nightsBy.jfkApt ? html`<div className="fo-note">🏨 לילה ליד JFK. חלופה: TWA Hotel בתוך שדה התעופה, 2 חדרים כ-$630–860, עריסה בחינם (ביום ראשון 17.10 ייתכן כ-$200 יותר). הטיסה הפנימית צריכה לנחות ב-JFK ולא ב-LaGuardia.</div>` : null}
@@ -2221,13 +2299,16 @@ function App() {
         <div>
           ${vis("budget") && html`<${ChartView} type="doughnut" data=${{ labels: groups.map((g) => g.g), datasets: [{ data: groups.map((g) => Math.round(g.v)), backgroundColor: palette }] }}
             options=${{ plugins: { legend: { position: "bottom", rtl: true, labels: { font: { family: "Heebo", size: 15 }, boxWidth: 16 } } }, maintainAspectRatio: false }} />`}
-          <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>סעיף</th><th>מתוכנן</th><th>שולם בפועל</th><th>סוג</th></tr></thead>
-            <tbody>${bud.lines.filter((l) => l.planned || l.paid).map((l) => html`<tr key=${l.k} className=${l.paid ? "paid-row" : ""}><td>${l.label}</td><td className=${"num" + (l.paid ? " struck" : "")}>${usd(l.planned)}</td><td className="num"><${Actual} line=${l} /></td><td>${l.paid ? html`<span className="kind paid-k">✅ שולם</span>` : html`<${Kind} k=${l.kind} />`}</td></tr>`)}</tbody>
-            <tfoot><tr><td>סה״כ</td><td className="num">${usd(bud.plannedTotal)}</td><td className="num">${usd(bud.paidTotal)}</td><td></td></tr>
-              <tr><td>נשאר לשלם</td><td className="num" colSpan="3">${usd(bud.remaining)}</td></tr>
-              <tr><td><b>סה״כ משוער (שולם + נשאר)</b></td><td className="num" colSpan="3"><b>${usd(bud.total)}</b></td></tr></tfoot>
+          <div className="tbl-wrap"><table className="tbl sec-tbl">
+            <thead><tr><th>סעיף</th><th>מתוכנן</th><th>שולם בפועל</th></tr></thead>
+            <tbody>${bud.secs.map((x) => html`<tr key=${x.k} className=${x.paid ? "paid-row" : ""}><td><span className="st-ic">${x.icon}</span> <b>${x.label}</b><div className="muted small">${x.dates}</div></td><td className="num">${usd(x.planned)}${x.edited ? html`<div className="muted small">עודכן ידנית</div>` : null}</td><td className="num">${x.paid ? html`<span className="paid">✅ ${usd(x.actual)}</span>` : html`<span className="muted">—</span>`}</td></tr>`)}</tbody>
+            <tfoot><tr><td>סה״כ</td><td className="num">${usd(bud.plannedTotal)}</td><td className="num">${usd(bud.paidTotal)}</td></tr>
+              <tr><td>נשאר לשלם</td><td className="num" colSpan="2">${usd(bud.remaining)}</td></tr></tfoot>
           </table></div>
+          <details className="explain detail-lines"><summary>פירוט לפי פריטים (לעיון בלבד)</summary>
+            <p className="muted small">אלה ההערכות שלנו לכל פריט. אם עדכנתם סכום לסעיף שלם, הסעיף בטבלה למעלה הוא הקובע.</p>
+            <div className="tbl-wrap"><table className="tbl"><tbody>${bud.secs.map((x) => x.lines.filter((l) => l.planned).map((l) => html`<tr key=${l.k}><td className="muted small">${x.icon}</td><td>${l.label}</td><td className="num">${usd(l.planned)}</td><td><${Kind} k=${l.kind} /></td></tr>`))}</tbody></table></div>
+          </details>
         </div>
         <div className="sliders">
           <h3>לשנות הנחות</h3>
@@ -2248,13 +2329,6 @@ function App() {
       </div>
     </div>
   </section>
-
-  ${editing ? html`<section className=${pane("budget") + " ed-all"}><div className="card">
-      <h2>✏️ כל המחירים שאפשר לערוך</h2>
-      <p className="lead-s">כל מחיר כאן משפיע על החישובים בכל המסלולים. מחיר שנערך מסומן בנקודה כתומה.</p>
-      ${priceRegistry().map((G) => html`<details key=${G.g} className="ed-group" open=${G.g === "מלונות" ? undefined : true}><summary>${G.g} (${G.items.length})</summary>
-        <div className="tbl-wrap"><table className="tbl"><tbody>${G.items.map((it) => html`<tr key=${it.id}><td>${ltr(it.label)}</td><td className="muted small">${it.unit}</td><td className="num"><${Price} id=${it.id} base=${it.base} /></td></tr>`)}</tbody></table></div></details>`)}
-    </div></section>` : null}
 
   <section className=${pane("tips")} id="tips">
     <div className="card"><h2>מידע שימושי</h2><${InfoList} items=${PRACTICAL} /></div>
@@ -2280,6 +2354,7 @@ function App() {
     <div className="sb-price"><b>${usd(bud.total)}</b><small>עלות משוערת</small></div>
     <div className="sb-btns"><button className="btn ghost sm" onClick=${() => setTab("plan")}>החלפת מסלול</button><button className="btn sm" onClick=${() => setTab("budget")}>פירוט</button></div>
   </div>
+  ${editing ? html`<${EditPanel} x=${cur} p=${p} sp=${sp} pickFlight=${pickFlight} user=${user} onClose=${stopEdit} />` : null}
   <footer>עודכן ב-${CHECKED} · הערכות מסומנות · כל הסכומים בדולרים</footer>
   </div></${EditCtx.Provider}>`;
 }
