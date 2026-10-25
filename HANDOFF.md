@@ -3,7 +3,25 @@
 _Written 2026-10-25, end of the build session; updated 2026-10-25 (second session: three access levels + the two live bugs).
 Read `CLAUDE.md` for the rules and the file map; this file is the **state of play, what was verified, and what is left**._
 
-## 0. Round 3 (2026-10-25, third session) — DEPLOYED + pushed (`a75f584`)
+## 0. Round 4 (2026-10-25, same session) — one route on a calendar, old-site look, files on places
+Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md` (round 4). Why: Shahar found the route confusing — editing
+didn't show everywhere and the cruise was stuck on 15–18 (the "באיזו הפלגה?" option's `stopPatch` pinned it).
+- **Model:** every part (stop) has real dates (`anchorDate` + `nights`); `shared/calendar.js` (owners per night,
+  `assignRangeOps` = pick nights + trim overlapped parts + drop option patches, `explicitOps` = one-time conversion,
+  `gapRanges`). The live trip converts on its first calendar save. The opening data is already explicit; the demo trip
+  stays old-style on purpose (engine tests + it exercises the conversion).
+- **UI:** `#/route` (and the family home) = **לוח שנה** (old site's month grid) + map with a colour legend + **יום אחר
+  יום** in the old site's look (`.grp` / `.day-row` / `.pill`). Editors edit each part inline there with the calendar
+  picker (shows who owns each night, warns what gets overridden). The stop form and "ערים ולילות" are gone. Hotel dates
+  use the same picker. Unassigned nights show as "עוד לא נקבע איפה ישנים" with a button to make a part of them.
+- **Public:** only the parts list + a sign-in card (no calendar / map / places / day screens; `routeView` has no places
+  or days).
+- **Files on places:** "צירוף מסמך" on a place → `addDocument {share: "family", placeId}` → `places.files`; family opens
+  them from the place (`getDocumentFile` allows `shared` files to family); images open full-screen on white.
+- **Documents AI:** `readFacts` retries without the structured format; locked PDFs get a Hebrew message; errors carry
+  `reason` (shown small); `readDocument` + "לקרוא עם AI" re-reads a saved file.
+
+## 0a. Round 3 (2026-10-25, third session) — DEPLOYED + pushed (`a75f584`)
 **Live since 2026-10-25:** Shahar set up Storage; functions (Claude secret v2), Firestore rules and Storage rules deployed
 (smoke test: whoami 200, writes 401 without sign-in, anonymous `family/state` 403); site pushed and Pages built.
 **Still Shahar's:** "ריקון כל ההוצאות", adding family, first real upload / AI place.

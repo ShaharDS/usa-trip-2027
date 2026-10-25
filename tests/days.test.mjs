@@ -33,11 +33,11 @@ test("places on a day are ordered by time, then by order", () => {
   assert.deepEqual(day.places.map((p) => p.id), ["plc_early", "plc_rock", "plc_park"]);
 });
 
-test("the public route still builds days (nameless hotels, cities only)", () => {
-  const day = tripDays(routeView(seed())).find((d) => d.date === "2027-10-06");
-  assert.equal(day.sleep.city, "Washington");
-  assert.equal(day.sleep.label, undefined);
-  assert.equal(day.places[0].label, "Liberty Bell, פילדלפיה");
+test("the public route still has the days of the trip, but no places (those need a sign-in)", () => {
+  const days = tripDays(routeView(seed()));
+  assert.equal(days.length, 19);
+  assert.ok(days.every((d) => d.places.length === 0 && !d.sleep), "no hotels or places without sign-in");
+  assert.equal(days[0].stop.label, "ניו יורק");
 });
 
 test("where today falls in the trip", () => {
@@ -52,9 +52,6 @@ test("where today falls in the trip", () => {
 test("nights in order for the map: one point per place we sleep", () => {
   const stops = nightStops(familyView(seed()));
   assert.deepEqual(stops.map((s) => [s.city, s.nights]), [["New York", 6], ["Washington", 1], ["Savannah", 1], ["Kissimmee", 7], ["Port Canaveral", 3]]);
-  const pub = nightStops(routeView(seed()));
-  assert.equal(pub[0].label, "לינה ב-New York");
-  assert.equal(pub[0].lat, 40.8, "public map points are on the coarse grid");
 });
 
 test("a place outside the trip dates is reported, not lost silently", () => {
@@ -115,7 +112,7 @@ test("a long day is split into parts of at most 3 stops in between", () => {
 });
 
 test("parts of the trip: runs of days in the same stop, and flying home on its own", () => {
-  const parts = tripParts(tripDays(routeView(seed())));
+  const parts = tripParts(tripDays(familyView(seed())));
   assert.deepEqual(parts.map((p) => [p.key, p.nights]), [["s:nyc", 6], ["s:road", 2], ["s:orlando", 7], ["s:cruise", 3], ["home", 0]]);
   assert.equal(parts[0].from, "2027-09-30");
   assert.equal(parts[0].to, "2027-10-05");

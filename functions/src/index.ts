@@ -8,4 +8,4 @@ export { whoami, getAccess, setAccess } from "./accessAdmin.js"; // roles and th
 export { adminImport } from "./adminImport.js"; // owner: load opening data / a backup
 export { aiAsk, aiPropose } from "./ai.js"; // Claude: answer questions (family) / propose changes (editors)
 export { applyProposal, rejectProposal } from "./proposals.js"; // editors approve AI proposals line by line
-export { addDocument, getDocumentFile } from "./documents.js"; // tickets & confirmations: save + read with Claude, open
+export { addDocument, getDocumentFile, readDocument } from "./documents.js"; // tickets & confirmations: save, read with Claude, open

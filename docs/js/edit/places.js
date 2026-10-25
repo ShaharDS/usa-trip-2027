@@ -12,12 +12,17 @@ import { askFirst, notice } from "../components/common.js";
 import { proposalCard } from "../components/proposal.js";
 import { micButton, micHint } from "../components/voice.js";
 import { callFunction } from "../fb/api.js";
+import { blobToBase64, prepareUpload } from "../ui/resize.js";
+import { rangePicker } from "../components/rangePicker.js";
+import { routeParts } from "../components/parts.js";
+import { dayOwners } from "../shared/calendar.js";
+import { familyView } from "../shared/route.js";
 import { choices, compact, dateInput, diffOp, errorBox, field, fieldset, textArea, textInput } from "./kit.js";
 import { nextOrder, run } from "./tools.js";
 import { store } from "../store.js";
 
 const freshAi = () => ({ text: "", busy: false, proposal: null, error: "" });
-const ui = { addFor: null, tab: "ai", ai: freshAi(), draft: null, editId: null, titleFor: null, title: "" };
+const ui = { addFor: null, tab: "ai", ai: freshAi(), draft: null, editId: null, titleFor: null, title: "", attachFor: null, attach: { title: "", file: null, busy: false, error: "" } };
 
 const FIELDS = ["label", "kind", "date", "checkIn", "checkOut", "time", "endTime", "address", "city", "region", "lat", "lng", "mapsUrl", "website", "phone", "note", "maybe"];
 const planPlace = (id) => store.docs.plan?.places?.[id];
@@ -29,6 +34,18 @@ function close(ctx) {
   ui.draft = null;
   ui.ai = freshAi();
   ctx.rerender();
+}
+
+/** Who already holds each night — a hotel first (more specific), then the part of the trip. */
+function hotelOwners(excludeId) {
+  const p = store.docs.plan;
+  const { byStop } = routeParts(familyView(p));
+  const parts = Object.fromEntries(dayOwners(p).map((x) => [x.date, x.owners.map((o) => byStop[o]).filter(Boolean)]));
+  const hotels = activeList(p.places).filter((x) => x.kind === "hotel" && x.id !== excludeId && x.checkIn && x.checkOut);
+  return (date) => [
+    ...hotels.filter((x) => x.checkIn <= date && date < x.checkOut).map((x) => ({ label: x.label, color: "#332288" })),
+    ...(parts[date] || []),
+  ];
 }
 
 function newDraft(day, kind = "sight") {
@@ -59,9 +76,12 @@ function placeForm(ctx, day, original) {
       linkHint.replaceChildren(isShortMapsUrl(d.mapsUrl) ? "קישור מקוצר: את המיקום המדויק ה-AI יודע לקרוא (לשונית ״עם AI״). כאן נשמור רק את הקישור." : "");
     }
   };
-  hotelBox.append(h("div", { class: "grid-2" },
-    field("נכנסים ב-", dateInput(d.checkIn, (v) => { d.checkIn = v; })),
-    field("יוצאים ב-", dateInput(d.checkOut, (v) => { d.checkOut = v; }))),
+  const s = store.docs.plan?.settings || {};
+  hotelBox.append(fieldset("אילו לילות ישנים שם", rangePicker({
+    from: s.startDate, to: addDays(s.endDate, -1), owners: hotelOwners(original?.id),
+    first: d.checkIn, last: d.checkOut ? addDays(d.checkOut, -1) : null, label: "בחירת הלילות במלון", selfColor: "#332288",
+    onChange: (a, b) => { d.checkIn = a; d.checkOut = addDays(b || a, 1); },
+  }), "הלוח מראה איזה מלון או חלק של הטיול כבר רשום בכל לילה."),
   field("צ׳ק-אין משעה (לא חובה)", h("input", { class: "input", type: "time", dir: "ltr", value: d.time || "", style: { maxWidth: "180px" }, oninput: (e) => { d.time = e.target.value; } })));
   visitBox.append(field("באיזה יום", dateInput(d.date, (v) => { d.date = v; })),
     h("div", { class: "grid-2" },
@@ -178,10 +198,60 @@ export function addPlaceArea(ctx, day) {
 }
 
 /** Edit / move / remove buttons in a place's row (or its edit form, when open). */
+/** "+ צירוף מסמך או תמונה": a file the whole family can open from this place (saved as "shared"). */
+function attachBox(ctx, p) {
+  const a = ui.attach;
+  const close = () => { ui.attachFor = null; ui.attach = { title: "", file: null, busy: false, error: "" }; ctx.rerender(); };
+  const chosen = h("p", { class: "meta", dir: "auto" }, a.file ? `נבחר: ${a.file.name}` : "");
+  const send = async () => {
+    if (!a.file) { a.error = "בחרו קובץ קודם."; return ctx.rerender(); }
+    if (store.demo) { a.error = "במצב הדגמה אין אחסון קבצים."; return ctx.rerender(); }
+    a.busy = true;
+    a.error = "";
+    ctx.rerender();
+    try {
+      const { blob, contentType } = await prepareUpload(a.file);
+      if (blob.size > (contentType === "application/pdf" ? 15 : 10) * 1024 * 1024) throw new Error("הקובץ גדול מדי.");
+      const title = (a.title || a.file.name.replace(/\.[^.]+$/, "")).trim().slice(0, 80);
+      const r = await callFunction("addDocument", { share: "family", placeId: p.id, contentType, fileName: a.file.name, title, data: await blobToBase64(blob) });
+      const rec = planPlace(p.id);
+      const files = [...(rec?.files || []), { id: r.docId, title, type: r.type }].slice(-10);
+      await run([{ t: "update", e: "places", id: p.id, set: { files }, before: { files: rec?.files ?? null } }], { doneText: `״${title}״ צורף ל״${p.label}״` });
+      close();
+    } catch (err) {
+      a.busy = false;
+      a.error = err.message || "הצירוף לא הצליח.";
+      ctx.rerender();
+    }
+  };
+  return h("div", { class: "inline-form" },
+    h("h3", {}, icon("upload"), " צירוף מסמך או תמונה"),
+    h("p", { class: "meta" }, "כל המשפחה (אחרי כניסה) תוכל לפתוח אותו מכאן — למשל אישור הזמנה, QR לכניסה או כרטיס עלייה למטוס. בלי מחירים, בבקשה."),
+    field("קובץ (PDF או תמונה)", h("input", { type: "file", class: "input", accept: "application/pdf,image/*", disabled: a.busy, onchange: (e) => { a.file = e.target.files?.[0] || null; chosen.replaceChildren(a.file ? `נבחר: ${a.file.name}` : ""); } })),
+    chosen,
+    field("שם שיופיע על הכפתור", textInput(a.title, (v) => { a.title = v; }, { placeholder: "למשל: אישור הזמנה / QR כניסה", maxlength: 80 })),
+    a.error ? notice(a.error, "danger") : null,
+    h("div", { class: "btn-row" },
+      h("button", { type: "button", class: "btn", disabled: a.busy, onclick: send }, icon("upload"), a.busy ? "מעלה…" : "צירוף"),
+      h("button", { type: "button", class: "btn btn-secondary", disabled: a.busy, onclick: close }, "ביטול")));
+}
+
+/** Editors: remove a file from a place (the file itself stays in "מסמכים"). */
+export function fileRemoveButtons(ctx, p) {
+  const rec = planPlace(p.id);
+  if (!rec?.files?.length) return null;
+  return h("div", { class: "btn-row", style: { marginTop: "4px" } }, rec.files.map((f) =>
+    h("button", {
+      type: "button", class: "edit-btn",
+      onclick: askFirst(f.title, () => run([{ t: "update", e: "places", id: p.id, set: { files: rec.files.filter((x) => x.id !== f.id) }, before: { files: rec.files } }], { doneText: `״${f.title}״ הוסר מ״${p.label}״` }).catch(() => {}), "הקובץ עצמו נשאר ב״מסמכים״."),
+    }, icon("trash", "icon-sm"), `להסיר ״${f.title}״`)));
+}
+
 export function placeTools(ctx, p, day) {
   if (ui.editId === p.id) {
     return h("div", { class: "inline-form", id: "place-edit" }, h("h3", {}, icon("edit"), " עריכה"), placeForm(ctx, day, p));
   }
+  if (ui.attachFor === p.id) return attachBox(ctx, p);
   const rec = planPlace(p.id);
   const sameDay = p.time || p.kind === "hotel" ? [] : activeList(store.docs.plan?.places).filter((x) => x.kind !== "hotel" && x.date === p.date && !x.time);
   const i = sameDay.findIndex((x) => x.id === p.id);
@@ -194,7 +264,9 @@ export function placeTools(ctx, p, day) {
       h("button", { type: "button", class: "edit-btn", disabled: i <= 0, onclick: () => run(moveIn(sameDay, i, -1)).catch(() => {}) }, icon("up", "icon-sm"), "למעלה"),
       h("button", { type: "button", class: "edit-btn", disabled: i >= sameDay.length - 1, onclick: () => run(moveIn(sameDay, i, 1)).catch(() => {}) }, icon("down", "icon-sm"), "למטה"),
     ] : null,
-    h("button", { type: "button", class: "edit-btn", onclick: askFirst(p.label, () => run([{ t: "archive", e: "places", id: p.id }], { doneText: `״${p.label}״ הוסר מהמסלול` }).catch(() => {})) }, icon("trash", "icon-sm"), "הסרה"));
+    h("button", { type: "button", class: "edit-btn", onclick: () => { ui.attachFor = p.id; ui.attach = { title: "", file: null, busy: false, error: "" }; ctx.rerender(); } }, icon("upload", "icon-sm"), "צירוף מסמך"),
+    h("button", { type: "button", class: "edit-btn", onclick: askFirst(p.label, () => run([{ t: "archive", e: "places", id: p.id }], { doneText: `״${p.label}״ הוסר מהמסלול` }).catch(() => {})) }, icon("trash", "icon-sm"), "הסרה"),
+    fileRemoveButtons(ctx, p));
 }
 
 function moveIn(list, i, dir) {

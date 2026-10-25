@@ -170,11 +170,8 @@ test("adding a hotel by name: the server finds the location, the family route ge
   assert.equal(hotel.address.stringValue, "700 E Main St, Richmond, VA 23219");
   assert.equal(Number(hotel.lat.doubleValue), 37.5407);
   const pub = await fetch(`${FS}/trips/usa2027/public/state`).then((x) => x.json());
-  const pubPlaces = Object.values(pub.fields.places.mapValue.fields).map((v) => v.mapValue.fields);
-  const pubHotel = pubPlaces.find((f) => f.city?.stringValue === "Richmond");
-  assert.ok(pubHotel, "the public route has the night in Richmond");
-  assert.equal(pubHotel.label, undefined, "but not the hotel's name");
-  assert.equal(pubHotel.address, undefined, "nor its address");
+  assert.equal(pub.fields.places, undefined, "the public route has no places at all");
+  assert.ok(!JSON.stringify(pub).includes("Hampton"), "nor the hotel's name anywhere");
   const day = Object.values(fam.fields.days.mapValue.fields).map((v) => v.mapValue.fields).find((f) => f.date.stringValue === "2027-10-06");
   assert.equal(day.title.stringValue, "נוסעים לריצ׳מונד");
   const anon = await fetch(`${FS}/trips/usa2027/family/state`);
@@ -187,4 +184,33 @@ test("adding an expense with the AI offers cost tools only", async () => {
   assert.ok(p.lines.every((l) => !/מקום במסלול|עצירה/.test(l)), p.lines.join(" | "));
   await call("rejectProposal", { proposalId: p.proposalId }, editor);
   await rejects(call("aiPropose", { mode: "expense", text: "x" }, dad), "PERMISSION_DENIED");
+});
+
+test("reading a file: the plain-JSON fallback when the structured request is refused, and reading a saved file again", async () => {
+  const pdf = Buffer.from("%PDF-1.4\n% FORMAT_REJECT\n");
+  const r = await call("addDocument", { contentType: "application/pdf", fileName: "ticket2.pdf", data: pdf.toString("base64"), title: "כרטיס 2" }, editor);
+  assert.equal(r.extracted, true);
+  assert.equal(r.facts.confirmation, "ABC123", "facts came from the fallback");
+  await call("rejectProposal", { proposalId: r.proposalId }, editor);
+  const saved = await call("addDocument", { contentType: "application/pdf", fileName: "later.pdf", data: Buffer.from("%PDF-1.4\n").toString("base64"), title: "לקרוא אחר כך", extract: false }, editor);
+  assert.equal(saved.extracted, false);
+  const again = await call("readDocument", { docId: saved.docId }, editor);
+  assert.equal(again.extracted, true);
+  assert.equal(again.facts.vendor, "El Al");
+  await rejects(call("readDocument", { docId: saved.docId }, dad), "PERMISSION_DENIED");
+  await call("rejectProposal", { proposalId: again.proposalId }, editor);
+});
+
+test("a file attached to a place for the family: family can open it, never the editors-only ones", async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const r = await call("addDocument", { contentType: "image/png", fileName: "qr.png", data: png.toString("base64"), title: "QR כניסה", share: "family", placeId: "plc_rock", extract: true }, editor);
+  assert.equal(r.extracted, false, "shared files are never sent to the AI");
+  assert.equal(r.type, "image");
+  const f = await call("getDocumentFile", { docId: r.docId }, dad);
+  assert.equal(f.contentType, "image/png");
+  assert.deepEqual([...Buffer.from(f.data, "base64")], [...png]);
+  const other = await call("addDocument", { contentType: "application/pdf", fileName: "invoice.pdf", data: Buffer.from("%PDF-1.4\n").toString("base64"), title: "חשבונית", extract: false }, editor);
+  await rejects(call("getDocumentFile", { docId: other.docId }, dad), "PERMISSION_DENIED");
+  const stranger = await googleUser("nobody@gmail.com", "x");
+  await rejects(call("getDocumentFile", { docId: r.docId }, stranger), "PERMISSION_DENIED");
 });

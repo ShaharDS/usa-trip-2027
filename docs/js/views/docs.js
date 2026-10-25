@@ -12,7 +12,27 @@ import { blobToBase64, prepareUpload } from "../ui/resize.js";
 import { can, store } from "../store.js";
 
 const KIND = { flight: ["plane", "טיסה"], hotel: ["hotel", "לינה"], car: ["car", "רכב"], cruise: ["ship", "שייט"], parks: ["ferris", "פארקים"], insurance: ["shield", "ביטוח"], other: ["file", "מסמך"] };
-const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", title: "", file: null, fileName: "", extract: true };
+const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", reason: "", title: "", file: null, fileName: "", extract: true, reading: null };
+
+/** Read a saved file with the AI again (e.g. the first try failed). */
+async function readAgain(d, rerender) {
+  state.reading = d.id;
+  state.error = "";
+  state.reason = "";
+  state.proposal = null;
+  rerender();
+  try {
+    state.proposal = await callFunction("readDocument", { docId: d.id });
+    state.list = null;
+  } catch (err) {
+    state.error = err.message || "הקריאה לא הצליחה.";
+    state.reason = err.details?.reason || "";
+    if (err.details?.facts) state.list = null;
+  } finally {
+    state.reading = null;
+    rerender();
+  }
+}
 
 function load(rerender) {
   if (state.loading) return;
@@ -54,6 +74,7 @@ function uploadCard(rerender) {
     if (!file) return toast("בחרו קובץ קודם");
     state.busy = true;
     state.error = "";
+    state.reason = "";
     state.proposal = null;
     state.step = "מעלה את הקובץ…";
     rerender();
@@ -75,7 +96,8 @@ function uploadCard(rerender) {
       const msg = err.message || "ההעלאה לא הצליחה.";
       // The server keeps the file listed even when reading it with the AI failed — say so, and refresh the list.
       const saved = !!err.details?.saved;
-      state.error = saved ? `הקובץ נשמר ברשימה, אבל קריאת המסמך עם AI לא הצליחה: ${msg}` : msg;
+      state.error = saved ? `הקובץ נשמר ברשימה, אבל קריאת המסמך עם AI לא הצליחה: ${msg} אפשר לנסות שוב עם ״לקרוא עם AI״ ליד הקובץ.` : msg;
+      state.reason = err.details?.reason || "";
       if (saved) state.list = null;
     } finally {
       state.busy = false;
@@ -105,6 +127,7 @@ export function renderDocs(ctx) {
     pageHead("כרטיסים ואישורים"),
     can.edit() ? uploadCard(rerender) : null,
     state.error ? notice(state.error, "danger") : null,
+    state.error && state.reason ? h("p", { class: "meta tech-reason", dir: "ltr" }, `פרטים טכניים: ${state.reason}`) : null,
     state.proposal ? proposalCard(state.proposal, { onDone: () => { state.proposal = null; rerender(); } }) : null,
     h("section", { class: "card" },
       h("h2", {}, icon("file"), "המסמכים שלנו"),
@@ -118,8 +141,13 @@ export function renderDocs(ctx) {
               h("div", { class: "grow" },
                 h("strong", { dir: "auto" }, d.title),
                 h("div", { class: "meta" }, `${kindHe} · ${d.uploadedAt ? dateHe(d.uploadedAt.slice(0, 10), "dm") : ""} · ${sizeText(d.size || 0)}${d.uploadedBy ? ` · ${d.uploadedBy}` : ""}`),
+                d.shared ? h("div", { class: "meta" }, icon("users", "icon-sm"), " מצורף למקום במסלול — כל המשפחה רואה") : null,
                 d.facts?.summary ? h("div", { class: "meta", dir: "auto" }, d.facts.summary) : null),
-              h("button", { type: "button", class: "edit-btn", onclick: () => openDoc(d) }, icon("eye", "icon-sm"), "פתיחה"));
+              h("div", { class: "row wrap", style: { gap: "6px", justifyContent: "flex-end" } },
+                h("button", { type: "button", class: "edit-btn", onclick: () => openDoc(d) }, icon("eye", "icon-sm"), "פתיחה"),
+                !d.shared && !d.proposalId
+                  ? h("button", { type: "button", class: "edit-btn", disabled: !!state.reading, onclick: () => readAgain(d, rerender) }, icon("sparkles", "icon-sm"), state.reading === d.id ? "קורא…" : "לקרוא עם AI")
+                  : null));
           }))
           : emptyState("עוד אין מסמכים.")),
   ];

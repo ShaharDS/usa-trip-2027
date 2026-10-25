@@ -266,7 +266,9 @@ export const ENTITIES = {
       note: T.str(300),
       maybe: T.bool(), // "אולי נעצור"
       photo: T.obj({ url: T.url({ required: true }), credit: T.str(160), page: T.url() }),
-      passIds: T.arr(T.str(40), 20), // entry tickets / boarding passes shown at the gate (later)
+      // Files the family opens from the place: a booking confirmation, a QR ticket, a boarding pass (saved by the
+      // addDocument function as "shared"; `id` = its document id).
+      files: T.arr(T.obj({ id: T.str(40, { required: true }), title: T.str(80), type: T.en(["image", "pdf"], { required: true }) }), 10),
     },
   },
   days: {

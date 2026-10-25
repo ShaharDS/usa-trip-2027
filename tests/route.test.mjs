@@ -7,7 +7,6 @@ import { seed, seedDocs } from "./helpers.mjs";
 // The only numbers the route documents may contain. Anything else could be an amount.
 const ALLOWED_NUMBERS = new Set(["schemaVersion", "version", "tripNights", "nights", "travellers", "order"]);
 const PLACE_NUMBERS = new Set(["lat", "lng"]); // family only: exact map location of a place
-const PRIVATE_PLACE_KEYS = ["address", "lat", "lng", "mapsUrl", "website", "phone", "note", "photo", "passIds"];
 const PLAN_ONLY_KEYS = ["items", "categories", "price", "actual", "options", "optionGroups", "units", "presets", "checklist", "sections", "derived", "recent", "fx", "bufferPct", "cardFeePct", "notIncluded", "updatedByLabel", "groups"];
 
 function walk(x, path, out) {
@@ -27,25 +26,18 @@ function assertNoMoney(route, allowedNumber) {
 }
 
 test("the public route has no amounts and no cost data", () => {
-  // `near` = a place's ~10 km grid square for the overview map (two numbers).
-  assertNoMoney(routeView(seed()), (path) => ALLOWED_NUMBERS.has(String(path.at(-1))) || path.at(-2) === "near");
+  assertNoMoney(routeView(seed()), (path) => ALLOWED_NUMBERS.has(String(path.at(-1))));
 });
 
 test("the family route has no amounts either — only exact map locations on top", () => {
   assertNoMoney(familyView(seed()), (path) => ALLOWED_NUMBERS.has(String(path.at(-1))) || (path[0] === "places" && PLACE_NUMBERS.has(String(path.at(-1)))));
 });
 
-test("public: hotels are nameless, and no place has an address, location, link, phone, note or photo", () => {
-  const plan = seed();
-  const pub = routeView(plan);
-  assert.ok(Object.keys(pub.places).length > 5);
-  for (const [id, p] of Object.entries(pub.places)) {
-    for (const k of PRIVATE_PLACE_KEYS) assert.ok(!(k in p), `public place ${id} has ${k}`);
-    if (p.kind === "hotel") assert.ok(!("label" in p), `public hotel ${id} has a name`);
-    else assert.equal(p.label, plan.places[id].label);
-    if (p.near) assert.deepEqual(p.near, [Math.round(plan.places[id].lat * 10) / 10, Math.round(plan.places[id].lng * 10) / 10]);
-  }
-  for (const d of Object.values(pub.days)) assert.ok(!("note" in d), "day notes are family-only");
+test("public: no places and no days at all — the calendar, map, hotels and places need a sign-in", () => {
+  const pub = routeView(seed());
+  assert.equal(pub.places, undefined);
+  assert.equal(pub.days, undefined);
+  assert.ok(pub.itinerary.stops.length > 0, "the parts of the route (cities, nights) stay public");
 });
 
 test("family: hotel names, addresses and map locations are there", () => {

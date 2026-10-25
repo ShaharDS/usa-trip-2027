@@ -135,7 +135,9 @@ export function toHttpsError(err: any): HttpsError {
     message: String(err?.message || err).slice(0, 300),
     requestId: err?.requestID ?? err?.request_id ?? null,
   });
-  const he = (code: any, messageHe: string) => new HttpsError(code, messageHe, { messageHe });
+  // `reason` = what the API said (never the key), shown small under the Hebrew message to editors for debugging.
+  const reason = String(err?.error?.error?.message || err?.message || err || "").replace(/sk-ant-[A-Za-z0-9_-]+/g, "[key]").slice(0, 300);
+  const he = (code: any, messageHe: string) => new HttpsError(code, messageHe, { messageHe, reason });
   if (err instanceof Anthropic.RateLimitError) return he("resource-exhausted", "ה-AI עמוס כרגע. נסו שוב בעוד דקה.");
   if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return he("failed-precondition", "מפתח ה-API של Claude לא תקין או חסר. בעל האתר צריך לעדכן אותו.");
   if (err instanceof Anthropic.APIConnectionError || err instanceof Anthropic.InternalServerError) return he("unavailable", "אין חיבור ל-AI כרגע. נסו שוב בעוד רגע.");

@@ -9,6 +9,7 @@ import { backLink, emptyState, pageHead } from "../components/common.js";
 import { choices, colorPicker, compact, dateInput, diffOp, errorBox, field, fieldset, iconPicker, numberInput, saveBar, select, textArea, textInput } from "./kit.js";
 import { nextOrder, run } from "./tools.js";
 import { openAdd } from "./expensePanel.js";
+import { openPart } from "./parts.js";
 import { store } from "../store.js";
 
 const clone = (x) => (x === undefined ? undefined : structuredClone(x));
@@ -249,131 +250,6 @@ function categoryForm(ctx, id) {
   ];
 }
 
-// ---------------------------------------------------------------- stop (city / leg of the route)
-
-function stopForm(ctx, id) {
-  const { state, r } = ctx;
-  const isNew = id === "new";
-  const original = isNew ? null : state.stops?.[id];
-  if (!isNew && !original) return [backLink("#/route"), pageHead("לא מצאנו את העצירה")];
-  const stopId = isNew ? newId(ID_PREFIX.stops) : id;
-  const list = activeList(state.stops);
-  const draft = clone(original) || { label: "", kind: "city", icon: "building", nights: 2 };
-  let afterId = isNew ? list[0]?.id || "" : null;
-  const errors = errorBox();
-  const preview = h("div", { class: "item-explain" });
-  const nightsField = field("כמה לילות", numberInput(draft.nights ?? null, (n) => { if (n === null) delete draft.nights; else draft.nights = Math.round(n); refresh(); }, { style: { maxWidth: "140px" } }));
-  nightsField.style.display = draft.fill ? "none" : "block";
-
-  const orderFor = () => {
-    if (!isNew) return draft.order;
-    const i = list.findIndex((s) => s.id === afterId);
-    if (i < 0) return (list[0]?.order ?? 1) - 1;
-    const a = list[i].order ?? i;
-    const b = list[i + 1]?.order ?? a + 2;
-    return (a + b) / 2;
-  };
-  const refresh = () => {
-    let test = { ...state, stops: { ...state.stops, [stopId]: { ...compact(draft), order: orderFor() } } };
-    try {
-      test = applyOps({ plan: test, priv: {} }, extraOps()).docs.plan;
-    } catch { /* preview only */ }
-    const result = computeTrip(test, { skipOptions: true });
-    const it = result.itinerary;
-    const total = result.total;
-    preview.replaceChildren(
-      h("strong", {}, "המסלול אחרי השינוי: "),
-      it.stops.filter((s) => s.nights > 0 || s.id === stopId).map((s) => `${s.label || "(העצירה החדשה)"} ${s.nights}`).join(" · "),
-      h("br"),
-      `סה״כ הטיול: ${approxIls(total.ils.typ)} (עכשיו: ${approxIls(r.total.ils.typ)})`,
-      ...it.warnings.map((w) => h("div", { class: "opt-warn" }, icon("alert"), h("span", {}, warningHe(w, test)))));
-  };
-
-  // A new stop only counts in rows that list stops explicitly if we add it there — offer those rows,
-  // pre-ticked when they already include the stop it comes after, plus an optional hotel row.
-  const timedRows = activeList(state.items).filter((i) => i.rule?.time?.stopIds?.length);
-  const includeIn = new Set();
-  const rowPicker = h("div", {});
-  const drawRows = () => {
-    includeIn.clear();
-    const idx = list.findIndex((s) => s.id === afterId);
-    const neighbours = [afterId, list[idx + 1]?.id].filter(Boolean);
-    // Rows for one specific stop (a hotel) never count a new stop; rows spanning stops (food, cars) do
-    // when they include a neighbour.
-    for (const i of timedRows) {
-      const ids = i.rule.time.stopIds;
-      if (ids.length > 1 && neighbours.some((n) => ids.includes(n))) includeIn.add(i.id);
-    }
-    rowPicker.replaceChildren(choices(timedRows.map((i) => ({ value: i.id, label: i.label })), [...includeIn], (v) => {
-      includeIn.clear();
-      v.forEach((x) => includeIn.add(x));
-      refresh();
-    }, { multi: true, label: "שורות שסופרות את העצירה" }));
-  };
-  let addHotel = isNew;
-  let hotelField = null;
-  const hotelPrice = { value: 200 };
-  const lodging = activeList(state.categories).find((c) => c.icon === "hotel" || c.id === "lodging");
-  const rooms = activeList(state.units).find((u) => u.icon === "bed" || u.id === "rooms");
-
-  const extraOps = () => {
-    if (!isNew) return [];
-    const ops = [...includeIn].map((itemId) => {
-      const item = state.items[itemId];
-      const stopIds = [...item.rule.time.stopIds, stopId];
-      return { t: "update", e: "items", id: itemId, set: { "rule.time.stopIds": stopIds }, before: { "rule.time.stopIds": item.rule.time.stopIds } };
-    });
-    if (addHotel && lodging && draft.label && !draft.fill && (draft.nights || 0) > 0) {
-      ops.push({
-        t: "create", e: "items", id: newId(ID_PREFIX.items),
-        v: {
-          categoryId: lodging.id, label: `מלון ב${draft.label}`, order: nextOrder(state.items),
-          rule: { ...(rooms ? { unit: rooms.id } : {}), time: { by: "nights", stopIds: [stopId] } },
-          price: { typical: hotelPrice.value || 0, currency: "USD" }, status: "estimate", tag: "E",
-        },
-      });
-    }
-    return ops;
-  };
-
-  const onSave = () => {
-    const next = compact({ ...draft, order: orderFor() });
-    if (next.fill) delete next.nights;
-    const op = isNew ? { t: "create", e: "stops", id: stopId, v: next } : diffOp("stops", stopId, original, next, ["label", "kind", "icon", "nights", "fill", "anchorDate", "note"]);
-    return save([op, ...extraOps()], errors, { doneText: isNew ? "העצירה נוספה למסלול" : "נשמר ✓", after: back("#/route") });
-  };
-  if (isNew) drawRows();
-  refresh();
-  return [
-    backLink("#/route"),
-    pageHead(isNew ? "עיר או עצירה חדשה" : "עריכת עצירה"),
-    errors,
-    h("section", { class: "card" },
-      field("שם", textInput(draft.label, (v) => { draft.label = v; refresh(); }, { placeholder: "למשל: וושינגטון" })),
-      isNew ? field("איפה במסלול", select([{ value: "", label: "בהתחלה" }, ...list.map((s) => ({ value: s.id, label: `אחרי ${s.label}` }))], afterId, (v) => { afterId = v; drawRows(); refresh(); })) : null,
-      fieldset("סוג", choices(STOP_KINDS.map((k) => ({ value: k, label: STOP_KIND_HE[k] })), draft.kind, (v) => { draft.kind = v; })),
-      fieldset("כמה זמן", choices([{ value: "fixed", label: "מספר לילות קבוע" }, { value: "fill", label: "משלים את הלילות שנשארו" }], draft.fill ? "fill" : "fixed", (v) => {
-        if (v === "fill") draft.fill = true;
-        else delete draft.fill;
-        nightsField.style.display = v === "fill" ? "none" : "block";
-        refresh();
-      }), "עצירה ״משלימה״ מקבלת את כל הלילות שנשארו עד העצירה הבאה שיש לה תאריך קבוע."),
-      nightsField,
-      field("תאריך התחלה קבוע (לא חובה)", dateInput(draft.anchorDate, (v) => { if (v) draft.anchorDate = v; else delete draft.anchorDate; refresh(); }), "למשל יום היציאה של שייט. בלי תאריך — העצירה מתחילה כשהקודמת נגמרת."),
-      fieldset("אייקון", iconPicker(draft.icon, (v) => { draft.icon = v; })),
-      field("הערה", textArea(draft.note, (v) => { draft.note = v; }), "גלויה לכל מי שפותח את הקישור, גם בלי כניסה — בלי מחירים כאן.")),
-    isNew
-      ? h("section", { class: "card" },
-        h("h2", {}, icon("wallet"), "מה העצירה עולה"),
-        fieldset("לספור את הלילות שלה גם בשורות האלה", rowPicker, "מסומנות שורות כלליות (כמו אוכל ורכבים) שכבר סופרות את העצירות שלידה."),
-        fieldset("להוסיף שורת מלון לעצירה?", choices([{ value: true, label: "כן" }, { value: false, label: "לא" }], addHotel, (v) => { addHotel = v; hotelField.style.display = v ? "block" : "none"; refresh(); })),
-        (hotelField = field("מחיר לחדר ללילה ($)", numberInput(hotelPrice.value, (n) => { hotelPrice.value = n ?? 0; refresh(); }, { style: { maxWidth: "160px" } }), rooms ? `כפול ${rooms.count} ${rooms.label}` : "")),
-        preview)
-      : preview,
-    saveBar(onSave, { onCancel: back("#/route") }),
-  ];
-}
-
 // ---------------------------------------------------------------- home section
 
 function sectionForm(ctx, id) {
@@ -494,7 +370,10 @@ export function renderEdit(ctx, params) {
       return [];
     case "item": return id === "new" ? itemForm(ctx, "new", parent) : itemForm(ctx, id);
     case "category": return categoryForm(ctx, id);
-    case "stop": return stopForm(ctx, id);
+    case "stop": // #/edit/stop/<id|new>: parts are edited on the route now, with their dates on a calendar
+      openPart(id === "new" ? "new" : id);
+      location.replace("#/route");
+      return [];
     case "section": return sectionForm(ctx, id);
     case "option": return optionForm(ctx, id, parent);
     case "group": return groupForm(ctx, id);

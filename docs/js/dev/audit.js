@@ -38,9 +38,11 @@ export function audit({ minBody = 18, minMeta = 15, minTarget = 48 } = {}) {
   for (const el of small) problems.push(`text smaller than ${minMeta}px: ${describe(el)} (${getComputedStyle(el).fontSize})`);
   for (const el of latin) problems.push(`Latin text outside <bdi>: ${describe(el)}`);
 
-  // Tap targets (inline links inside running text are exempt, as in WCAG 2.2).
+  // Tap targets (inline links inside running text are exempt, as in WCAG 2.2). Calendar days (7 to a row can't be
+  // 48px wide on a phone) are exempt too: every day also has a full-size row in the day-by-day list right below.
   for (const el of document.querySelectorAll(INTERACTIVE)) {
     if (!visible(el) || el.type === "hidden") continue;
+    if (el.matches(".cal-c, .rp-c")) continue;
     if (el.tagName === "A" && el.closest("p, li") && !el.className) continue;
     const r = el.getBoundingClientRect();
     if (r.width < minTarget - 0.5 || r.height < minTarget - 0.5) problems.push(`small tap target ${Math.round(r.width)}×${Math.round(r.height)}: ${describe(el)}`);

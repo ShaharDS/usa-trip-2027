@@ -4,7 +4,7 @@ Two Firestore documents hold the whole trip (both **editors only**); everything 
 
 | Who | Reads |
 |---|---|
-| anyone with the link | `public/state` — the route only (no hotel names / addresses) |
+| anyone with the link | `public/state` — the parts of the route only (cities, dates, nights, holidays) |
 | family (on the list) | `family/state` — the route with hotel names, addresses, map locations + "Ask the trip" (aiAsk gives the model the family route, travellers and flight times — no prices) |
 | editors / owner | `plan/state`, `private/state`, history, documents, proposals, usage |
 
@@ -13,9 +13,9 @@ Written by the functions on every write (`writeDocs` → `routeView(plan)`, `doc
 
 ## `trips/usa2027/family/state` (family + editors — generated, never edited)
 `familyView(plan)`: the same as the public route plus the full `places` (label, kind, date / checkIn–checkOut, time,
-address, city, region, lat / lng, mapsUrl, website, phone, note, maybe, photo, passIds) and `days` with notes. Still no
-prices. The public route has places reduced to kind / dates / times / city / region / maybe, a sight's name, and a
-~10 km `near` grid square — hotels have no name. `audience` says which one a document is.
+address, city, region, lat / lng, mapsUrl, website, phone, note, maybe, photo, `files`) and `days` with notes. Still no
+prices. The public route has **no** places or days (Shahar 2026-10-25: the map and places need a sign-in).
+`audience` says which one a document is.
 
 ## `trips/usa2027/plan/state` (editors only)
 | Key | Contents |
@@ -23,14 +23,14 @@ prices. The public route has places reduced to kind / dates / times / city / reg
 | `settings` | title, subtitle, `startDate`/`endDate`, `fx.planningRate` (₪ per $ used for all totals) + date, `bufferPct`, `cardFeePct`, `perPersonPreset`, `notIncluded[]`, `contactText` |
 | `groups` | traveller groups with counts (adults 6, teen 1, infant 1) |
 | `presets` | "who is counted" = weights per group (`everyone`, `paying` = no baby, `adults`) |
-| `stops` | route in `order`: `nights` or `fill: true`, optional `anchorDate` |
+| `stops` | the parts of the route, in date `order`: `anchorDate` (first night) + `nights` — set on the calendar. (Older data may still have `fill` / no anchor; the first calendar save converts it.) |
 | `units` | countable things: rooms, cars… |
 | `categories` | label, icon, color |
 | `items` | cost rows (below) |
 | `optionGroups` / `options` | questions with alternatives; only the `chosen` option counts; an option can `stopPatch` a stop (date/nights) |
 | `sections` | home-page layout: `type`, `title`, `visible`, `order`, `text` |
 | `checklist`, `holidays` | to-dos (editors tick them on the route / home); holiday markers on the route |
-| `places` | the day-by-day route: hotels (`checkIn`/`checkOut`), sights, meals, stops on the way (`date`, `time`), with address, US state (`region`), map location (set by the server), links, note, `maybe` |
+| `places` | the day-by-day route: hotels (`checkIn`/`checkOut`), sights, meals, stops on the way (`date`, `time`), with address, US state (`region`), map location (set by the server), links, note, `maybe`, `files` (`[{id, title, type}]` — documents saved as `shared`, which family may open) |
 | `days` | per date (id `d20271004`): `title`, `note` |
 | `version`, `updatedAt`, `updatedByLabel`, `recent[]`, `derived` | written by the functions |
 

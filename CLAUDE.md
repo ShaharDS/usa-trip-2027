@@ -14,10 +14,10 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    `docs/js/shared/schema.js` (+ engine/renderer), not a one-off in a view.
 2. **High-level rows only** (flights, a hotel per city, car rental, parks, cruise, food, extras) — not souvenirs/lockers/Wi-Fi.
    Detailed research is AI background in `seed/reference-prices.md`, not rows.
-3. **Three levels (Shahar, 2026-10-25):** public link = **the route only** (dates, stops, nights, holidays, day titles,
-   sight names, US states, a city-level map — no prices, no hotel names / addresses, no navigation buttons, no AI) ·
-   family (one Google sign-in, "כניסה" button at the top of every page) = + hotel names, addresses, Waze / Google Maps
-   buttons and Ask AI, **still no prices** · editors = everything: prices, edit, documents, history, approve AI proposals.
+3. **Three levels (Shahar, 2026-10-25):** public link = **the parts of the route only** (cities, dates, nights, holidays
+   — no calendar, map, places, day screens, prices or AI) · family (one Google sign-in, "כניסה" button at the top of
+   every page) = + the calendar, day by day, the map, hotels, addresses, Waze / Google Maps, files on places and Ask AI,
+   **still no prices** · editors = everything: prices, edit, documents, history, approve AI proposals.
    The owner manages the email lists in-app (`setAccess`). Editors land on the cost summary (with the countdown);
    family / public land on the day-by-day route, which opens on **today** during the trip.
 4. **AI only proposes.** Every Claude edit becomes a proposal (before ← after lines with checkboxes); an editor taps אשר.
@@ -43,6 +43,10 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    `writeDocs` on every write — never write them any other way, and never add a field to them without checking
    `tests/route.test.mjs` (public places: no address / location / link / phone / note / photo, nameless hotels, only a
    ~10 km `near` grid). Family's `aiAsk` uses `familyContext()` (family route + flight times), never `tripContext()`.
+5c. **The route = parts with real dates.** Every stop has `anchorDate` (first night) + `nights`; editors pick them on a
+   calendar (`components/rangePicker.js`) that shows who owns each night; `shared/calendar.js` `assignRangeOps` trims
+   overlapped parts and drops option `stopPatch`es (dates you pick win). Old data (`fill`, patches) converts on the first
+   calendar save. Parts are edited inline on `#/route` (`edit/parts.js`); there is no separate stop form any more.
 5b. **Coordinates never come from the model.** Places get their map location on the server (`functions/src/lib/geo.ts`:
    Google Maps link → pin, else OpenStreetMap Nominatim on the address); the AI tool schemas have no lat/lng.
 5. **Claude API usage:** model `claude-sonnet-5-5` (Shahar's choice; changeable in Settings → AI), `thinking: {type: "adaptive"}`, effort per feature,
@@ -73,16 +77,20 @@ USA Trip 2027/
     vendor/leaflet-1.9.4/   Leaflet (BSD-2), bundled; loaded only on screens with a map (OSM tiles)
     js/shared/              PURE engine: schema, engine (computeTrip, itinerary), ops (+undo), validate, format (Hebrew),
                             commit (prepareCommit/prepareUndo), aitools (AI tool schemas → ops), deadlines,
-                            route (routeView / familyView: plan → price-free public / family route), days (tripDays:
-                            one entry per date, tonight's hotel, states), links (Waze / Google Maps URLs), geo (Maps links)
-    js/views/               home (editors: renders `sections`; categories open in place), trip (day-by-day route: home for
-                            public/family, #/day/:date, route body), route (editors' #/route), category, options, print,
+                            route (routeView / familyView: plan → price-free public / family route), days (tripDays,
+                            tripParts), calendar (dayOwners, assignRangeOps, explicitOps, gapRanges), links (Waze /
+                            Google Maps URLs), geo (Maps links)
+    js/views/               home (editors: renders `sections`; categories open in place), trip (calendar + day by day in
+                            the old site's look, home for public/family, #/day/:date), route (editors' #/route = trip +
+                            deadlines / checklist), category, options, print,
                             ask, docs, settings (+ setupCard when no data), history, signin, footer
     js/edit/                kit (form controls, pickers), forms (row/category/stop/section/option/question), expensePanel
                             (inline add: by hand or AI) + expenseOps (pure), places (add/edit places on a day, AI box,
-                            day titles), tools, sections, stops
+                            hotel dates on the calendar, files for the family, day titles), parts (a part's name / dates),
+                            tools, sections
     js/components/          common (badges, chips, share, confirmDialog / askFirst), proposal (AI review card + place
-                            check), map (Leaflet route map), voice (dictation button)
+                            check), map (Leaflet route map), voice (dictation button), parts (part colours),
+                            rangePicker (calendar date picker), fileViewer (files on places, full-screen images)
     js/data/                rest (public route via REST), live (editors: live plan + private), session (sign-in → whoami → data), commit
     js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables) — no Storage SDK: files go through the functions
     js/ui/                  h (DOM + automatic <bdi>), speech (dictation/read-aloud), resize (photos ≤1600px)

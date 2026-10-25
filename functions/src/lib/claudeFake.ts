@@ -32,6 +32,27 @@ export function fakeMessage(params: any): any {
   const hasToolResults = params.messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "tool_result"));
   const text = lastUserText(params);
 
+  // Reading a file. A PDF containing "FORMAT_REJECT" makes the structured request fail (like an API 400), so the
+  // plain-JSON fallback is tested; without the structured format the fake answers in prose + a fenced JSON block.
+  const first = params.messages[0];
+  const fileBlock = Array.isArray(first?.content) ? first.content.find((b: any) => b.type === "document" || b.type === "image") : null;
+  const fileText = fileBlock ? Buffer.from(String(fileBlock.source?.data || ""), "base64").toString("latin1") : "";
+  if (fileBlock && params.output_config?.format && /FORMAT_REJECT/.test(fileText)) {
+    throw new Error("400 invalid_request_error: output_config.format: this schema is not supported");
+  }
+  const FACTS = {
+    kind: "flight", vendor: "El Al", summary: "טיסות הלוך וחזור", confirmation: "ABC123", currency: "USD", totalPaid: 11900,
+    travelers: 8, startDate: "2027-09-30", endDate: "2027-10-18", freeCancelUntil: null, finalPaymentDate: null,
+    segments: [{ carrier: "LY", number: "1", date: "2027-09-30", from: "TLV", to: "JFK", depart: "00:45", arrive: "05:40" }],
+    notes: "",
+  };
+  if (fileBlock && !params.output_config?.format) {
+    return message([{ type: "text", text: `הנה הפרטים:
+\`\`\`json
+${JSON.stringify(FACTS)}
+\`\`\`` }], "end_turn");
+  }
+
   // Structured extraction (output_config.format): return a fixed booking.
   if (params.output_config?.format) {
     return message([{ type: "text", text: JSON.stringify({

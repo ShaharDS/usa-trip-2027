@@ -3,13 +3,13 @@
 import { h, icon } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
 import { STOP_KIND_HE } from "../shared/schema.js";
-import { dateHe, dateRangeHe, deadlineHe, fmtNum, nightsHe, relativeHe, todayLocal, warningHe } from "../shared/format.js";
+import { dateHe, dateRangeHe, dayMonthHe, deadlineHe, fmtNum, nightsHe, relativeHe, todayLocal, warningHe } from "../shared/format.js";
 import { upcomingDeadlines } from "../shared/deadlines.js";
-import { backLink, checklistItems, emptyState, pageHead, shareButton } from "../components/common.js";
+import { backLink, checklistItems, emptyState, notice, pageHead } from "../components/common.js";
 import { can } from "../store.js";
-import { stopTools } from "../edit/stops.js";
 import { toggleTodo } from "../edit/tools.js";
 import { routeBody } from "./trip.js";
+import { gapRanges } from "../shared/calendar.js";
 
 const KIND_ICON = { city: "building", road: "route", parks: "ferris", cruise: "ship", beach: "palm", transit: "pin", other: "pin" };
 
@@ -19,8 +19,7 @@ function holidaysIn(state, start, end) {
 
 export function timelineList(ctx, { compact = false } = {}) {
   const { state, r } = ctx;
-  const editing = can.edit() && ctx.editMode && !compact;
-  const stops = r.itinerary.stops.filter((s) => editing || s.nights > 0 || !s.fill);
+  const stops = r.itinerary.stops.filter((s) => s.nights > 0);
   return h("ol", { class: "tl" },
     stops.map((s) =>
       h("li", { class: "tl-stop" },
@@ -30,8 +29,7 @@ export function timelineList(ctx, { compact = false } = {}) {
           h("div", { class: "tl-dates" }, s.nights > 0 ? dateRangeHe(s.start, s.end) : dateHe(s.start, "long")),
           h("span", { class: "tl-nights" }, s.nights > 0 ? nightsHe(s.nights) : "בלי לינה"),
           holidaysIn(state, s.start, s.nights > 0 ? s.end : s.start).map((hol) => h("span", { class: "tl-holiday" }, icon("calendar", "icon-sm"), hol.label)),
-          !compact && s.note ? h("div", { class: "meta", dir: "auto" }, s.note) : null,
-          editing ? stopTools(ctx, s) : null))),
+          !compact && s.note ? h("div", { class: "meta", dir: "auto" }, s.note) : null))),
     h("li", { class: "tl-stop tl-end" },
       h("span", { class: "tl-dot" }, icon("plane")),
       h("div", { class: "tl-body" },
@@ -48,23 +46,21 @@ function holidaysCard(state) {
       h("li", {}, icon("calendar"), h("span", {}, `${hol.label}: ${hol.start === hol.end ? dateHe(hol.start, "long") : dateRangeHe(hol.start, hol.end)}`)))));
 }
 
-/** Editors' "#/route": the day-by-day route, then cities & nights (editing), deadlines, checklist, holidays. */
+/**
+ * Editors' "#/route": the same route the family sees (calendar, map, day by day) with the editing right on it —
+ * each part's dates on a calendar — then deadlines, the checklist and holidays.
+ */
 export function renderRoute(ctx, tripCtx) {
   const { state, r } = ctx;
   const today = todayLocal();
   const deadlines = upcomingDeadlines(state, today);
-  const editing = can.edit() && ctx.editMode;
   return [
     backLink(),
     pageHead("מסלול הטיול"),
+    // Nights that belong to no part are named plainly; the other warnings (overlaps, dates outside the trip) as they are.
+    gapRanges(state).map((g) => notice(`${g.from === g.to ? `הלילה של ${dayMonthHe(g.from)}` : `הלילות ${dayMonthHe(g.from)}–${dayMonthHe(g.to)}`} עוד לא שייכים לאף חלק במסלול. אפשר לשייך אותם בכרטיס ״עוד לא נקבע איפה ישנים״ למטה.`, "", "alert")),
+    r.itinerary.warnings.filter((w) => w.code !== "nightsLeft").map((w) => notice(warningHe(w, state), "", "alert")),
     ...routeBody(tripCtx),
-    h("section", { class: "card" },
-      h("h2", {}, icon("building"), "ערים ולילות"),
-      r.itinerary.warnings.map((w) => h("div", { class: "notice" }, icon("alert"), h("div", {}, warningHe(w, state)))),
-      timelineList(ctx),
-      editing ? stopTools.addButton(ctx) : null,
-      h("p", { class: "meta", style: { marginTop: "10px" } },
-        "הלילות באורלנדו מתעדכנים לבד לפי תאריך השייט. כשמוסיפים עצירה, הלילות שלה יורדים מהעצירה ש״משלימה לילות״.")),
     h("section", { class: "card" },
       h("h2", {}, icon("calendar"), "מועדים חשובים"),
       deadlines.length

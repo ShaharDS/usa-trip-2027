@@ -278,7 +278,7 @@ const EXPAND = new Set(["price", "actual", "fx"]);
 const SUMMARY_ONLY = {
   rule: "אופן החישוב שונה", sources: "המקורות עודכנו", deadlines: "המועדים עודכנו", stopPatch: "השינוי במסלול עודכן",
   weights: "מי נספר עודכן", notIncluded: "רשימת ״לא כלול״ עודכנה", table: "טבלת המחירים עודכנה",
-  lat: "המיקום במפה עודכן", lng: "המיקום במפה עודכן", passIds: "הכרטיסים עודכנו",
+  lat: "המיקום במפה עודכן", lng: "המיקום במפה עודכן", files: "הקבצים המצורפים עודכנו",
 };
 
 function getLeaf(obj, path) {
