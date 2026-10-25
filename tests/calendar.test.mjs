@@ -67,3 +67,19 @@ test("a new part on the calendar, and nights that belong to nobody", () => {
   const longer = apply(after, [{ t: "update", e: "settings", id: "_", set: { endDate: "2027-10-20" }, before: { endDate: "2027-10-18" } }]);
   assert.deepEqual(gapRanges(longer.plan), [{ from: "2027-10-18", to: "2027-10-19" }]);
 });
+
+test("saving dates is not refused when the server lists a map's fields in another order", async () => {
+  const { conflictsOf } = await import("../docs/js/shared/ops.js");
+  const docs = seedDocs();
+  const { ops } = assignRangeOps(docs.plan, "cruise", "2027-10-11", "2027-10-14");
+  // the server's copy of the same data, with every option's stopPatch fields in reverse order
+  const server = structuredClone(docs);
+  for (const o of Object.values(server.plan.options)) {
+    if (!o.stopPatch) continue;
+    for (const [k, v] of Object.entries(o.stopPatch)) o.stopPatch[k] = Object.fromEntries(Object.entries(v).reverse());
+  }
+  assert.deepEqual(conflictsOf(server, ops), []);
+  // a real change is still caught
+  server.plan.options.s1001.stopPatch.cruise.nights = 4;
+  assert.equal(conflictsOf(server, ops).length, 1);
+});

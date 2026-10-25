@@ -35,10 +35,17 @@ export function setIn(obj, path, value) {
   else cur[last] = clone(value);
 }
 
+/** JSON with object keys sorted — Firestore SDKs may hand back a map's fields in a different order. */
+function canon(x) {
+  if (x === undefined || x === null) return "null";
+  if (Array.isArray(x)) return `[${x.map(canon).join(",")}]`;
+  if (typeof x === "object") return `{${Object.keys(x).filter((k) => x[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canon(x[k])}`).join(",")}}`;
+  return JSON.stringify(x);
+}
+
+/** Same value for the "did someone change this meanwhile?" check — field order inside objects doesn't matter. */
 export function sameValue(a, b) {
-  const na = a === undefined ? null : a;
-  const nb = b === undefined ? null : b;
-  return JSON.stringify(na) === JSON.stringify(nb);
+  return canon(a) === canon(b);
 }
 
 function docKey(e) {
