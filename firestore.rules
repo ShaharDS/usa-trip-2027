@@ -1,9 +1,11 @@
 rules_version = '2';
 
 // Who can do what:
-//   anyone          — read the route (trips/{t}/public/state: dates, stops, holidays — no prices), nothing else
-//   family (listed) — also their own AI answers (users/{uid}/asks); asking goes through the aiAsk function,
-//                     which gives the model the route only. Family never reads prices.
+//   anyone          — read the route (trips/{t}/public/state: dates, stops, holidays, day titles, sight names —
+//                     no prices, no hotel names or addresses), nothing else
+//   family (listed) — also the family route (trips/{t}/family/state: hotel names, addresses, map locations for
+//                     Waze / Google Maps — still no prices) and their own AI answers (users/{uid}/asks); asking goes
+//                     through the aiAsk function, which gives the model the family route only. Family never reads prices.
 //   editors         — the plan with all prices, the private document, history, documents, proposals, usage
 // Nobody writes trip data from the browser: every change goes through the Cloud Functions
 // (commitChange, applyProposal, ...), which validate it, keep the history and regenerate the public route
@@ -32,6 +34,11 @@ service cloud.firestore {
 
     match /trips/{tripId}/public/state {
       allow get: if true;
+      allow list, write: if false;
+    }
+
+    match /trips/{tripId}/family/state {
+      allow get: if isFamily();
       allow list, write: if false;
     }
 

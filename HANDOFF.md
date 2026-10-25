@@ -3,7 +3,52 @@
 _Written 2026-10-25, end of the build session; updated 2026-10-25 (second session: three access levels + the two live bugs).
 Read `CLAUDE.md` for the rules and the file map; this file is the **state of play, what was verified, and what is left**._
 
-## 0. Latest session (2026-10-25, second) — NOT deployed, NOT committed yet
+## 0. Round 3 (2026-10-25, third session) — built + tested locally, NOT deployed, NOT committed
+Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md`. Shahar's asks and what was built:
+- **Documents upload was broken** → cause: **Firebase Storage was never set up** on the project (`deploy --only storage
+  --dry-run`: "has not been set up"; `addDocument` never called). Code: Hebrew errors per step (`fb/storage.js`
+  `storageErrorHe`), file choice survives re-renders. Still needed (see go-live). The dry-run turned on the free
+  `firebasestorage` API.
+- **Expenses:** all rows removed from the opening data (categories kept empty, cruise options kept); live DB: owner button
+  Settings → גיבוי → **"ריקון כל ההוצאות"** (one undoable change). "לאן הולך הכסף" is now an **accordion** (categories open in
+  place); **inline add** under the rows (`edit/expensePanel.js`) — by hand or **with AI** (type / dictate → `aiPropose`
+  `mode: "expense"`); inline "קטגוריה חדשה". `#/edit/expense/...` links open the inline box.
+- **"בטוחים?" popup** on every removal (`confirmDialog` / `askFirst` in `components/common.js`, also `saveBar` remove).
+- **Checklist rows tick** for editors (home section + route page). **Countdown** in the editors' hero to
+  `settings.startDate` + optional `settings.startTime` (Israel time; Settings → כללי). "Today" is the phone's local date.
+- **Day-by-day route (Wanderlog-style):** `places` + `days` entities; `shared/days.js` (`tripDays`, tonight's hotel, US
+  states in travel order), `shared/links.js` (Waze / Google Maps / whole-day route, ≤3 stops per part), views/trip.js
+  (home for family/public, `#/day/:date`, days grouped under state bands, overview map), Leaflet bundled
+  (`docs/vendor/leaflet-1.9.4`, SRI-checked) with OSM tiles. During the trip the home opens on today.
+- **Visibility (Shahar's choice):** public = days, cities, states, sight names, city-level map; **family (signed in)** =
+  hotel names, addresses, Waze / Google Maps → new generated doc **`trips/usa2027/family/state`** (`familyView`), rules:
+  `isFamily()`. Family route cached on the phone for offline use; removed on sign-out.
+- **AI adds places:** `aiPropose` `mode: "place"` (+ `date`), tools `add_place / update_place / remove_place / set_day`;
+  the server finds the location (`functions/src/lib/geo.ts`: Google Maps link incl. short links → pin; else Nominatim;
+  Wikipedia photo with credit). The approval card shows the places with pins and "לבדוק ב-Google Maps".
+- **Verified:** `npm test` 75/75 · functions build · rules 12/12 · emulator e2e 11/11 (new: hotel by name → family doc has
+  address + location, public doc has the night without the name; expense mode). Browser (demo): owner / family / public at
+  320 and 375 with `audit()` clean on home, route, day screens; inline add + confirm + checklist tick + countdown + manual
+  place add (location read from a pasted long Google Maps link) + day title, all exercised.
+- **Not verified:** a real Claude call in the new modes, real Nominatim / short-link expansion from the deployed function,
+  real phones (Waze / Google Maps buttons opening the apps).
+
+**To go live (each needs Shahar's OK — outward-facing):**
+1. Shahar: Firebase console → Storage → **Get started** → production, location `us-east1` (or `us-central1`).
+2. `firebase.cmd deploy --only functions,firestore:rules,storage --project usa-trip-2027-shahar` (say yes to letting
+   Storage rules read Firestore). This also moves the functions to Claude-secret v2.
+3. Shahar, Cloud Shell, once: `gcloud storage buckets update gs://usa-trip-2027-shahar.firebasestorage.app --cors-file=storage-cors.json`
+   (upload the file or paste its JSON) — needed for opening documents from the site.
+4. Commit + push `main` (Pages serves `/docs`). Functions first, then the site.
+5. Shahar: Settings → גיבוי → "ריקון כל ההוצאות" (this write also creates `family/state`); add family in Settings → גישה;
+   add hotels per day with "הוספת מקום ליום הזה" → "עם AI".
+
+**Next (designed, not built): tickets / QR on the route (plan Phase 7).** Documents stay the editors' archive. New
+"כרטיסי כניסה" (passes: museum QR, park ticket, boarding pass) uploaded from the place itself, linked via
+`places.passIds`, shown on the day as a big "הצגת הכרטיס" button → full-screen viewer; family can see them (Storage
+`trips/{t}/passes/…` with `isFamily()`), kept on the phone after the first open for no-reception gates.
+
+## 0b. Previous session (2026-10-25, second) — deployed + pushed since (see "Go-live status")
 **Two live bugs Shahar hit, both diagnosed:**
 - *"פריט שניסיתם לשנות כבר לא קיים" when moving a home section:* the live database had **no trip data** (`public/state` 404 —
   opening data never loaded). The page fell back to the seed and let the editor edit it; the server then found nothing to

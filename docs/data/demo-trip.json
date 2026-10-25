@@ -1,0 +1,956 @@
+{
+  "schemaVersion": 1,
+  "version": 0,
+  "updatedAt": "2026-10-24T12:00:00.000Z",
+  "updatedByLabel": "טיול לדוגמה",
+  "recent": [],
+  "settings": {
+    "title": "הטיול המשפחתי לארה״ב",
+    "subtitle": "ניו יורק · נסיעה דרומה · אורלנדו · שייט",
+    "startDate": "2027-09-30",
+    "endDate": "2027-10-18",
+    "fx": {
+      "planningRate": 3.11,
+      "planningRateDate": "2026-10-24"
+    },
+    "bufferPct": 10,
+    "perPersonPreset": "everyone",
+    "notIncluded": [
+      "קניות ומתנות",
+      "סיורים ופעילויות שלא תוכננו",
+      "ביטוח רכב מורחב מעבר לבסיסי"
+    ],
+    "contactText": "שאלות? כתבו לשחר"
+  },
+  "groups": {
+    "adults": {
+      "label": "מבוגרים",
+      "count": 6,
+      "order": 1
+    },
+    "teen": {
+      "label": "נערה (16)",
+      "count": 1,
+      "order": 2,
+      "note": "משלמת מחיר מבוגר בטיסות, בפארקים ובשייט"
+    },
+    "infant": {
+      "label": "תינוקת",
+      "count": 1,
+      "order": 3
+    }
+  },
+  "presets": {
+    "everyone": {
+      "label": "כולם",
+      "weights": {
+        "adults": 1,
+        "teen": 1,
+        "infant": 1
+      },
+      "order": 1
+    },
+    "paying": {
+      "label": "כולם חוץ מהתינוקת",
+      "weights": {
+        "adults": 1,
+        "teen": 1,
+        "infant": 0
+      },
+      "order": 2
+    },
+    "adults": {
+      "label": "מבוגרים בלבד",
+      "weights": {
+        "adults": 1,
+        "teen": 0,
+        "infant": 0
+      },
+      "order": 3
+    }
+  },
+  "stops": {
+    "nyc": {
+      "label": "ניו יורק",
+      "kind": "city",
+      "icon": "building",
+      "nights": 6,
+      "order": 1,
+      "note": "לינה במנהטן",
+      "region": "NY"
+    },
+    "road": {
+      "label": "נסיעה דרומה",
+      "kind": "road",
+      "icon": "route",
+      "nights": 2,
+      "order": 2,
+      "note": "שני רכבים, כ-1,700 ק״מ, עם 2 לילות בדרך"
+    },
+    "orlando": {
+      "label": "אורלנדו",
+      "kind": "parks",
+      "icon": "ferris",
+      "fill": true,
+      "order": 3,
+      "note": "מקבל את הלילות שנשארו עד השייט",
+      "region": "FL"
+    },
+    "cruise": {
+      "label": "שייט",
+      "kind": "cruise",
+      "icon": "ship",
+      "nights": 3,
+      "anchorDate": "2027-10-15",
+      "order": 4,
+      "note": "התאריך נקבע לפי ההפלגה שנבחרה",
+      "region": "FL"
+    },
+    "after": {
+      "label": "אחרי השייט",
+      "kind": "transit",
+      "icon": "pin",
+      "fill": true,
+      "order": 5,
+      "note": "לילות שנשארים אחרי השייט, אם יש"
+    }
+  },
+  "units": {
+    "rooms": {
+      "label": "חדרי מלון",
+      "count": 3,
+      "icon": "bed",
+      "order": 1
+    },
+    "cars": {
+      "label": "רכבים",
+      "count": 2,
+      "icon": "car",
+      "order": 2
+    }
+  },
+  "categories": {
+    "flights": {
+      "label": "טיסות",
+      "icon": "plane",
+      "color": "blue",
+      "order": 1
+    },
+    "lodging": {
+      "label": "לינה",
+      "icon": "hotel",
+      "color": "indigo",
+      "order": 2
+    },
+    "cars": {
+      "label": "השכרת רכב",
+      "icon": "car",
+      "color": "brown",
+      "order": 3
+    },
+    "parks": {
+      "label": "פארקים",
+      "icon": "ferris",
+      "color": "magenta",
+      "order": 4
+    },
+    "cruise": {
+      "label": "שייט",
+      "icon": "ship",
+      "color": "sky",
+      "order": 5
+    },
+    "food": {
+      "label": "אוכל",
+      "icon": "food",
+      "color": "gold",
+      "order": 6
+    },
+    "extras": {
+      "label": "הוצאות נוספות",
+      "icon": "star",
+      "color": "plum",
+      "order": 7
+    }
+  },
+  "items": {
+    "flights_intl": {
+      "categoryId": "flights",
+      "label": "טיסות לארה״ב וחזרה",
+      "order": 1,
+      "note": "הלוך לניו יורק, חזור מאורלנדו או ממיאמי. התינוקת משלמת כ-10% ממחיר כרטיס.",
+      "rule": {
+        "people": "paying"
+      },
+      "price": {
+        "low": 1200,
+        "typical": 1700,
+        "high": 2600,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E",
+      "sources": [
+        {
+          "url": "https://www.bizportal.co.il/airlines/news/article/20037836",
+          "label": "Bizportal — מחירי טיסות בתשרי",
+          "checkedAt": "2026-10-24"
+        }
+      ]
+    },
+    "hotel_nyc": {
+      "categoryId": "lodging",
+      "label": "מלון בניו יורק",
+      "order": 1,
+      "note": "3 חדרים (רוב המלונות לא מאשרים מיטה נוספת). כולל מס המלונות של ניו יורק.",
+      "rule": {
+        "unit": "rooms",
+        "time": {
+          "by": "nights",
+          "stopIds": [
+            "nyc"
+          ]
+        }
+      },
+      "price": {
+        "low": 330,
+        "typical": 460,
+        "high": 700,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "S",
+      "sources": [
+        {
+          "url": "https://engine.com/data/hotel-prices/new-york-ny",
+          "label": "Engine — מחירי מלונות בניו יורק",
+          "checkedAt": "2026-10-24"
+        },
+        {
+          "url": "https://www.nyc.gov/site/finance/business/business-hotel-room-occupancy-tax.page",
+          "label": "NYC — מס מלונות",
+          "checkedAt": "2026-10-24"
+        }
+      ]
+    },
+    "hotel_road": {
+      "categoryId": "lodging",
+      "label": "מלונות בדרך",
+      "order": 2,
+      "note": "3 חדרים בכל לילה בדרך דרומה.",
+      "rule": {
+        "unit": "rooms",
+        "time": {
+          "by": "nights",
+          "stopIds": [
+            "road"
+          ]
+        }
+      },
+      "price": {
+        "low": 120,
+        "typical": 180,
+        "high": 330,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "S"
+    },
+    "house_orlando": {
+      "categoryId": "lodging",
+      "label": "בית עם בריכה באורלנדו",
+      "order": 3,
+      "note": "בית ל-8 אנשים. כולל ניקיון ומיסים.",
+      "rule": {
+        "time": {
+          "by": "nights",
+          "stopIds": [
+            "orlando",
+            "after"
+          ]
+        }
+      },
+      "price": {
+        "low": 240,
+        "typical": 385,
+        "high": 625,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    },
+    "cars_rental": {
+      "categoryId": "cars",
+      "label": "השכרת 2 רכבים",
+      "order": 1,
+      "note": "כולל ביטוח, מיסים ודמי החזרה באורלנדו לרכב שנאסף בניו יורק.",
+      "rule": {
+        "unit": "cars",
+        "time": {
+          "by": "days",
+          "stopIds": [
+            "road",
+            "orlando",
+            "after"
+          ]
+        }
+      },
+      "price": {
+        "low": 90,
+        "typical": 170,
+        "high": 290,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    },
+    "cars_gas": {
+      "categoryId": "cars",
+      "label": "דלק וכבישי אגרה",
+      "order": 2,
+      "note": "לשני הרכבים, לכל הדרך מניו יורק לאורלנדו ובאורלנדו.",
+      "rule": {},
+      "price": {
+        "low": 350,
+        "typical": 540,
+        "high": 900,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    },
+    "universal": {
+      "categoryId": "parks",
+      "label": "כרטיסים ליוניברסל (3 ימים)",
+      "order": 1,
+      "note": "כולל Epic Universe ומס. מגיל 10 משלמים מחיר מבוגר, התינוקת בחינם.",
+      "rule": {
+        "people": "paying"
+      },
+      "price": {
+        "low": 330,
+        "typical": 480,
+        "high": 620,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E",
+      "sources": [
+        {
+          "url": "https://www.universalorlando.com/web/en/us/tickets-packages/park-tickets",
+          "label": "Universal Orlando — כרטיסים",
+          "checkedAt": "2026-10-24"
+        }
+      ]
+    },
+    "cruise_fare": {
+      "categoryId": "cruise",
+      "label": "שייט — מחיר לאדם",
+      "order": 1,
+      "note": "מחיר לאדם לפי ההצעות של שחר (נוסע 1–2 בחדר). לבדוק: האם כולל מיסים, ומה המחיר לנוסע 3–4 ולתינוקת.",
+      "rule": {
+        "people": "everyone"
+      },
+      "price": {
+        "typical": 564,
+        "currency": "USD",
+        "table": {
+          "rowGroup": "sailing",
+          "colGroup": "ship",
+          "cells": {
+            "s1001": {
+              "utopia_in": 564,
+              "utopia_bal": 575,
+              "wonder_in": 474,
+              "wonder_bal": 497
+            },
+            "s1004": {
+              "utopia_in": 656,
+              "utopia_bal": 730,
+              "wonder_in": 566,
+              "wonder_bal": 612
+            },
+            "s1008": {
+              "utopia_in": 587,
+              "utopia_bal": 642,
+              "wonder_in": 499,
+              "wonder_bal": 563
+            },
+            "s1011": {
+              "utopia_in": 656,
+              "utopia_bal": 730,
+              "wonder_in": 566,
+              "wonder_bal": 612
+            },
+            "s1015": {
+              "utopia_in": 564,
+              "utopia_bal": 611,
+              "wonder_in": 499,
+              "wonder_bal": 563
+            }
+          }
+        }
+      },
+      "status": "quote"
+    },
+    "cruise_extras": {
+      "categoryId": "cruise",
+      "label": "טיפים ותוספות בשייט",
+      "order": 2,
+      "note": "טיפים חובה ($18.50 לאדם ללילה, גם לתינוקת) ועוד קצת תוספות.",
+      "rule": {
+        "people": "everyone",
+        "time": {
+          "by": "nights",
+          "stopIds": [
+            "cruise"
+          ]
+        }
+      },
+      "price": {
+        "low": 18.5,
+        "typical": 35,
+        "high": 60,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "S"
+    },
+    "food": {
+      "categoryId": "food",
+      "label": "אוכל",
+      "order": 1,
+      "note": "ממוצע לאדם ליום. בימי השייט האוכל כלול.",
+      "rule": {
+        "people": "paying",
+        "time": {
+          "by": "nights",
+          "stopIds": [
+            "nyc",
+            "road",
+            "orlando",
+            "after"
+          ]
+        }
+      },
+      "price": {
+        "low": 50,
+        "typical": 75,
+        "high": 110,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    },
+    "nyc_attractions": {
+      "categoryId": "extras",
+      "label": "אטרקציות בניו יורק",
+      "order": 1,
+      "note": "תצפית, פסל החירות, מוזיאון, אולי הצגה בברודוויי.",
+      "rule": {
+        "people": "paying"
+      },
+      "price": {
+        "low": 150,
+        "typical": 250,
+        "high": 400,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    },
+    "insurance": {
+      "categoryId": "extras",
+      "label": "ביטוח נסיעות",
+      "order": 2,
+      "note": "ביטוח ישראלי לארה״ב לכל הנוסעים. למבוגרים מגיל 70 המחיר גבוה יותר.",
+      "rule": {
+        "people": "everyone",
+        "time": {
+          "by": "days"
+        }
+      },
+      "price": {
+        "low": 3.1,
+        "typical": 6,
+        "high": 12,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "S"
+    },
+    "esta": {
+      "categoryId": "extras",
+      "label": "אישורי כניסה (ESTA)",
+      "order": 3,
+      "note": "לכל נוסע, כולל התינוקת.",
+      "rule": {
+        "people": "everyone"
+      },
+      "price": {
+        "typical": 40.62,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "S",
+      "sources": [
+        {
+          "url": "https://visasnews.com/en/us-esta-fee-increases-starting-october-16-2026/",
+          "label": "מחיר ESTA מאוקטובר 2026",
+          "checkedAt": "2026-10-24"
+        }
+      ]
+    },
+    "local_transport": {
+      "categoryId": "extras",
+      "label": "תחבורה מקומית",
+      "order": 4,
+      "note": "הסעות משדות התעופה, רכבת תחתית ומוניות בניו יורק, הסעה לנמל.",
+      "rule": {},
+      "price": {
+        "low": 500,
+        "typical": 900,
+        "high": 1500,
+        "currency": "USD"
+      },
+      "status": "estimate",
+      "tag": "E"
+    }
+  },
+  "optionGroups": {
+    "sailing": {
+      "label": "באיזו הפלגה?",
+      "question": "מתי יוצאים לשייט",
+      "chosen": "s1015",
+      "order": 1
+    },
+    "ship": {
+      "label": "איזו אונייה וחדר?",
+      "question": "Utopia או Wonder, חדר פנימי או עם מרפסת",
+      "chosen": "utopia_in",
+      "order": 2
+    }
+  },
+  "options": {
+    "s1001": {
+      "groupId": "sailing",
+      "label": "יום ו׳ 1.10 · 3 לילות",
+      "order": 1,
+      "stopPatch": {
+        "cruise": {
+          "anchorDate": "2027-10-01",
+          "nights": 3
+        }
+      }
+    },
+    "s1004": {
+      "groupId": "sailing",
+      "label": "יום ב׳ 4.10 · 4 לילות",
+      "order": 2,
+      "stopPatch": {
+        "cruise": {
+          "anchorDate": "2027-10-04",
+          "nights": 4
+        }
+      }
+    },
+    "s1008": {
+      "groupId": "sailing",
+      "label": "יום ו׳ 8.10 · 3 לילות",
+      "order": 3,
+      "stopPatch": {
+        "cruise": {
+          "anchorDate": "2027-10-08",
+          "nights": 3
+        }
+      }
+    },
+    "s1011": {
+      "groupId": "sailing",
+      "label": "יום ב׳ 11.10 · 4 לילות",
+      "order": 4,
+      "stopPatch": {
+        "cruise": {
+          "anchorDate": "2027-10-11",
+          "nights": 4
+        }
+      }
+    },
+    "s1015": {
+      "groupId": "sailing",
+      "label": "יום ו׳ 15.10 · 3 לילות",
+      "order": 5,
+      "stopPatch": {
+        "cruise": {
+          "anchorDate": "2027-10-15",
+          "nights": 3
+        }
+      }
+    },
+    "utopia_in": {
+      "groupId": "ship",
+      "label": "Utopia · חדר פנימי",
+      "order": 1,
+      "details": "יוצאת מ-Port Canaveral, שעה מאורלנדו"
+    },
+    "utopia_bal": {
+      "groupId": "ship",
+      "label": "Utopia · חדר עם מרפסת",
+      "order": 2,
+      "details": "יוצאת מ-Port Canaveral, שעה מאורלנדו"
+    },
+    "wonder_in": {
+      "groupId": "ship",
+      "label": "Wonder · חדר פנימי",
+      "order": 3,
+      "details": "לבדוק מאיזה נמל יוצאת ב-2027 (ייתכן מיאמי)"
+    },
+    "wonder_bal": {
+      "groupId": "ship",
+      "label": "Wonder · חדר עם מרפסת",
+      "order": 4,
+      "details": "לבדוק מאיזה נמל יוצאת ב-2027 (ייתכן מיאמי)"
+    }
+  },
+  "sections": {
+    "sec_hero": {
+      "type": "hero",
+      "visible": true,
+      "order": 1
+    },
+    "sec_new": {
+      "type": "whatsNew",
+      "visible": true,
+      "order": 2
+    },
+    "sec_sure": {
+      "type": "certainty",
+      "visible": true,
+      "order": 3
+    },
+    "sec_cats": {
+      "type": "categories",
+      "visible": true,
+      "order": 4
+    },
+    "sec_opts": {
+      "type": "options",
+      "visible": true,
+      "order": 5
+    },
+    "sec_route": {
+      "type": "timeline",
+      "visible": true,
+      "order": 6
+    },
+    "sec_ask": {
+      "type": "askBox",
+      "visible": true,
+      "order": 7
+    },
+    "sec_docs": {
+      "type": "docsShortcut",
+      "visible": true,
+      "order": 8
+    }
+  },
+  "checklist": {
+    "todo_esta": {
+      "label": "להוציא ESTA לכל 8 הנוסעים",
+      "done": false,
+      "order": 1
+    },
+    "todo_passports": {
+      "label": "לבדוק שהדרכונים בתוקף לפחות 6 חודשים אחרי החזרה",
+      "done": false,
+      "order": 2
+    },
+    "todo_cruise_tax": {
+      "label": "לברר אם מחיר השייט כולל מיסים ודמי נמל",
+      "done": false,
+      "order": 3,
+      "itemId": "cruise_fare"
+    }
+  },
+  "holidays": {
+    "rh": {
+      "label": "ראש השנה",
+      "start": "2027-10-01",
+      "end": "2027-10-03",
+      "kind": "jewish",
+      "order": 1
+    },
+    "yk": {
+      "label": "יום כיפור",
+      "start": "2027-10-10",
+      "end": "2027-10-11",
+      "kind": "jewish",
+      "order": 2
+    },
+    "columbus": {
+      "label": "יום קולומבוס (חג בארה״ב)",
+      "start": "2027-10-11",
+      "end": "2027-10-11",
+      "kind": "us",
+      "order": 3
+    },
+    "sukkot": {
+      "label": "סוכות",
+      "start": "2027-10-15",
+      "end": "2027-10-23",
+      "kind": "jewish",
+      "order": 4
+    }
+  },
+  "places": {
+    "plc_fly_out": {
+      "label": "טיסה לניו יורק",
+      "kind": "flight",
+      "date": "2027-09-30",
+      "time": "00:45",
+      "order": 1,
+      "address": "Ben Gurion Airport, Israel",
+      "city": "תל אביב",
+      "lat": 32.0055,
+      "lng": 34.8854,
+      "note": "להגיע לנתב״ג 3 שעות לפני. נוחתים ב-JFK ב-05:40."
+    },
+    "plc_nyc_hotel": {
+      "label": "Hilton Garden Inn Times Square Central",
+      "kind": "hotel",
+      "checkIn": "2027-09-30",
+      "checkOut": "2027-10-06",
+      "time": "15:00",
+      "stopId": "nyc",
+      "address": "136 W 42nd St, New York, NY 10036",
+      "city": "New York",
+      "region": "NY",
+      "lat": 40.7553,
+      "lng": -73.9857,
+      "website": "https://www.hilton.com/",
+      "phone": "+1 212-262-5400",
+      "note": "3 חדרים. צ׳ק-אין מ-15:00, אפשר להשאיר מזוודות מהבוקר."
+    },
+    "plc_rock": {
+      "label": "Top of the Rock",
+      "kind": "sight",
+      "date": "2027-10-01",
+      "time": "10:00",
+      "endTime": "11:30",
+      "order": 1,
+      "address": "30 Rockefeller Plaza, New York, NY 10112",
+      "city": "New York",
+      "region": "NY",
+      "lat": 40.7593,
+      "lng": -73.9794,
+      "note": "תצפית על כל מנהטן. כרטיסים בשעה קבועה."
+    },
+    "plc_park": {
+      "label": "Central Park",
+      "kind": "sight",
+      "date": "2027-10-01",
+      "time": "13:00",
+      "order": 2,
+      "address": "Central Park, New York, NY",
+      "city": "New York",
+      "region": "NY",
+      "lat": 40.7829,
+      "lng": -73.9654,
+      "note": "פיקניק ליד Bethesda Fountain. עגלה לתינוקת."
+    },
+    "plc_liberty": {
+      "label": "פסל החירות (מעבורת מ-Battery Park)",
+      "kind": "sight",
+      "date": "2027-10-02",
+      "time": "09:00",
+      "order": 1,
+      "address": "Battery Park, New York, NY 10004",
+      "city": "New York",
+      "region": "NY",
+      "lat": 40.7033,
+      "lng": -74.017
+    },
+    "plc_katz": {
+      "label": "Katz's Delicatessen",
+      "kind": "food",
+      "date": "2027-10-02",
+      "time": "13:30",
+      "order": 2,
+      "address": "205 E Houston St, New York, NY 10002",
+      "city": "New York",
+      "region": "NY",
+      "lat": 40.7223,
+      "lng": -73.9874,
+      "maybe": true,
+      "note": "אם נספיק — סנדוויץ׳ פסטרמה מפורסם."
+    },
+    "plc_philly": {
+      "label": "Liberty Bell, פילדלפיה",
+      "kind": "stop",
+      "date": "2027-10-06",
+      "time": "11:00",
+      "order": 1,
+      "address": "526 Market St, Philadelphia, PA 19106",
+      "city": "Philadelphia",
+      "region": "PA",
+      "lat": 39.9496,
+      "lng": -75.1503,
+      "note": "עצירה של שעה בדרך: הפעמון, ארוחת צהריים וממשיכים."
+    },
+    "plc_dc_hotel": {
+      "label": "Hampton Inn Washington DC Convention Center",
+      "kind": "hotel",
+      "checkIn": "2027-10-06",
+      "checkOut": "2027-10-07",
+      "time": "17:00",
+      "stopId": "road",
+      "address": "901 6th St NW, Washington, DC 20001",
+      "city": "Washington",
+      "region": "DC",
+      "lat": 38.901,
+      "lng": -77.02
+    },
+    "plc_mall": {
+      "label": "National Mall",
+      "kind": "sight",
+      "date": "2027-10-07",
+      "time": "08:30",
+      "order": 1,
+      "address": "National Mall, Washington, DC",
+      "city": "Washington",
+      "region": "DC",
+      "lat": 38.8895,
+      "lng": -77.0353,
+      "note": "בוקר קצר מול הקפיטול והאנדרטה, ואז נוסעים."
+    },
+    "plc_sob": {
+      "label": "South of the Border",
+      "kind": "stop",
+      "date": "2027-10-07",
+      "time": "15:00",
+      "order": 2,
+      "address": "3346 Hwy 301 N, Hamer, SC 29547",
+      "city": "Hamer",
+      "region": "SC",
+      "lat": 34.4985,
+      "lng": -79.308,
+      "maybe": true,
+      "note": "עצירת דלק והתרעננות על I-95."
+    },
+    "plc_sav_hotel": {
+      "label": "Hampton Inn Savannah Historic District",
+      "kind": "hotel",
+      "checkIn": "2027-10-07",
+      "checkOut": "2027-10-08",
+      "time": "21:00",
+      "stopId": "road",
+      "address": "201 E Bay St, Savannah, GA 31401",
+      "city": "Savannah",
+      "region": "GA",
+      "lat": 32.081,
+      "lng": -81.0902
+    },
+    "plc_house": {
+      "label": "בית עם בריכה בקיסימי",
+      "kind": "hotel",
+      "checkIn": "2027-10-08",
+      "checkOut": "2027-10-15",
+      "time": "16:00",
+      "stopId": "orlando",
+      "address": "Kissimmee, FL",
+      "city": "Kissimmee",
+      "region": "FL",
+      "lat": 28.292,
+      "lng": -81.4076,
+      "note": "קוד לדלת נשלח במייל יום לפני."
+    },
+    "plc_universal": {
+      "label": "Universal Studios Florida",
+      "kind": "park",
+      "date": "2027-10-09",
+      "time": "09:00",
+      "order": 1,
+      "address": "6000 Universal Blvd, Orlando, FL 32819",
+      "city": "Orlando",
+      "region": "FL",
+      "lat": 28.4747,
+      "lng": -81.4677
+    },
+    "plc_epic": {
+      "label": "Epic Universe",
+      "kind": "park",
+      "date": "2027-10-10",
+      "time": "09:00",
+      "order": 1,
+      "address": "6000 Universal Blvd, Orlando, FL 32819",
+      "city": "Orlando",
+      "region": "FL",
+      "lat": 28.4733,
+      "lng": -81.4471
+    },
+    "plc_port": {
+      "label": "Port Canaveral — Terminal 3",
+      "kind": "port",
+      "date": "2027-10-15",
+      "time": "11:00",
+      "order": 1,
+      "address": "9005 Charles M Rowland Dr, Port Canaveral, FL 32920",
+      "city": "Port Canaveral",
+      "region": "FL",
+      "lat": 28.4103,
+      "lng": -80.6235,
+      "note": "עלייה לאונייה מ-11:00. להחזיר קודם את הרכבים בנמל."
+    },
+    "plc_ship": {
+      "label": "Utopia of the Seas",
+      "kind": "hotel",
+      "checkIn": "2027-10-15",
+      "checkOut": "2027-10-18",
+      "stopId": "cruise",
+      "city": "Port Canaveral",
+      "region": "FL",
+      "lat": 28.4103,
+      "lng": -80.6235,
+      "note": "3 לילות על האונייה (נאסאו ו-CocoCay)."
+    },
+    "plc_fly_home": {
+      "label": "טיסה הביתה (MCO)",
+      "kind": "flight",
+      "date": "2027-10-18",
+      "time": "18:00",
+      "order": 1,
+      "address": "Orlando International Airport, Orlando, FL 32827",
+      "city": "Orlando",
+      "region": "FL",
+      "lat": 28.4312,
+      "lng": -81.3081
+    }
+  },
+  "days": {
+    "d20270930": {
+      "date": "2027-09-30",
+      "title": "נוחתים בניו יורק",
+      "note": "יום רגוע: מנוחה במלון וטיול קצר בטיימס סקוור."
+    },
+    "d20271001": {
+      "date": "2027-10-01",
+      "title": "מנהטן מלמעלה"
+    },
+    "d20271006": {
+      "date": "2027-10-06",
+      "title": "יוצאים דרומה: פילדלפיה ← וושינגטון"
+    },
+    "d20271007": {
+      "date": "2027-10-07",
+      "title": "יום נסיעה ארוך לסוואנה"
+    },
+    "d20271009": {
+      "date": "2027-10-09",
+      "title": "יוניברסל"
+    },
+    "d20271015": {
+      "date": "2027-10-15",
+      "title": "עולים לשייט"
+    }
+  }
+}

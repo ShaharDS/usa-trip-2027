@@ -5,9 +5,10 @@ import { activeList, peopleCount } from "../shared/engine.js";
 import { ID_PREFIX } from "../shared/ops.js";
 import { newId } from "../shared/schema.js";
 import { dateHe, fmtNum } from "../shared/format.js";
-import { backLink, emptyState, notice, pageHead } from "../components/common.js";
+import { askFirst, backLink, confirmDialog, confirmRemove, emptyState, notice, pageHead } from "../components/common.js";
 import { choices, compact, dateInput, diffOp, errorBox, field, fieldset, numberInput, saveBar, textArea, textInput } from "../edit/kit.js";
 import { nextOrder, run } from "../edit/tools.js";
+import { wipeExpensesOps } from "../edit/expenseOps.js";
 import { can, setState, store } from "../store.js";
 import { callFunction } from "../fb/api.js";
 import { routeView } from "../shared/route.js";
@@ -48,7 +49,9 @@ function general(ctx) {
       field("כותרת משנה", textInput(draft.subtitle, (v) => { draft.subtitle = v; })),
       h("div", { class: "grid-2" },
         field("יוצאים ב-", dateInput(draft.startDate, (v) => { draft.startDate = v; })),
-        field("חוזרים ב-", dateInput(draft.endDate, (v) => { draft.endDate = v; })))),
+        field("חוזרים ב-", dateInput(draft.endDate, (v) => { draft.endDate = v; }))),
+      field("שעת היציאה (שעון ישראל, לא חובה)", h("input", { class: "input", type: "time", dir: "ltr", value: draft.startTime || "", style: { maxWidth: "180px" }, oninput: (e) => { draft.startTime = e.target.value || null; } }),
+        "למשל שעת הטיסה. הטיימר בעמוד הסיכום סופר עד אליה.")),
     h("section", { class: "card" },
       field("שער הדולר לתכנון (₪ לדולר)", rateInput, `כל הסכומים בשקלים מחושבים לפי השער הזה, כדי שהסכום לא יקפוץ כל יום.${s.fx?.planningRateDate ? ` נקבע ב-${dateHe(s.fx.planningRateDate, "dmy")}.` : ""}`),
       today ? h("button", { type: "button", class: "btn btn-secondary", onclick: () => { rateInput.value = String(today.rate); draft.fx.planningRate = today.rate; draft.fx.planningRateDate = today.date; } }, icon("refresh"), `להשתמש בשער של היום (${fmtNum(today.rate, 2)})`) : null,
@@ -59,7 +62,7 @@ function general(ctx) {
     h("section", { class: "card" },
       field("מה לא כלול בחישוב (שורה לכל דבר)", textArea((draft.notIncluded || []).join("\n"), (v) => { draft.notIncluded = v.split("\n").map((x) => x.trim()).filter(Boolean); })),
       field("טקסט ליצירת קשר (בתחתית העמוד)", textInput(draft.contactText, (v) => { draft.contactText = v; }))),
-    saveBar(() => saveOps([diffOp("settings", "_", s, compact(draft), ["title", "subtitle", "startDate", "endDate", "fx", "bufferPct", "cardFeePct", "perPersonPreset", "notIncluded", "contactText"])], errors, "ההגדרות נשמרו"), { onCancel: () => history.back() }),
+    saveBar(() => saveOps([diffOp("settings", "_", s, compact(draft), ["title", "subtitle", "startDate", "startTime", "endDate", "fx", "bufferPct", "cardFeePct", "perPersonPreset", "notIncluded", "contactText"])], errors, "ההגדרות נשמרו"), { onCancel: () => history.back() }),
   ];
 }
 
@@ -73,7 +76,7 @@ function listTab(ctx, entity, { title, fields, make, note }) {
   const box = h("div", {});
   const row = (d, id, isNew) => h("div", { class: "card", style: { boxShadow: "none", border: "1px solid #DCE1E9" } },
     fields.map((f) => f.render(d)),
-    isNew ? null : h("button", { type: "button", class: "btn btn-ghost", onclick: () => run([{ t: "archive", e: entity, id }], { doneText: "הוסר" }).catch(() => {}) }, icon("archive", "icon-sm"), "הסרה"));
+    isNew ? null : h("button", { type: "button", class: "btn btn-ghost", onclick: askFirst(() => map[id]?.label, () => run([{ t: "archive", e: entity, id }], { doneText: "הוסר" }).catch(() => {})) }, icon("archive", "icon-sm"), "הסרה"));
   const draw = () => box.replaceChildren(
     ...list.map((x) => row(drafts[x.id], x.id, false)),
     ...added.map((a) => row(a.v, a.id, true)),
@@ -156,7 +159,7 @@ function access(ctx) {
         Object.keys(data[key] || {}).length
           ? h("ul", { class: "check-list" }, Object.entries(data[key]).map(([mail, info]) => h("li", {},
             h("span", { class: "grow" }, info?.label ? `${info.label} — ` : "", h("bdi", {}, mail)),
-            (data.ownerEmails || []).includes(mail) ? h("span", { class: "meta" }, "בעל האתר") : h("button", { type: "button", class: "edit-btn", onclick: () => update({ remove: mail }) }, icon("trash", "icon-sm"), "הסרה"))))
+            (data.ownerEmails || []).includes(mail) ? h("span", { class: "meta" }, "בעל האתר") : h("button", { type: "button", class: "edit-btn", onclick: async () => { if (await confirmRemove(info?.label || mail, "החשבון הזה כבר לא ייכנס לאתר.")) update({ remove: mail }); } }, icon("trash", "icon-sm"), "הסרה"))))
           : emptyState("אין עדיין."))));
   const update = async (change) => {
     try {
@@ -240,6 +243,24 @@ export function setupCard() {
   ];
 }
 
+async function wipeExpenses(errors) {
+  const ops = wipeExpensesOps(store.docs.plan);
+  if (!ops.length) return toast("אין הוצאות למחוק");
+  const ok = await confirmDialog({
+    title: `בטוחים שרוצים למחוק את כל ${ops.length} ההוצאות?`,
+    text: "הקטגוריות נשארות ריקות, והמסלול והאפשרויות לא משתנים. אם התחרטתם, אפשר לבטל דרך ״היסטוריה״.",
+    confirmLabel: "כן, למחוק הכל",
+  });
+  if (!ok) return;
+  try {
+    // One change of up to 60 ops; a longer list is split (each part is undoable on its own).
+    for (let i = 0; i < ops.length; i += 60) await run(ops.slice(i, i + 60), { doneText: "כל ההוצאות נמחקו" });
+    location.hash = "#/";
+  } catch (err) {
+    errors.show(err.errors?.length ? err.errors : [err.message]);
+  }
+}
+
 function backup() {
   const errors = errorBox();
   const stamp = new Date().toISOString().slice(0, 10);
@@ -269,6 +290,12 @@ function backup() {
         h("p", { class: "card-sub" }, "מחליף את כל נתוני הטיול. אפשר לבטל דרך ״היסטוריה״."),
         field("מקובץ גיבוי", fileInput),
         h("button", { type: "button", class: "btn btn-secondary", onclick: () => loadOpeningData(errors) }, icon("refresh"), "טען נתוני פתיחה"))
+      : null,
+    can.owner() || store.demo
+      ? h("section", { class: "card" },
+        h("h2", {}, icon("trash"), "להתחיל את ההוצאות מאפס"),
+        h("p", { class: "card-sub" }, "מוחק את כל שורות ההוצאות. הקטגוריות נשארות ריקות, והמסלול, האפשרויות והמשימות לא משתנים."),
+        h("button", { type: "button", class: "btn btn-danger", onclick: () => wipeExpenses(errors) }, icon("trash"), "ריקון כל ההוצאות"))
       : null,
   ];
 }

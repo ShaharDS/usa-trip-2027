@@ -10,7 +10,7 @@ const PROJECT = "demo-usa-trip";
 const AUTH = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1";
 const FN = `http://127.0.0.1:5001/${PROJECT}/me-west1`;
 const FS = `http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
-const seed = JSON.parse(readFileSync(fileURLToPath(new URL("../../docs/data/seed-data.json", import.meta.url)), "utf8"));
+const seed = JSON.parse(readFileSync(fileURLToPath(new URL("../../docs/data/demo-trip.json", import.meta.url)), "utf8"));
 
 async function googleUser(email, name) {
   const idToken = JSON.stringify({ sub: `sub-${email}`, email, email_verified: true, name });

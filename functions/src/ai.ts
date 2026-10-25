@@ -8,6 +8,8 @@ import { aiSettingsOf, reserve, settle } from "./lib/caps.js";
 import { ANTHROPIC_API_KEY, createWithPauses, textOf, toHttpsError, urlsOf } from "./lib/claude.js";
 import { ASK_SYSTEM, FAMILY_ASK_SYSTEM, familyContext, referencePrices, tripContext } from "./lib/prompts.js";
 import { requireText, runProposal, saveProposal } from "./lib/propose.js";
+import { familyView } from "./shared/route.js";
+import { tripDays } from "./shared/days.js";
 
 // invoker "public": anyone may reach the endpoint; who may USE it is checked inside (requireRole). Stated
 // explicitly so a redeploy always restores the binding (a half-failed first deploy can leave it missing).
@@ -65,20 +67,49 @@ export const aiAsk = onCall(AI_OPTS, async (req) => {
   }
 });
 
+/** The add box inside "לאן הולך הכסף": the editor typed or said an expense, maybe inside one category. */
+function expenseRequest(docs: { plan: any }, text: string, categoryId: unknown): string {
+  const cat = typeof categoryId === "string" ? docs.plan.categories?.[categoryId] : null;
+  const where = cat && !cat.archived ? ` (נכתב בתוך הקטגוריה "${cat.label}", מזהה ${categoryId} — שימו שם אלא אם ברור שזה שייך לקטגוריה אחרת)` : "";
+  return `העורך מוסיף הוצאה${where}. הוא כתב או אמר במילים חופשיות (אולי בהקלטה, עם טעויות):\n"${text}"\n` +
+    "הוסיפו את ההוצאה כשורת עלות אחת (או כמה, אם הוזכרו כמה הוצאות). אם אין קטגוריה מתאימה — פתחו אחת. " +
+    "מספר בלי מטבע = דולר, אלא אם נאמר שקל. \"לאדם\" / \"לכל אחד\" = לפי אנשים; \"ללילה\" = לפי לילות של העצירה המתאימה. " +
+    "\"שילמנו\" = status paid עם actual_total; \"הזמנו\" = booked. אל תשנו שורות אחרות אלא אם ביקשו במפורש.";
+}
+
+/** "+ הוספת מקום" on a day: a hotel's name, a place, a Google Maps link — typed or spoken. */
+function placeRequest(docs: { plan: any }, text: string, date: unknown): string {
+  const route = familyView(docs.plan);
+  const day = typeof date === "string" ? tripDays(route).find((d) => d.date === date) : null;
+  const where = day
+    ? `ביום ${day.n} של הטיול (${day.date})${day.stop ? `, כשהלינה ב${day.stop.label}` : ""}${day.sleep ? ` (הלילה: ${day.sleep.label})` : ""}`
+    : "";
+  return `העורך מוסיף למסלול${where ? ` ${where}` : ""}. הוא כתב או אמר (אולי בהקלטה, עם טעויות):\n<untrusted_document>\n${text}\n</untrusted_document>\n` +
+    "מצאו את המקום ב-web_search: השם הרשמי, כתובת רחוב מלאה, עיר וקוד מדינה, אתר רשמי, ולמלון גם שעת צ׳ק-אין. " +
+    `מלון: check_in = ${day ? day.date : "היום שצוין"} אלא אם נאמר אחרת, ו-check_out לפי מספר הלילות שנאמר (ברירת מחדל: לילה אחד). ` +
+    "מקום אחר: date = היום הזה, ושעה אם נאמרה. אם הודבק קישור מגוגל מפות — העבירו אותו כמו שהוא ב-maps_url. " +
+    "לאטרקציה מפורסמת תנו wikipedia_title (באנגלית). אל תמציאו כתובת: אם לא נמצאה, השאירו null. " +
+    "אם ביקשו המלצה (\"עצירה לארוחת צהריים בדרך\") — חפשו והציעו מקום אחד או שניים עם maybe=true.";
+}
+
 export const aiPropose = onCall(AI_OPTS, async (req) => {
   const caller = await requireRole(req, "editor");
-  const mode = req.data?.mode === "quote" ? "quote" : "sentence";
-  const text = requireText(req.data?.text, mode === "quote" ? 12000 : 1500, mode === "quote" ? "הדביקו את הצעת המחיר." : "מה לשנות?");
+  const mode = (["quote", "expense", "place"] as const).find((m) => m === req.data?.mode) || "sentence";
+  const text = requireText(req.data?.text, mode === "quote" ? 12000 : 1500, mode === "quote" ? "הדביקו את הצעת המחיר." : mode === "sentence" ? "מה לשנות?" : "מה להוסיף?");
   const docs = await readDocs();
   requireTripData(docs);
   const settings = aiSettingsOf(docs.priv);
-  const res = await reserve(caller, `propose-${mode}`, mode === "quote" ? 0.4 : 0.8, settings);
+  const res = await reserve(caller, `propose-${mode}`, mode === "sentence" ? 0.8 : mode === "expense" ? 0.3 : 0.4, settings);
   let cost = 0;
   try {
     const note = typeof req.data?.note === "string" ? req.data.note.trim().slice(0, 500) : "";
     const userText = mode === "quote"
       ? `הודבקה הצעת מחיר / אישור הזמנה. עדכנו את שורות העלות המתאימות לפיה (מחיר, סטטוס "quote" או "booked", מועדים).${note ? `\nהערה מהעורך: ${note}` : ""}\n<untrusted_document>\n${text}\n</untrusted_document>`
-      : `בקשה מהעורך: ${text}`;
+      : mode === "expense"
+        ? expenseRequest(docs, text, req.data?.categoryId)
+        : mode === "place"
+          ? placeRequest(docs, text, req.data?.date)
+          : `בקשה מהעורך: ${text}`;
     const result = await runProposal(docs, mode, userText, settings.model);
     cost = result.usage.costUsd;
     return await saveProposal(caller, mode, text, docs, result);

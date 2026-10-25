@@ -47,3 +47,8 @@ export function expenseOps(plan, d, itemId) {
   ops.push({ t: "create", e: "items", id: itemId, v });
   return { ops, problems, categoryId };
 }
+
+/** "ריקון כל ההוצאות": every active cost row archived (undoable). Categories, options and the route stay. */
+export function wipeExpensesOps(plan) {
+  return activeList(plan.items).map((x) => ({ t: "archive", e: "items", id: x.id }));
+}

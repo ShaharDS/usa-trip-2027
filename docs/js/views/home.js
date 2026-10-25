@@ -5,20 +5,58 @@ import { h, icon, safeStorage } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
 import { SECTION_HE } from "../shared/schema.js";
 import {
-  approxIls, dateHe, dateRangeHe, deltaSentence, fmtIls, fmtNum, fmtUsd, ilsShort, nightsHe, rangeIls, relativeHe,
-  signedIls, warningHe,
+  approxIls, countdownHe, dateHe, dateRangeHe, daysUntil, deltaSentence, fmtIls, fmtNum, fmtUsd, ilsShort, israelMoment, nightsHe,
+  rangeIls, relativeHe, signedIls, timeLeft, todayLocal, warningHe,
 } from "../shared/format.js";
 import { catChip, catColor, checklistItems, ilsText, shareButton } from "../components/common.js";
 import { timelineList } from "./route.js";
 import { footer } from "./footer.js";
 import { can, store } from "../store.js";
 import { sectionTools } from "../edit/sections.js";
-import { justAdded } from "../edit/tools.js";
+import { editTools, justAdded, toggleTodo } from "../edit/tools.js";
+import { addPanel, money, newCategoryPanel, openAdd, openNewCategory, toggleCategory } from "../edit/expensePanel.js";
+import { itemCard } from "./category.js";
 
 const LAST_SEEN_KEY = "usaTrip.lastSeenVersion";
 
 function isFinalTotal(r) {
   return r.certainty.every((c) => c.status === "paid" || c.status === "booked" || c.pct < 0.0001);
+}
+
+/** Editors: how long until the trip starts (ticks every 30 s without re-rendering the page). */
+export function countdown(settings, r) {
+  const start = israelMoment(settings.startDate, settings.startTime);
+  const end = israelMoment(settings.endDate, "23:59");
+  const now = Date.now();
+  if (now >= end) return h("div", { class: "countdown countdown-done" }, icon("done"), " הטיול הסתיים. מקווים שנהניתם!");
+  if (now >= start) {
+    const n = 1 - daysUntil(settings.startDate, todayLocal());
+    const of = (r?.itinerary?.tripNights ?? daysUntil(settings.endDate, settings.startDate)) + 1;
+    return h("div", { class: "countdown countdown-done" }, icon("sun"), ` הטיול התחיל · יום ${fmtNum(Math.min(Math.max(n, 1), of))} מתוך ${fmtNum(of)}`);
+  }
+  const boxes = [["days", "ימים", "יום"], ["hours", "שעות", "שעה"], ["minutes", "דקות", "דקה"]].map(([k, many, one]) => {
+    const v = h("span", { class: "cd-num num" });
+    const label = h("span", { class: "cd-unit" });
+    return { k, many, one, v, label, node: h("div", { class: "cd-box" }, v, label) };
+  });
+  const box = h("div", { class: "countdown", role: "timer" },
+    h("p", { class: "cd-title" }, icon("clock", "icon-sm"), " עד שיוצאים לטיול"),
+    h("div", { class: "cd-row", "aria-hidden": "true" }, boxes.map((b) => b.node)),
+    h("p", { class: "cd-when" }, `${dateHe(settings.startDate, "long")}${settings.startTime ? ` · ${settings.startTime}` : ""}`));
+  const tick = () => {
+    const left = timeLeft(start);
+    for (const b of boxes) {
+      b.v.textContent = fmtNum(left[b.k]);
+      b.label.textContent = left[b.k] === 1 ? b.one : b.many;
+    }
+    box.setAttribute("aria-label", `${countdownHe(left)} עד שיוצאים לטיול`);
+    return left.done;
+  };
+  tick();
+  const timer = setInterval(() => {
+    if (!box.isConnected || tick()) clearInterval(timer);
+  }, 30_000);
+  return box;
 }
 
 function hero(ctx) {
@@ -32,6 +70,7 @@ function hero(ctx) {
     h("p", { class: "hero-title" }, s.title),
     h("p", { class: "hero-dates" },
       `${dateRangeHe(s.startDate, s.endDate)} ${s.endDate.slice(0, 4)} · ${fmtNum(r.people.everyone)} נוסעים · ${nightsHe(r.itinerary.tripNights)}`),
+    can.edit() ? countdown(s, r) : null,
     h("p", { class: "hero-label" }, final ? "כל הטיול עולה:" : "כל הטיול יעלה בערך:"),
     h("p", { class: "hero-total num" }, final ? fmtIls(r.total.ils.typ) : approxIls(r.total.ils.typ)),
     h("p", { class: "hero-usd" }, `שזה בערך ${fmtUsd(r.total.usd.typ)}`),
@@ -110,13 +149,40 @@ function categoryMeta(cat, r) {
   return `${rows.length === 1 ? "שורה אחת" : `${rows.length} שורות`} · ${word}`;
 }
 
+/** One open category: its rows (with their details and edit buttons) and, for editors, the add box under them. */
+function categoryPanel(ctx, cat, id) {
+  const { state, r } = ctx;
+  const items = activeList(state.items).filter((i) => i.categoryId === cat.id);
+  const included = items.filter((i) => r.items[i.id]?.included);
+  const excluded = items.filter((i) => !r.items[i.id]?.included);
+  const editing = can.edit() && ctx.editMode;
+  return h("div", { class: "cat-panel", id },
+    cat.note ? h("p", { class: "item-note", dir: "auto" }, cat.note) : null,
+    included.length ? included.map((i) => itemCard(ctx, i, cat)) : h("p", { class: "muted" }, "עוד אין הוצאות בקטגוריה הזו."),
+    excluded.length
+      ? h("div", {}, h("p", { class: "meta" }, "לא נספרים כרגע (שייכים לאפשרות שלא בחרנו):"), excluded.map((i) => itemCard(ctx, i, cat)))
+      : null,
+    can.edit()
+      ? money.addFor === cat.id
+        ? addPanel(ctx)
+        : h("div", { class: "btn-row" },
+          h("button", { type: "button", class: "btn", onclick: () => { openAdd(cat.id); ctx.rerender(); } }, icon("plus"), `הוספת הוצאה ל״${cat.label}״`))
+      : null,
+    editing ? editTools.category(ctx, cat) : null);
+}
+
 export function categoryList(ctx, { withTotal = true } = {}) {
   const { r } = ctx;
   const max = Math.max(1, ...r.categories.map((c) => c.amount.ils.typ), ...r.adjustments.map((a) => a.amount.ils.typ));
   const rows = r.categories.map((cat) => {
     const final = cat.itemIds.every((id) => !r.items[id].included || r.items[id].mode === "actual");
-    return h("li", {},
-      h("a", { class: ["cat-row", justAdded(cat.id) ? "cat-row-new" : ""], href: `#/cat/${encodeURIComponent(cat.id)}` },
+    const open = money.open.has(cat.id);
+    const panelId = `cat-panel-${cat.id}`;
+    return h("li", { class: ["cat-item", open ? "open" : ""] },
+      h("button", {
+        type: "button", class: ["cat-row", justAdded(cat.id) ? "cat-row-new" : ""], "aria-expanded": open ? "true" : "false", "aria-controls": panelId,
+        onclick: () => { toggleCategory(cat.id); ctx.rerender(); },
+      },
         catChip(cat),
         h("div", { class: "grow" },
           h("div", { class: "row-between" },
@@ -125,11 +191,12 @@ export function categoryList(ctx, { withTotal = true } = {}) {
           h("div", { class: "cat-meta" }, categoryMeta(cat, r)),
           h("div", { class: "cat-bar-track", "aria-hidden": "true" },
             h("div", { class: "cat-bar-fill", style: { width: `${(cat.amount.ils.typ / max) * 100}%`, background: catColor(cat) } }))),
-        icon("next", "chev")));
+        icon("down", "chev")),
+      open ? categoryPanel(ctx, cat, panelId) : null);
   });
   const adj = r.adjustments.map((a) =>
     h("li", {},
-      h("div", { class: "cat-row" },
+      h("div", { class: "cat-row cat-row-static" },
         h("span", { class: "chip-icon", style: { background: "#F2F4F8", color: "#525B73" } }, icon(a.id === "buffer" ? "shield" : "wallet")),
         h("div", { class: "grow" },
           h("div", { class: "row-between" },
@@ -147,11 +214,18 @@ export function categoryList(ctx, { withTotal = true } = {}) {
 }
 
 function categories(ctx) {
+  const adding = money.addFor === "";
   return h("section", { class: "card" },
     h("h2", {}, icon("wallet"), ctx.section.title || "לאן הולך הכסף"),
-    h("p", { class: "card-sub" }, "לחצו על קטגוריה כדי לראות ממה היא מורכבת."),
+    h("p", { class: "card-sub" }, ctx.r.categories.length ? "לחצו על קטגוריה כדי לפתוח אותה ולראות את השורות שלה." : "עוד אין קטגוריות. התחילו בהוספת הוצאה או קטגוריה."),
     categoryList(ctx),
-    can.edit() ? h("div", { class: "btn-row" }, h("a", { class: "btn", href: "#/edit/expense/new" }, icon("plus"), "הוספת הוצאה")) : null);
+    can.edit() && adding ? addPanel(ctx) : null,
+    can.edit() ? newCategoryPanel(ctx) : null,
+    can.edit()
+      ? h("div", { class: "btn-row" },
+        adding ? null : h("button", { type: "button", class: "btn", onclick: () => { openAdd(""); ctx.rerender(); } }, icon("plus"), "הוספת הוצאה"),
+        money.newCat ? null : h("button", { type: "button", class: "btn btn-secondary", onclick: () => { openNewCategory(); ctx.rerender(); } }, icon("plus"), "קטגוריה חדשה"))
+      : null);
 }
 
 export function optionRows(ctx, groupId, { limit = Infinity, withChoose = false } = {}) {
@@ -208,7 +282,8 @@ function checklist(ctx) {
   if (!list.length) return null;
   return h("section", { class: "card" },
     h("h2", {}, icon("list"), ctx.section.title || "רשימת משימות"),
-    checklistItems(list));
+    can.edit() ? h("p", { class: "card-sub" }, "לחצו על משימה כדי לסמן שבוצעה (או לבטל את הסימון).") : null,
+    checklistItems(list, can.edit() ? { onToggle: toggleTodo } : {}));
 }
 
 function docsShortcut(ctx) {

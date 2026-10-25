@@ -200,7 +200,7 @@ export function applyOps(docs, ops, opts = {}) {
 export const ID_PREFIX = {
   groups: "grp", presets: "who", stops: "stop", units: "unit", categories: "cat", items: "item",
   optionGroups: "q", options: "opt", sections: "sec", checklist: "todo", holidays: "hol",
-  privateItems: "pitem", flights: "flt",
+  privateItems: "pitem", flights: "flt", places: "plc", days: "day",
 };
 
 /**

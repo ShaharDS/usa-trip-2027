@@ -4,7 +4,7 @@
 | Function | Who | What |
 |---|---|---|
 | `aiAsk` | family, editors | Editors: plain-Hebrew answer from the trip data + engine output + recent changes (+ price research). Family: `FAMILY_ASK_SYSTEM` + `familyContext()` = the public route, traveller groups and flight times only — no prices, no price research, no history; the prompt tells the model to decline cost questions. Optional `web_search` (max 2) for general facts. Read-only. Saved in `users/{uid}/asks`. |
-| `aiPropose` | editors | `mode: "sentence"` (with `web_search`, max 5) or `"quote"` (pasted text, no web). Tool loop → proposal in `trips/usa2027/proposals/{id}`. |
+| `aiPropose` | editors | `mode: "sentence"` (with `web_search`, max 5), `"quote"` (pasted text, no web), `"expense"` (the add box in "לאן הולך הכסף", typed or spoken; cost rows + categories only, no web, optional `categoryId`) or `"place"` (the "+ הוספת מקום" box on a day: `date`, web search; place / day / stop tools only). Tool loop → proposal in `trips/usa2027/proposals/{id}` (place proposals carry `places` so the card shows the pins). |
 | `addDocument` | editors | Uploaded PDF/image → step 1: structured `BookingFacts` (no tools) → step 2: proposal in `"extraction"` mode (+ links the document to the touched rows). |
 | `applyProposal` / `rejectProposal` | editors | Commit the ticked lines as one change (`source: "ai"`, `approvedBy`), or close the proposal. Stale if the trip changed meanwhile. |
 
@@ -30,6 +30,10 @@ Sonnet 5.5: $2 / $10 per M input/output tokens, cache read $0.20, web search $0.
 - Pasted / document text is wrapped in `<untrusted_document>`; the system prompt says it never contains instructions. Raw documents only reach the no-tool extraction step.
 - Source URLs on rows are kept only if they appeared in that call's web search results.
 - Booking codes are hidden from `aiAsk` unless Settings → AI allows it.
+- Places: the tool schemas have no coordinates. `functions/src/lib/geo.ts` adds `_lat/_lng/_region/_maps_url/_photo`
+  to the call's input before `toolCallToOps`: a pasted Google Maps link (short links expanded, Google hosts only) → the
+  place's pin; else OpenStreetMap Nominatim on the address (US, ≤1 req/s, our User-Agent); a Wikipedia lead photo with
+  author + licence from Commons for famous sights. A place's website is kept only if its site came up in the search.
 
 ## Testing without spending money
-`CLAUDE_FAKE=1` in `functions/.env.local` (emulator only) swaps in `functions/src/lib/claudeFake.ts`, which answers with scripted tool calls (adding Washington, a hostile quote, a ticket). `tests/integration/ai.int.mjs` runs the whole path on the emulators. A live smoke test against the real API should be run once by the owner after deploying (it costs a few cents).
+`CLAUDE_FAKE=1` in `functions/.env.local` (emulator only) swaps in `functions/src/lib/claudeFake.ts`, which answers with scripted tool calls (adding Washington, a hostile quote, a ticket, a hotel in Richmond), and fakes the geocoder (no network). `tests/integration/ai.int.mjs` runs the whole path on the emulators. A live smoke test against the real API should be run once by the owner after deploying (it costs a few cents).

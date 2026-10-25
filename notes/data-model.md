@@ -4,12 +4,18 @@ Two Firestore documents hold the whole trip (both **editors only**); everything 
 
 | Who | Reads |
 |---|---|
-| anyone with the link | `public/state` — the route only |
-| family (on the list) | the same route + "Ask the trip" (aiAsk gives the model the route, travellers and flight times — no prices) |
+| anyone with the link | `public/state` — the route only (no hotel names / addresses) |
+| family (on the list) | `family/state` — the route with hotel names, addresses, map locations + "Ask the trip" (aiAsk gives the model the family route, travellers and flight times — no prices) |
 | editors / owner | `plan/state`, `private/state`, history, documents, proposals, usage |
 
 ## `trips/usa2027/public/state` (anyone can read — generated, never edited)
 Written by the functions on every write (`writeDocs` → `routeView(plan)`, `docs/js/shared/route.js`): `settings` (title, subtitle, dates, contactText), `itinerary` (`tripNights`, `stops[]` with resolved `nights`/`start`/`end` after the chosen options, labels, notes), `holidays`, `travellers` (count), `version`, `updatedAt`. No prices, rows, categories, options, checklist or private data — `tests/route.test.mjs` fails if any other number or a money sign appears. Stop notes are public: the stop editor says so.
+
+## `trips/usa2027/family/state` (family + editors — generated, never edited)
+`familyView(plan)`: the same as the public route plus the full `places` (label, kind, date / checkIn–checkOut, time,
+address, city, region, lat / lng, mapsUrl, website, phone, note, maybe, photo, passIds) and `days` with notes. Still no
+prices. The public route has places reduced to kind / dates / times / city / region / maybe, a sight's name, and a
+~10 km `near` grid square — hotels have no name. `audience` says which one a document is.
 
 ## `trips/usa2027/plan/state` (editors only)
 | Key | Contents |
@@ -23,7 +29,9 @@ Written by the functions on every write (`writeDocs` → `routeView(plan)`, `doc
 | `items` | cost rows (below) |
 | `optionGroups` / `options` | questions with alternatives; only the `chosen` option counts; an option can `stopPatch` a stop (date/nights) |
 | `sections` | home-page layout: `type`, `title`, `visible`, `order`, `text` |
-| `checklist`, `holidays` | to-dos; holiday markers on the route |
+| `checklist`, `holidays` | to-dos (editors tick them on the route / home); holiday markers on the route |
+| `places` | the day-by-day route: hotels (`checkIn`/`checkOut`), sights, meals, stops on the way (`date`, `time`), with address, US state (`region`), map location (set by the server), links, note, `maybe` |
+| `days` | per date (id `d20271004`): `title`, `note` |
 | `version`, `updatedAt`, `updatedByLabel`, `recent[]`, `derived` | written by the functions |
 
 Every record may carry `order`, `archived` (soft delete) and `v` (version that last changed it).
@@ -36,6 +44,11 @@ Every record may carry `order`, `archived` (soft delete) and `v` (version that l
 - `count` (+ `countLabel`)
 
 No factors = lump sum. `price` = `{low, typical, high, currency}` or a `table` keyed by two option groups (the cruise: sailing × ship/cabin). `status` = estimate / quote / booked / paid; booked/paid with `actual` uses that total. `optionId` = counts only while that option is chosen. Also `note`, `sources[]`, `deadlines[]`.
+
+## Days (`shared/days.js`)
+`tripDays(route)` = one entry per date: day n of N, the stop we sleep in, today's places by time, tonight's hotel
+(`checkIn ≤ date < checkOut`), last night's hotel, check-out / check-in when the hotel changes, and the US states in
+travel order. Places outside the trip dates are allowed (dates may move) and listed to editors as a warning.
 
 ## Itinerary
 Stops are walked in order. Anchors split the trip into stretches: trip start, every stop with an `anchorDate`, trip end. In each stretch, fixed nights are summed and the single `fill` stop gets the remainder. Too many nights → warning "חסרים X לילות"; nights left with no fill stop → warning.

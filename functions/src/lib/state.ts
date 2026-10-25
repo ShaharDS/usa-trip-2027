@@ -1,10 +1,10 @@
 // Reading and writing the trip documents (inside a transaction when changing them). Every write also
-// refreshes the public route document from the plan, so it can never drift or carry prices.
+// refreshes the public route and the family route from the plan, so they can never drift or carry prices.
 import { HttpsError } from "firebase-functions/v2/https";
 import type { Transaction } from "firebase-admin/firestore";
 import { db, paths } from "./admin.js";
 import { emptyDocs } from "../shared/schema.js";
-import { routeView } from "../shared/route.js";
+import { familyView, routeView } from "../shared/route.js";
 
 export interface Docs {
   plan: any;
@@ -26,6 +26,7 @@ export function writeDocs(tx: Transaction, docs: Docs) {
   tx.set(db.doc(paths.plan), docs.plan);
   tx.set(db.doc(paths.priv), docs.priv);
   tx.set(db.doc(paths.route), routeView(docs.plan));
+  tx.set(db.doc(paths.family), familyView(docs.plan));
 }
 
 /** Changes need a trip to change: before the owner loads the opening data there is nothing to edit. */

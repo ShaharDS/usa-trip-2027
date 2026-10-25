@@ -4,6 +4,7 @@ import { commit, undo } from "../data/commit.js";
 import { activeList } from "../shared/engine.js";
 import { newId } from "../shared/schema.js";
 import { ID_PREFIX } from "../shared/ops.js";
+import { askFirst } from "../components/common.js";
 
 /** Commit with a toast that offers undo. */
 export async function run(ops, opts = {}) {
@@ -64,6 +65,25 @@ function smallLink(label, iconName, href) {
   return h("a", { class: "edit-btn", href }, icon(iconName, "icon-sm"), label);
 }
 
+/** Tick / untick a checklist row (one undoable change; the list updates at once). */
+export function toggleTodo(t) {
+  const done = !t.done;
+  return run([{ t: "update", e: "checklist", id: t.id, set: { done }, before: { done: t.done ?? null } }],
+    { doneText: done ? `סומן כבוצע: ״${t.label}״` : `הסימון בוטל: ״${t.label}״` }).catch(() => {});
+}
+
+/** Remove a category and its rows, after asking. Resolves true when removed. */
+export async function removeCategory(ctx, cat) {
+  const rows = activeList(ctx.state.items).filter((x) => x.categoryId === cat.id);
+  const extra = rows.length ? (rows.length === 1 ? "גם השורה שבה תימחק." : `גם ${rows.length} השורות שבה יימחקו.`) : "";
+  let done = false;
+  await askFirst(cat.label, async () => {
+    await run([{ t: "archive", e: "categories", id: cat.id }, ...rows.map((x) => ({ t: "archive", e: "items", id: x.id }))], { doneText: `הקטגוריה "${cat.label}" הוסרה` });
+    done = true;
+  }, extra)().catch(() => {});
+  return done;
+}
+
 export const editTools = {
   item(ctx, item) {
     const siblings = activeList(ctx.state.items).filter((x) => x.categoryId === item.categoryId);
@@ -72,7 +92,7 @@ export const editTools = {
       smallBtn("שכפול", "copy", () => run([duplicateOp("items", item, { label: `${item.label} (עותק)`, order: (item.order ?? 0) + 0.5 })], { doneText: "השורה שוכפלה" })),
       smallBtn("למעלה", "up", () => run(moveOps("items", siblings, item.id, -1)), { disabled: siblings[0]?.id === item.id }),
       smallBtn("למטה", "down", () => run(moveOps("items", siblings, item.id, 1)), { disabled: siblings.at(-1)?.id === item.id }),
-      smallBtn("הסרה", "archive", () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" הוסר` })));
+      smallBtn("הסרה", "archive", askFirst(item.label, () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" הוסר` }).catch(() => {}))));
   },
 
   category(ctx, cat) {
@@ -81,12 +101,7 @@ export const editTools = {
       smallLink("עריכת הקטגוריה", "edit", `#/edit/category/${encodeURIComponent(cat.id)}`),
       smallBtn("למעלה", "up", () => run(moveOps("categories", cats, cat.id, -1)), { disabled: cats[0]?.id === cat.id }),
       smallBtn("למטה", "down", () => run(moveOps("categories", cats, cat.id, 1)), { disabled: cats.at(-1)?.id === cat.id }),
-      smallBtn("הסרת הקטגוריה", "archive", () => {
-        const rows = activeList(ctx.state.items).filter((x) => x.categoryId === cat.id);
-        run([{ t: "archive", e: "categories", id: cat.id }, ...rows.map((x) => ({ t: "archive", e: "items", id: x.id }))], { doneText: `הקטגוריה "${cat.label}" הוסרה` })
-          .then(() => { location.hash = "#/"; })
-          .catch(() => {});
-      }));
+      smallBtn("הסרת הקטגוריה", "archive", () => removeCategory(ctx, cat).then((done) => { if (done) location.hash = "#/"; })));
   },
 
   addItem(ctx, catId) {

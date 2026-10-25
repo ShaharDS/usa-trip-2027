@@ -4,6 +4,10 @@ import { h, icon, toast } from "../ui/h.js";
 import { deltaSentence, fmtIls } from "../shared/format.js";
 import { callFunction } from "../fb/api.js";
 import { notice } from "./common.js";
+import { routeMap } from "./map.js";
+import { googlePlaceUrl } from "../shared/links.js";
+import { PLACE_KIND_HE } from "../shared/schema.js";
+import { dateHe } from "../shared/format.js";
 
 function domain(url) {
   try {
@@ -11,6 +15,23 @@ function domain(url) {
   } catch {
     return url;
   }
+}
+
+/** "Is this the right place?" — name, kind, when, address, a Google Maps check link and the pins. */
+function placesCheck(places) {
+  if (!places?.length) return null;
+  const when = (x) => (x.kind === "hotel" && x.checkIn ? `${dateHe(x.checkIn, "dm")} – ${dateHe(x.checkOut, "dm")}` : x.date ? `${dateHe(x.date, "dm")}${x.time ? ` · ${x.time}` : ""}` : "");
+  return h("div", { class: "proposal-places" },
+    h("p", { class: "meta" }, "בדקו שזה המקום הנכון:"),
+    h("ol", { class: "legend" }, places.map((x, i) =>
+      h("li", {},
+        h("span", { class: "legend-n", style: { background: "#332288" } }, String(i + 1)),
+        h("span", { class: "grow" },
+          h("strong", { dir: "auto" }, x.label), h("span", { class: "meta" }, ` · ${PLACE_KIND_HE[x.kind] || ""}${when(x) ? ` · ${when(x)}` : ""}`),
+          x.address ? h("span", { class: "place-address", dir: "auto", style: { display: "block" } }, x.address) : null,
+          typeof x.lat === "number" ? null : h("span", { class: "meta", style: { display: "block" } }, "לא נמצא מיקום מדויק במפה (הניווט יהיה לפי הכתובת)."),
+          googlePlaceUrl(x) ? h("a", { href: googlePlaceUrl(x), target: "_blank", rel: "noopener noreferrer" }, "לבדוק ב-Google Maps") : null)))),
+    routeMap(places.map((x, i) => ({ lat: x.lat, lng: x.lng, n: i + 1, color: "#332288" })), { label: "המקומות בהצעה על המפה", height: 200, line: false }));
 }
 
 export function proposalCard(p, { onDone } = {}) {
@@ -64,6 +85,7 @@ export function proposalCard(p, { onDone } = {}) {
       : ""),
     h("p", { class: "meta" }, "סמנו מה לשמור:"),
     list,
+    placesCheck(p.places),
     p.sources?.length
       ? h("ul", { class: "sources" }, p.sources.map((s) => h("li", {}, h("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, icon("external", "icon-sm"), s.title && s.title !== s.url ? s.title : domain(s.url)))))
       : null,

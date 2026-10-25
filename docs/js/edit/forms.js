@@ -2,13 +2,13 @@
 // through commit() as one change (undoable). Nothing here is trip-specific: every list comes from the data.
 import { h, icon } from "../ui/h.js";
 import { activeList, computeTrip, peopleCount } from "../shared/engine.js";
-import { COLORS, DEADLINE_HE, DEADLINE_KINDS, ICONS, SECTION_HE, SECTION_TYPES, STATUS_HE, STATUSES, STOP_KIND_HE, STOP_KINDS, newId } from "../shared/schema.js";
+import { DEADLINE_HE, DEADLINE_KINDS, SECTION_HE, SECTION_TYPES, STATUS_HE, STATUSES, STOP_KIND_HE, STOP_KINDS, newId } from "../shared/schema.js";
 import { ID_PREFIX, applyOps } from "../shared/ops.js";
 import { approxIls, explainHe, fmtIls, fmtUsd, nightsHe, warningHe } from "../shared/format.js";
 import { backLink, emptyState, pageHead } from "../components/common.js";
-import { choices, compact, dateInput, diffOp, errorBox, field, fieldset, numberInput, saveBar, select, textArea, textInput } from "./kit.js";
+import { choices, colorPicker, compact, dateInput, diffOp, errorBox, field, fieldset, iconPicker, numberInput, saveBar, select, textArea, textInput } from "./kit.js";
 import { nextOrder, run } from "./tools.js";
-import { expenseForm } from "./expense.js";
+import { openAdd } from "./expensePanel.js";
 import { store } from "../store.js";
 
 const clone = (x) => (x === undefined ? undefined : structuredClone(x));
@@ -26,18 +26,6 @@ async function save(ops, errors, { doneText, after }) {
   } catch (err) {
     errors.show(err.errors?.length ? err.errors : [err.message]);
   }
-}
-
-function iconPicker(value, onChange) {
-  return choices(ICONS.map((n) => ({ value: n, label: "", icon: n, ariaLabel: n })), value, onChange, { label: "אייקון" });
-}
-
-function colorPicker(value, onChange) {
-  const wrap = h("div", { class: "choice-row", role: "group", "aria-label": "צבע" });
-  const draw = () => wrap.replaceChildren(...Object.entries(COLORS).map(([key, hex]) =>
-    h("button", { type: "button", class: "choice", "aria-pressed": value === key ? "true" : "false", "aria-label": key, style: { minWidth: "48px", background: hex, borderColor: value === key ? "#1F2641" : hex, outline: value === key ? "3px solid #1F2641" : "none" }, onclick: () => { value = key; draw(); onChange(key); } })));
-  draw();
-  return wrap;
 }
 
 // ---------------------------------------------------------------- item (cost row)
@@ -227,6 +215,7 @@ function itemForm(ctx, id, catId) {
       : null,
     saveBar(onSave, {
       onCancel: back(original ? `#/cat/${encodeURIComponent(original.categoryId)}` : "#/"),
+      removeName: original?.label,
       onRemove: isNew ? null : () => run([{ t: "archive", e: "items", id: itemId }], { doneText: `"${original.label}" הוסר` }).then(back(`#/cat/${encodeURIComponent(original.categoryId)}`)).catch(() => {}),
     }),
   ];
@@ -416,6 +405,7 @@ function sectionForm(ctx, id) {
       fieldset("מוצג בעמוד", choices([{ value: true, label: "כן" }, { value: false, label: "מוסתר" }], !!draft.visible, (v) => { draft.visible = v; }))),
     saveBar(onSave, {
       onCancel: back("#/"),
+      removeName: original?.title || SECTION_HE[original?.type] || "",
       onRemove: isNew ? null : () => run([{ t: "archive", e: "sections", id: secId }], { doneText: "החלק הוסר" }).then(back("#/")).catch(() => {}),
     }),
   ];
@@ -459,6 +449,7 @@ function optionForm(ctx, id, groupIdForNew) {
       h("p", { class: "meta" }, "את המחיר של האפשרות מעדכנים בשורת המחיר שלה (למשל בטבלת המחירים של השייט).")),
     saveBar(onSave, {
       onCancel: back(`#/options/${encodeURIComponent(groupId)}`),
+      removeName: original?.label,
       onRemove: isNew ? null : () => run([{ t: "archive", e: "options", id: optId }], { doneText: "האפשרות הוסרה" }).then(back(`#/options/${encodeURIComponent(groupId)}`)).catch(() => {}),
     }),
   ];
@@ -488,6 +479,7 @@ function groupForm(ctx, id) {
       opts.length ? field("מה בחרנו", select(opts.map((o) => ({ value: o.id, label: o.label })), draft.chosen || opts[0].id, (v) => { draft.chosen = v; })) : emptyState("אחרי השמירה מוסיפים אפשרויות.")),
     saveBar(onSave, {
       onCancel: back(isNew ? "#/" : `#/options/${encodeURIComponent(gid)}`),
+      removeName: original?.label,
       onRemove: isNew ? null : () => run([{ t: "archive", e: "optionGroups", id: gid }, ...opts.map((o) => ({ t: "archive", e: "options", id: o.id }))], { doneText: "השאלה הוסרה" }).then(back("#/")).catch(() => {}),
     }),
   ];
@@ -496,7 +488,10 @@ function groupForm(ctx, id) {
 export function renderEdit(ctx, params) {
   const [kind, id = "new", parent] = params;
   switch (kind) {
-    case "expense": return expenseForm(ctx, parent); // #/edit/expense/new[/<categoryId>] — the quick form
+    case "expense": // #/edit/expense/new[/<categoryId>]: the add box now opens inline on the dashboard
+      openAdd(parent && ctx.state.categories?.[parent] ? parent : "");
+      location.replace("#/");
+      return [];
     case "item": return id === "new" ? itemForm(ctx, "new", parent) : itemForm(ctx, id);
     case "category": return categoryForm(ctx, id);
     case "stop": return stopForm(ctx, id);

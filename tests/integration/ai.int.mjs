@@ -10,7 +10,7 @@ const AUTH = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1";
 const FN = `http://127.0.0.1:5001/${PROJECT}/me-west1`;
 const FS = `http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
 const STORAGE = `http://127.0.0.1:9199/v0/b/${PROJECT}.appspot.com/o`;
-const seed = JSON.parse(readFileSync(fileURLToPath(new URL("../../docs/data/seed-data.json", import.meta.url)), "utf8"));
+const seed = JSON.parse(readFileSync(fileURLToPath(new URL("../../docs/data/demo-trip.json", import.meta.url)), "utf8"));
 
 async function googleUser(email, name) {
   const idToken = JSON.stringify({ sub: `sub-${email}`, email, email_verified: true, name });
@@ -148,4 +148,38 @@ test("usage is recorded for the month", async () => {
   const u = (await res.json()).fields;
   assert.ok(Number(u.calls.integerValue) >= 6);
   assert.ok(Math.abs(Number(u.reservedUsd.doubleValue ?? u.reservedUsd.integerValue)) < 1e-9, "all reservations settled");
+});
+
+test("adding a hotel by name: the server finds the location, the family route gets it, the public one doesn't", async () => {
+  const p = await call("aiPropose", { mode: "place", text: "מלון בריצ׳מונד: Hampton Inn Richmond", date: "2027-10-06" }, editor);
+  assert.equal(p.status, "open");
+  assert.equal(p.places.length, 1);
+  assert.equal(p.places[0].label, "Hampton Inn Richmond-Downtown");
+  assert.equal(p.places[0].lat, 37.5407, "the location comes from the (fake) geocoder, not from the model");
+  const r = await call("applyProposal", { proposalId: p.proposalId, accept: p.lines.map((_, i) => i) }, editor);
+  assert.ok(r.changeId);
+  const fam = await fetch(`${FS}/trips/usa2027/family/state`, { headers: { Authorization: `Bearer ${dad}` } }).then((x) => x.json());
+  const places = fam.fields.places.mapValue.fields;
+  const hotel = Object.values(places).map((v) => v.mapValue.fields).find((f) => f.label?.stringValue === "Hampton Inn Richmond-Downtown");
+  assert.ok(hotel, "the family route has the hotel");
+  assert.equal(hotel.address.stringValue, "700 E Main St, Richmond, VA 23219");
+  assert.equal(Number(hotel.lat.doubleValue), 37.5407);
+  const pub = await fetch(`${FS}/trips/usa2027/public/state`).then((x) => x.json());
+  const pubPlaces = Object.values(pub.fields.places.mapValue.fields).map((v) => v.mapValue.fields);
+  const pubHotel = pubPlaces.find((f) => f.city?.stringValue === "Richmond");
+  assert.ok(pubHotel, "the public route has the night in Richmond");
+  assert.equal(pubHotel.label, undefined, "but not the hotel's name");
+  assert.equal(pubHotel.address, undefined, "nor its address");
+  const day = Object.values(fam.fields.days.mapValue.fields).map((v) => v.mapValue.fields).find((f) => f.date.stringValue === "2027-10-06");
+  assert.equal(day.title.stringValue, "נוסעים לריצ׳מונד");
+  const anon = await fetch(`${FS}/trips/usa2027/family/state`);
+  assert.equal(anon.status, 403, "the family route is not public");
+});
+
+test("adding an expense with the AI offers cost tools only", async () => {
+  const p = await call("aiPropose", { mode: "expense", text: "ESTA לכולם 40 דולר לאדם", categoryId: "extras" }, editor);
+  assert.equal(p.status, "open");
+  assert.ok(p.lines.every((l) => !/מקום במסלול|עצירה/.test(l)), p.lines.join(" | "));
+  await call("rejectProposal", { proposalId: p.proposalId }, editor);
+  await rejects(call("aiPropose", { mode: "expense", text: "x" }, dad), "PERMISSION_DENIED");
 });

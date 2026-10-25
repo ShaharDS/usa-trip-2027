@@ -7,7 +7,8 @@ import { proposalCard } from "../components/proposal.js";
 import { signInCard } from "./signin.js";
 import { callFunction } from "../fb/api.js";
 import { readMyAsks } from "../data/live.js";
-import { canListen, hasHebrewVoice, listen, speak, stopSpeaking } from "../ui/speech.js";
+import { hasHebrewVoice, speak, stopSpeaking } from "../ui/speech.js";
+import { micButton, micHint } from "../components/voice.js";
 import { can, store } from "../store.js";
 
 const MODES = {
@@ -92,26 +93,11 @@ export function renderAsk(ctx) {
   });
   textarea.value = state.text;
 
-  let stop = null;
-  const mic = canListen()
-    ? h("button", {
-      type: "button", class: "btn btn-secondary", disabled: state.busy,
-      onclick: (e) => {
-        const btn = e.currentTarget;
-        if (stop) {
-          stop();
-          return;
-        }
-        const base = state.text ? `${state.text} ` : "";
-        btn.lastChild.textContent = "מקשיב… (לחצו לסיום)";
-        stop = listen({
-          onText: (t) => { state.text = base + t; textarea.value = state.text; },
-          onEnd: () => { stop = null; btn.lastChild.textContent = "דברו"; },
-          onError: () => { stop = null; btn.lastChild.textContent = "דברו"; toast("לא הצלחנו לשמוע. אפשר ללחוץ על המיקרופון במקלדת."); },
-        });
-      },
-    }, icon("mic"), "דברו")
-    : null;
+  const mic = micButton({
+    getText: () => state.text,
+    setText: (t) => { state.text = t; textarea.value = t; },
+    disabled: state.busy,
+  });
 
   const demoNote = store.demo ? notice("במצב הדגמה ה-AI לא מחובר. אחרי החיבור ל-Firebase ומפתח ה-API זה יעבוד כאן.", "info", "info") : null;
 
@@ -129,7 +115,7 @@ export function renderAsk(ctx) {
           }, icon(MODES[k].icon, "icon-sm"), MODES[k].label)))
         : null,
       textarea,
-      h("p", { class: "ask-hint" }, icon("mic", "icon-sm"), "אפשר גם לדבר: לחצו על המיקרופון במקלדת של הטלפון."),
+      micHint(),
       m.examples.length
         ? h("div", { class: "choice-row", style: { marginTop: "10px" } }, m.examples.map((ex) =>
           h("button", { type: "button", class: "choice", style: { fontWeight: 500 }, onclick: () => { state.text = ex; textarea.value = ex; textarea.focus(); } }, ex)))

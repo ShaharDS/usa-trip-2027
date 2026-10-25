@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { expenseOps } from "../docs/js/edit/expenseOps.js";
+import { expenseOps, wipeExpensesOps } from "../docs/js/edit/expenseOps.js";
 import { validateOps } from "../docs/js/shared/validate.js";
-import { computeTrip } from "../docs/js/shared/engine.js";
+import { activeList, computeTrip } from "../docs/js/shared/engine.js";
 import { seedDocs, near } from "./helpers.mjs";
 
 const base = { label: "ESTA", categoryId: "extras", newCategory: null, amount: 21, currency: "USD", per: "total", status: "estimate" };
@@ -58,4 +58,18 @@ test("missing fields come back as Hebrew problems, with no ops", () => {
   assert.equal(ops.length, 0);
   assert.equal(problems.length, 3);
   assert.deepEqual(expenseOps(plan, { ...base, categoryId: null, newCategory: { id: "c", label: "" } }, "i").problems, ["כתבו שם לקטגוריה החדשה."]);
+});
+
+test("wiping the expenses archives every row and leaves categories, options and the route", () => {
+  const docs = seedDocs();
+  const ops = wipeExpensesOps(docs.plan);
+  assert.equal(ops.length, activeList(docs.plan.items).length);
+  const v = validateOps(docs, ops);
+  assert.ok(v.ok, v.errors.join("; "));
+  const after = computeTrip(v.docs.plan, { skipOptions: true });
+  assert.equal(activeList(v.docs.plan.items).length, 0);
+  assert.equal(activeList(v.docs.plan.categories).length, activeList(docs.plan.categories).length);
+  assert.equal(after.subtotal.usd.typ, 0);
+  assert.equal(v.docs.plan.optionGroups.sailing.chosen, docs.plan.optionGroups.sailing.chosen);
+  assert.deepEqual(wipeExpensesOps(v.docs.plan), []);
 });

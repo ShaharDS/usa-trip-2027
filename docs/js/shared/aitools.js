@@ -6,7 +6,8 @@
 // strict tool use. Ids the AI invents for new records start with "$" (e.g. "$dc") and are replaced with
 // real ids server-side.
 
-import { COLORS, CURRENCIES, DEADLINE_KINDS, ENTITIES, ICONS, SECTION_TYPES, STATUSES, STOP_KINDS } from "./schema.js";
+import { COLORS, CURRENCIES, DEADLINE_KINDS, ENTITIES, ICONS, PLACE_KINDS, SECTION_TYPES, STATUSES, STOP_KINDS } from "./schema.js";
+import { dayId } from "./days.js";
 import { activeList } from "./engine.js";
 
 const S = {
@@ -54,6 +55,25 @@ const ITEM_FIELDS = {
     required: ["url", "label"],
     additionalProperties: false,
   }, "Where the price comes from (only URLs you actually found)"),
+};
+
+const PLACE_FIELDS = {
+  label: S.strN("Official name as the place itself writes it (usually English), e.g. 'Hampton Inn Richmond-Downtown'"),
+  kind: S.enN(PLACE_KINDS, "hotel = where we sleep (also a cruise ship); sight; food; park (theme park); stop = a stop on the way; flight; port; shop; other"),
+  date: S.strN("YYYY-MM-DD — the day of a visit / stop (not for hotels)"),
+  check_in: S.strN("Hotels: first night YYYY-MM-DD"),
+  check_out: S.strN("Hotels: the morning we leave YYYY-MM-DD (after check_in)"),
+  time: S.strN("HH:MM 24h — when we arrive / start (hotels: check-in time), or null"),
+  end_time: S.strN("HH:MM 24h, or null"),
+  address: S.strN("Full street address from an official source (web search), e.g. '700 E Main St, Richmond, VA 23219'. null if not found — never guess"),
+  city: S.strN("City, e.g. 'Richmond'"),
+  region: S.strN("US state code, e.g. 'VA' (DC for Washington DC)"),
+  website: S.strN("Official https website, only from your search results"),
+  phone: S.strN("Phone as written on the official site, or null"),
+  note: S.strN("One or two short Hebrew sentences the family sees (what it is / tips), or null"),
+  maybe: S.boolN("true = 'אולי נעצור' (optional stop)"),
+  maps_url: S.strN("A Google Maps link the user pasted for THIS place (copy it exactly), or null"),
+  wikipedia_title: S.strN("For a famous sight / city: the English Wikipedia article title (for a photo), or null"),
 };
 
 const ALL_TOOLS = {
@@ -134,18 +154,35 @@ const ALL_TOOLS = {
   set_booking_private: tool("set_booking_private", "Store private booking details for a row (family-only).", {
     item_id: S.str("Item id"), booking_ref: S.strN("Booking code"), confirmation: S.strN("Confirmation number"), private_note: S.strN("Private note"),
   }),
+  add_place: tool("add_place", "Add a place to the day-by-day route: a hotel (with check_in / check_out), a sight, a meal, a stop on the way. The server finds the exact map location from maps_url or the address — never give coordinates.", {
+    temp_id: TEMP, ...PLACE_FIELDS,
+  }),
+  update_place: tool("update_place", "Change a place on the route. null = unchanged. Give maps_url or a new address to move its map location.", {
+    place_id: S.str("Place id"), ...PLACE_FIELDS,
+  }),
+  remove_place: tool("remove_place", "Remove a place from the route (it can be restored).", { place_id: S.str("Place id") }),
+  set_day: tool("set_day", "Give a day of the trip a short Hebrew title (e.g. 'יום ביוניברסל') and / or a note.", {
+    date: S.str("YYYY-MM-DD"), title: S.strN("Short Hebrew title, or null"), note: S.strN("Short Hebrew note, or null"),
+  }),
   add_flight_segment: tool("add_flight_segment", "Record a flight from a ticket so changes can be watched later.", {
     item_id: S.strN("Flight cost row id"), carrier: S.str("Airline IATA code, e.g. LY"), number: S.str("Flight number digits"),
     date: S.str("YYYY-MM-DD"), from: S.strN("Airport IATA"), to: S.strN("Airport IATA"), sched_dep: S.strN("HH:MM local"), sched_arr: S.strN("HH:MM local"),
   }),
 };
 
+const PLACES = ["add_place", "update_place", "remove_place", "set_day"];
 const EDIT = ["add_stop", "update_stop", "remove_stop", "add_category", "update_category", "add_item", "update_item", "remove_item", "set_unit_count", "add_unit",
-  "set_traveler_count", "add_option_group", "add_option", "choose_option", "update_settings", "add_deadline", "add_checklist_row", "add_section", "update_section", "move_section"];
+  "set_traveler_count", "add_option_group", "add_option", "choose_option", "update_settings", "add_deadline", "add_checklist_row", "add_section", "update_section", "move_section",
+  ...PLACES];
 
-/** Tools offered per mode. Pasted quotes and documents can't remove things, change settings or the layout. */
+/**
+ * Tools offered per mode. Pasted quotes and documents can't remove things, change settings or the layout.
+ * "expense" = the add box inside "לאן הולך הכסף" (typed or spoken): cost rows and categories only.
+ */
 export const MODE_TOOLS = {
   sentence: EDIT,
+  expense: ["add_category", "add_item", "update_item", "add_deadline"],
+  place: [...PLACES, "add_stop", "update_stop"], // "+ הוספת מקום" on a day: the route only, no prices
   quote: ["add_item", "update_item", "add_option", "choose_option", "add_deadline", "add_checklist_row"],
   extraction: ["add_item", "update_item", "add_deadline", "set_booking_private", "add_flight_segment", "add_checklist_row"],
 };
@@ -226,6 +263,15 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     const ok = list.filter((s) => s?.url && /^https:\/\//.test(s.url) && (!allowedUrls || allowedUrls.has(s.url)));
     return ok.length ? ok.slice(0, 5).map((s) => ({ url: s.url, label: String(s.label || "").slice(0, 80), checkedAt: new Date().toISOString().slice(0, 10) })) : undefined;
   };
+  // A place's website is kept only if its site came up in this call's web searches (like row sources).
+  const host = (u) => {
+    try {
+      return new URL(u).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  };
+  const siteSeen = (u) => !u || !allowedUrls || [...allowedUrls].some((x) => host(x) === host(u));
   switch (name) {
     case "add_stop": {
       const v = { label: input.label, kind: input.kind, order: orderAfter(plan.stops, input.after_stop_id) };
@@ -383,6 +429,38 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
         ? [{ t: "update", e: "privateItems", id: input.item_id, set: v, before: Object.fromEntries(Object.keys(v).map((k) => [k, rec[k] ?? null])) }]
         : [{ t: "create", e: "privateItems", id: input.item_id, v }];
     }
+    case "add_place": {
+      if (!input.label) throw new Error("חסר שם למקום");
+      const v = { label: input.label, kind: input.kind || "sight", order: nextOrder(plan.places) };
+      Object.assign(v, placeFields(input, v.kind));
+      if (!siteSeen(v.website)) delete v.website;
+      return [{ t: "create", e: "places", id: input.temp_id, v }];
+    }
+    case "update_place": {
+      requireExisting(docs, "places", input.place_id, "מקום");
+      const rec = plan.places[input.place_id];
+      const kind = input.kind || rec.kind;
+      const set = placeFields(input, kind, rec);
+      if (!siteSeen(set.website)) delete set.website;
+      if (has(input.label)) set.label = input.label;
+      if (has(input.kind)) set.kind = input.kind;
+      if (!Object.keys(set).length) throw new Error("לא צוין מה לשנות במקום");
+      return [{ t: "update", e: "places", id: input.place_id, set, before: Object.fromEntries(Object.keys(set).map((k) => [k, rec[k] ?? null])) }];
+    }
+    case "remove_place":
+      requireExisting(docs, "places", input.place_id, "מקום");
+      return [{ t: "archive", e: "places", id: input.place_id }];
+    case "set_day": {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(input.date))) throw new Error("תאריך לא תקין");
+      const id = dayId(input.date);
+      const rec = plan.days?.[id];
+      const set = {};
+      setIfGiven(set, input, { title: "title", note: "note" });
+      if (!Object.keys(set).length) throw new Error("לא צוין מה לשנות ביום");
+      return rec
+        ? [{ t: "update", e: "days", id, set, before: Object.fromEntries(Object.keys(set).map((k) => [k, rec[k] ?? null])) }]
+        : [{ t: "create", e: "days", id, v: { date: input.date, ...set } }];
+    }
     case "add_flight_segment": {
       const v = { carrier: String(input.carrier).toUpperCase().slice(0, 3), number: String(input.number).replace(/\D/g, "").slice(0, 6), date: input.date };
       if (has(input.item_id)) v.itemId = input.item_id;
@@ -392,6 +470,42 @@ export function toolCallToOps(name, input, docs, { allowedUrls = null } = {}) {
     default:
       throw new Error(`כלי לא מוכר: ${name}`);
   }
+}
+
+/**
+ * A place's fields from a tool call. The map location (_lat / _lng), the state found by the geocoder
+ * (_region), an expanded Google Maps link (_maps_url) and a Wikipedia photo (_photo) are added by the server
+ * before this runs — the model's own input can't carry them (strict schema), so coordinates never come from it.
+ */
+function placeFields(input, kind, rec = null) {
+  const out = {};
+  setIfGiven(out, input, { address: "address", city: "city", website: "website", phone: "phone", note: "note", time: "time", end_time: "endTime" });
+  if (has(input.region) && input.region) out.region = String(input.region).toUpperCase().slice(0, 4);
+  else if (has(input._region) && !rec?.region) out.region = input._region;
+  if (kind === "hotel") {
+    if (has(input.check_in)) out.checkIn = input.check_in;
+    if (has(input.check_out)) out.checkOut = input.check_out;
+    if (rec && rec.kind !== "hotel") {
+      out.date = null;
+      out.endTime = null;
+      out.maybe = null;
+    }
+  } else {
+    if (has(input.date)) out.date = input.date;
+    if (has(input.maybe)) out.maybe = input.maybe ? true : null;
+    if (rec?.kind === "hotel") {
+      out.checkIn = null;
+      out.checkOut = null;
+    }
+  }
+  if (out.website && !/^https:\/\//.test(out.website)) delete out.website;
+  if (has(input._lat) && has(input._lng)) {
+    out.lat = input._lat;
+    out.lng = input._lng;
+  }
+  if (has(input._maps_url)) out.mapsUrl = input._maps_url;
+  if (has(input._photo)) out.photo = input._photo;
+  return out;
 }
 
 /**

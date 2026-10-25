@@ -1,6 +1,8 @@
 // Form building blocks for the editor screens. Inputs update a draft object in place and call `onChange`;
 // screens refresh only their preview nodes while typing (rebuilding the form would steal focus).
 import { h, icon } from "../ui/h.js";
+import { askFirst } from "../components/common.js";
+import { COLORS, ICONS } from "../shared/schema.js";
 
 let uid = 0;
 const nextId = () => `f${++uid}`;
@@ -80,6 +82,18 @@ export function choices(options, value, onChange, { multi = false, label = "" } 
   return wrap;
 }
 
+export function iconPicker(value, onChange) {
+  return choices(ICONS.map((n) => ({ value: n, label: "", icon: n, ariaLabel: n })), value, onChange, { label: "אייקון" });
+}
+
+export function colorPicker(value, onChange) {
+  const wrap = h("div", { class: "choice-row", role: "group", "aria-label": "צבע" });
+  const draw = () => wrap.replaceChildren(...Object.entries(COLORS).map(([key, hex]) =>
+    h("button", { type: "button", class: "choice", "aria-pressed": value === key ? "true" : "false", "aria-label": key, style: { minWidth: "48px", background: hex, borderColor: value === key ? "#1F2641" : hex, outline: value === key ? "3px solid #1F2641" : "none" }, onclick: () => { value = key; draw(); onChange(key); } })));
+  draw();
+  return wrap;
+}
+
 const PATH_HE = {
   label: "שם", title: "כותרת", "price.typical": "מחיר רגיל", "price.low": "מחיר נמוך", "price.high": "מחיר גבוה",
   categoryId: "קטגוריה", status: "סטטוס", nights: "לילות", kind: "סוג", icon: "אייקון", color: "צבע", anchorDate: "תאריך",
@@ -135,7 +149,7 @@ export function diffOp(entity, id, original, next, fields) {
   return Object.keys(set).length ? { t: "update", e: entity, id, set, before } : null;
 }
 
-export function saveBar(onSave, { onCancel, onRemove, saveLabel = "שמירה" } = {}) {
+export function saveBar(onSave, { onCancel, onRemove, removeName = "", saveLabel = "שמירה" } = {}) {
   const save = h("button", { type: "button", class: "btn" }, icon("check"), saveLabel);
   save.addEventListener("click", async () => {
     save.disabled = true;
@@ -148,5 +162,5 @@ export function saveBar(onSave, { onCancel, onRemove, saveLabel = "שמירה" }
   return h("div", { class: "btn-row" },
     save,
     h("button", { type: "button", class: "btn btn-secondary", onclick: onCancel || (() => history.back()) }, "ביטול"),
-    onRemove ? h("button", { type: "button", class: "btn btn-danger", onclick: onRemove }, icon("archive"), "הסרה") : null);
+    onRemove ? h("button", { type: "button", class: "btn btn-danger", onclick: askFirst(removeName, onRemove) }, icon("archive"), "הסרה") : null);
 }

@@ -32,6 +32,38 @@ export const STOP_KINDS = ["city", "road", "parks", "cruise", "beach", "transit"
 export const STOP_KIND_HE = {
   city: "עיר", road: "בדרך", parks: "פארקים", cruise: "שייט", beach: "חוף", transit: "מעבר", other: "אחר",
 };
+/** Places on the day-by-day route (Wanderlog-style): where we sleep, what we see, where we stop on the way. */
+export const PLACE_KINDS = ["hotel", "sight", "food", "park", "stop", "flight", "port", "shop", "other"];
+export const PLACE_KIND_HE = {
+  hotel: "לינה", sight: "אטרקציה", food: "אוכל", park: "פארק", stop: "עצירה בדרך", flight: "טיסה", port: "נמל", shop: "קניות", other: "מקום",
+};
+export const PLACE_KIND_ICON = {
+  hotel: "hotel", sight: "landmark", food: "food", park: "ferris", stop: "fuel", flight: "plane", port: "ship", shop: "bag", other: "pin",
+};
+
+/**
+ * US states ("sub country") the route may pass through: code → Hebrew name + band colour (a COLORS key).
+ * The colour always comes with the name. Codes not listed are shown as they are.
+ */
+export const REGIONS = {
+  NY: { he: "ניו יורק", color: "blue" },
+  NJ: { he: "ניו ג׳רזי", color: "teal" },
+  CT: { he: "קונטיקט", color: "slate" },
+  MA: { he: "מסצ׳וסטס", color: "brown" },
+  PA: { he: "פנסילבניה", color: "indigo" },
+  DE: { he: "דלאוור", color: "gold" },
+  MD: { he: "מרילנד", color: "plum" },
+  DC: { he: "וושינגטון הבירה", color: "magenta" },
+  VA: { he: "וירג׳יניה", color: "green" },
+  WV: { he: "מערב וירג׳יניה", color: "slate" },
+  NC: { he: "צפון קרוליינה", color: "brown" },
+  SC: { he: "דרום קרוליינה", color: "sky" },
+  GA: { he: "ג׳ורג׳יה", color: "indigo" },
+  TN: { he: "טנסי", color: "teal" },
+  AL: { he: "אלבמה", color: "plum" },
+  FL: { he: "פלורידה", color: "gold" },
+};
+
 export const SECTION_TYPES = [
   "hero", "whatsNew", "certainty", "categories", "options", "timeline", "note", "checklist", "docsShortcut", "askBox",
 ];
@@ -62,6 +94,7 @@ export const T = {
   bool: (opts = {}) => ({ type: "bool", ...opts }),
   en: (values, opts = {}) => ({ type: "enum", values, ...opts }),
   date: (opts = {}) => ({ type: "date", ...opts }),
+  time: (opts = {}) => ({ type: "time", ...opts }), // "HH:MM", 24h
   url: (opts = {}) => ({ type: "url", ...opts }),
   ref: (entity, opts = {}) => ({ type: "ref", entity, ...opts }),
   arr: (of, max, opts = {}) => ({ type: "array", of, max, ...opts }),
@@ -113,6 +146,7 @@ export const ENTITIES = {
       title: T.str(80, { required: true }),
       subtitle: T.str(120),
       startDate: T.date({ required: true }),
+      startTime: T.time(), // when the trip starts, Israel time (the flight) — the editors' countdown
       endDate: T.date({ required: true }),
       fx: T.obj({ planningRate: T.num(1, 10, { required: true }), planningRateDate: T.date() }, { required: true }),
       bufferPct: T.num(0, 50),
@@ -140,6 +174,7 @@ export const ENTITIES = {
       fill: T.bool(),
       anchorDate: T.date(),
       note: T.str(300),
+      region: T.str(4), // US state code of a stop that sits in one state (NY, FL…); empty for a road leg
     },
   },
   units: {
@@ -200,6 +235,36 @@ export const ENTITIES = {
       visible: T.bool(),
       text: T.str(1000),
     },
+  },
+  // ---- the day-by-day route ----
+  places: {
+    doc: "plan", path: "places", labelHe: "מקום במסלול",
+    fields: {
+      label: T.str(80, { required: true }),
+      kind: T.en(PLACE_KINDS, { required: true }),
+      date: T.date(), // the day of a visit / stop; hotels use checkIn + checkOut instead
+      checkIn: T.date(),
+      checkOut: T.date(),
+      time: T.time(),
+      endTime: T.time(),
+      stopId: T.ref("stops"),
+      address: T.str(200),
+      city: T.str(60),
+      region: T.str(4), // US state code
+      lat: T.num(-90, 90),
+      lng: T.num(-180, 180),
+      mapsUrl: T.url(),
+      website: T.url(),
+      phone: T.str(30),
+      note: T.str(300),
+      maybe: T.bool(), // "אולי נעצור"
+      photo: T.obj({ url: T.url({ required: true }), credit: T.str(160), page: T.url() }),
+      passIds: T.arr(T.str(40), 20), // entry tickets / boarding passes shown at the gate (later)
+    },
+  },
+  days: {
+    doc: "plan", path: "days", labelHe: "יום בטיול",
+    fields: { date: T.date({ required: true }), title: T.str(60), note: T.str(300) },
   },
   checklist: {
     doc: "plan", path: "checklist", labelHe: "משימה",

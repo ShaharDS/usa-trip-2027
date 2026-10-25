@@ -115,6 +115,11 @@ test("pasted quotes and documents get no removal, settings or layout tools", () 
   }
 });
 
+test("the expense add box offers cost rows and categories only — nothing that removes or reshapes the trip", () => {
+  const names = toolsFor("expense").map((t) => t.name);
+  assert.deepEqual([...names].sort(), ["add_category", "add_deadline", "add_item", "update_item"]);
+});
+
 test("stableStringify is order-independent and byte-stable", () => {
   assert.equal(stableStringify({ b: 1, a: { d: [3, { y: 1, x: 2 }], c: null } }), stableStringify({ a: { c: null, d: [3, { x: 2, y: 1 }] }, b: 1 }));
   const docs = seedDocs();

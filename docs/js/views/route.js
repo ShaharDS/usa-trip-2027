@@ -1,15 +1,15 @@
-// The itinerary: stops with nights and dates (resolved by the engine), holidays, deadlines, checklist.
-// renderRouteHome is the whole site for anyone who isn't an editor: built from the public route document,
-// which has no prices to show.
+// Editors' route screen and the compact cities timeline (also on the summary page). Everyone else sees the
+// day-by-day route in views/trip.js.
 import { h, icon } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
 import { STOP_KIND_HE } from "../shared/schema.js";
-import { dateHe, dateRangeHe, deadlineHe, fmtNum, nightsHe, relativeHe, warningHe } from "../shared/format.js";
+import { dateHe, dateRangeHe, deadlineHe, fmtNum, nightsHe, relativeHe, todayLocal, warningHe } from "../shared/format.js";
 import { upcomingDeadlines } from "../shared/deadlines.js";
 import { backLink, checklistItems, emptyState, pageHead, shareButton } from "../components/common.js";
 import { can } from "../store.js";
 import { stopTools } from "../edit/stops.js";
-import { startSignIn } from "./signin.js";
+import { toggleTodo } from "../edit/tools.js";
+import { routeBody } from "./trip.js";
 
 const KIND_ICON = { city: "building", road: "route", parks: "ferris", cruise: "ship", beach: "palm", transit: "pin", other: "pin" };
 
@@ -48,44 +48,18 @@ function holidaysCard(state) {
       h("li", {}, icon("calendar"), h("span", {}, `${hol.label}: ${hol.start === hol.end ? dateHe(hol.start, "long") : dateRangeHe(hol.start, hol.end)}`)))));
 }
 
-/** Home for anyone and for family: the route, holidays, and the way to the AI. */
-export function renderRouteHome(ctx) {
+/** Editors' "#/route": the day-by-day route, then cities & nights (editing), deadlines, checklist, holidays. */
+export function renderRoute(ctx, tripCtx) {
   const { state, r } = ctx;
-  const s = state.settings || {};
-  return [
-    h("section", { class: "hero", "aria-label": "הטיול" },
-      h("p", { class: "hero-title" }, s.title || "הטיול"),
-      h("p", { class: "hero-dates" }, s.startDate && s.endDate ? `${dateRangeHe(s.startDate, s.endDate)} ${s.endDate.slice(0, 4)}` : "", s.subtitle ? ` · ${s.subtitle}` : ""),
-      h("div", { class: "hero-split" },
-        h("div", {}, h("span", { class: "k" }, "נוסעים"), h("span", { class: "v num" }, fmtNum(state.travellers || 0))),
-        h("div", {}, h("span", { class: "k" }, "כמה זמן"), h("span", { class: "v" }, nightsHe(r.itinerary.tripNights || 0)))),
-      shareButton()),
-    h("section", { class: "card" }, h("h2", {}, icon("route"), "המסלול"), timelineList(ctx)),
-    holidaysCard(state),
-    can.ask()
-      ? h("section", { class: "card" },
-        h("h2", {}, icon("chat"), "שאלו את הטיול"),
-        h("p", { class: "card-sub" }, "אפשר לשאול כל שאלה על המסלול, במילים פשוטות או בהקלטה דרך המקלדת. למשל: ״מתי מגיעים לאורלנדו?״"),
-        h("a", { class: "btn", href: "#/ask" }, icon("chat"), "לשאול שאלה"))
-      : h("section", { class: "card" },
-        h("h2", {}, icon("users"), "בני משפחה"),
-        h("p", { class: "card-sub" }, "אחרי כניסה עם חשבון גוגל אפשר לשאול את ה-AI שאלות על הטיול. בקשו משחר להוסיף אתכם לרשימה."),
-        h("button", { type: "button", class: "btn btn-secondary", onclick: startSignIn }, icon("login"), "כניסה עם חשבון גוגל")),
-    h("footer", { class: "foot" },
-      s.contactText ? h("p", {}, s.contactText) : null,
-      state.updatedAt ? h("p", {}, `המסלול עודכן ${relativeHe(state.updatedAt)}`) : null),
-  ];
-}
-
-export function renderRoute(ctx) {
-  const { state, r } = ctx;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
   const deadlines = upcomingDeadlines(state, today);
   const editing = can.edit() && ctx.editMode;
   return [
     backLink(),
     pageHead("מסלול הטיול"),
+    ...routeBody(tripCtx),
     h("section", { class: "card" },
+      h("h2", {}, icon("building"), "ערים ולילות"),
       r.itinerary.warnings.map((w) => h("div", { class: "notice" }, icon("alert"), h("div", {}, warningHe(w, state)))),
       timelineList(ctx),
       editing ? stopTools.addButton(ctx) : null,
@@ -97,7 +71,7 @@ export function renderRoute(ctx) {
         ? h("ul", { class: "check-list" }, deadlines.map((d) => h("li", {}, icon("clock"), h("span", {}, deadlineHe(d)))))
         : emptyState("עוד אין מועדים. כשמזמינים משהו עם תאריך ביטול או תשלום, הוא יופיע כאן.")),
     activeList(state.checklist).length
-      ? h("section", { class: "card" }, h("h2", {}, icon("list"), "רשימת משימות"), checklistItems(activeList(state.checklist)))
+      ? h("section", { class: "card" }, h("h2", {}, icon("list"), "רשימת משימות"), checklistItems(activeList(state.checklist), can.edit() ? { onToggle: toggleTodo } : {}))
       : null,
     holidaysCard(state),
   ];

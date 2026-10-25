@@ -1,10 +1,13 @@
-// App state: the public route (everyone), the editors' documents, who is looking, and a memoized engine result.
+// App state: the public route (everyone), the family route (signed-in family), the editors' documents, who is
+// looking, and memoized engine results.
 import { computeTrip } from "./shared/engine.js";
+import { familyView } from "./shared/route.js";
 
 const listeners = new Set();
 
 export const store = {
   route: null, // the public route document (no prices) — what anyone with the link sees
+  family: null, // the family route document (hotel names, addresses, map locations; no prices) — signed-in family
   // Editors only: the whole plan (prices) and the private document. undefined = not loaded yet,
   // null = the database has no trip yet (the owner still has to load the opening data).
   docs: { plan: undefined, priv: undefined },
@@ -26,6 +29,20 @@ export function computed() {
   if (!store.docs.plan) return null;
   if (memo.rev !== store.rev) memo = { rev: store.rev, value: computeTrip(store.docs.plan) };
   return memo.value;
+}
+
+let familyMemo = { rev: -1, value: null };
+
+/**
+ * The route this person sees on the route screens: editors — built from the live plan (always current);
+ * family — the family document; everyone else — the public route.
+ */
+export function routeDoc() {
+  if (store.docs.plan) {
+    if (familyMemo.rev !== store.rev) familyMemo = { rev: store.rev, value: familyView(store.docs.plan) };
+    return familyMemo.value;
+  }
+  return store.family || store.route;
 }
 
 export function setState(patch) {

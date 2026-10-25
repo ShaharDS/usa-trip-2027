@@ -8,6 +8,7 @@ export const MAX_OPS = 60;
 export const MAX_PLAN_BYTES = 700_000;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isPlainObject = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
 
 function collectionOf(docs, entity) {
@@ -46,6 +47,9 @@ function checkValue(def, value, path, ctx, errors) {
       }
       break;
     }
+    case "time":
+      if (typeof value !== "string" || !TIME_RE.test(value)) errors.push(`${path}: שעה לא תקינה (למשל 09:30)`);
+      break;
     case "url": {
       let ok = typeof value === "string" && value.length <= 500;
       if (ok) {
@@ -131,6 +135,17 @@ export function validateRecord(entity, rec, docs, id = "_") {
     errors.push(`${path}: תאריך הסיום לפני תאריך ההתחלה`);
   }
   if (entity === "holidays" && rec.start && rec.end && rec.start > rec.end) errors.push(`${path}: החג מסתיים לפני שהוא מתחיל`);
+  if (entity === "places") {
+    // Dates outside the trip are allowed (the trip dates may move later); the route just doesn't show them.
+    if (rec.kind === "hotel") {
+      if (!rec.checkIn || !rec.checkOut) errors.push(`${path}: למלון צריך תאריך כניסה ותאריך יציאה`);
+      else if (rec.checkOut <= rec.checkIn) errors.push(`${path}: תאריך היציאה מהמלון צריך להיות אחרי תאריך הכניסה`);
+    } else if (!rec.date) {
+      errors.push(`${path}: חסר תאריך (באיזה יום?)`);
+    }
+    if ((typeof rec.lat === "number") !== (typeof rec.lng === "number")) errors.push(`${path}: מיקום במפה חלקי`);
+    if (rec.time && rec.endTime && rec.endTime < rec.time) errors.push(`${path}: שעת הסיום לפני שעת ההתחלה`);
+  }
   return errors;
 }
 

@@ -25,6 +25,7 @@ const UI = {
   archive: "archive", undo: "undo-2", eye: "eye", close: "x", sparkles: "sparkles", send: "send",
   chat: "message-circle", calendar: "calendar", clock: "clock", list: "list-checks", up: "arrow-up",
   down: "arrow-down", trash: "trash-2", refresh: "refresh-cw", external: "external-link",
+  navigation: "navigation", moon: "moon", move: "move", prev: "arrow-left", days: "calendar-days", door: "door-open",
 };
 
 const missing = ICONS.filter((n) => !CONTENT[n]);

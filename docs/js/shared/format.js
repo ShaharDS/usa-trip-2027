@@ -2,7 +2,7 @@
 // Intl adds invisible direction marks (U+200E/U+200F) — we strip them and wrap mixed-direction
 // runs in <bdi> in the UI instead, so these strings are also safe for email and the AI.
 
-import { DEADLINE_HE, ENTITIES, STATUS_HE } from "./schema.js";
+import { DEADLINE_HE, ENTITIES, REGIONS, STATUS_HE } from "./schema.js";
 
 const MARKS = /[‎‏؜]/g;
 export const strip = (s) => String(s).replace(MARKS, "").replace(/ /g, " ");
@@ -106,6 +106,47 @@ export function relativeHe(isoOrMs, now = Date.now()) {
   return dateHe(new Date(t).toISOString().slice(0, 10), "dm");
 }
 
+/**
+ * Today's date on this device, "YYYY-MM-DD" in LOCAL time. (toISOString() is UTC: in the US evening it is
+ * already tomorrow there.) Phones switch time zone on landing, so during the trip this is the local day.
+ */
+export function todayLocal(now = new Date()) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}
+
+function zoneOffsetMin(ms, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(ms).map((x) => [x.type, x.value]));
+  return (Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second) - ms) / 60_000;
+}
+
+/** The moment `date` `time` (HH:MM) happens in Israel, in ms (handles summer / winter time). */
+export function israelMoment(date, time = "00:00") {
+  const [y, m, d] = String(date).split("-").map(Number);
+  const [hh, mm] = String(time || "00:00").split(":").map(Number);
+  const wall = Date.UTC(y, m - 1, d, hh || 0, mm || 0);
+  return wall - zoneOffsetMin(wall - 3 * 3600_000, "Asia/Jerusalem") * 60_000;
+}
+
+/** Whole days / hours / minutes left until `ms` (all 0 once it has passed). */
+export function timeLeft(targetMs, now = Date.now()) {
+  const min = Math.max(0, Math.floor((targetMs - now) / 60_000));
+  return { days: Math.floor(min / 1440), hours: Math.floor((min % 1440) / 60), minutes: min % 60, done: targetMs <= now };
+}
+
+/** "עוד 340 ימים, 7 שעות ו-12 דקות" */
+export function countdownHe({ days, hours, minutes }) {
+  const d = days === 1 ? "יום אחד" : days === 2 ? "יומיים" : `${fmtNum(days)} ימים`;
+  const h = hours === 1 ? "שעה אחת" : hours === 2 ? "שעתיים" : `${hours} שעות`;
+  const m = minutes === 1 ? "דקה אחת" : `${minutes} דקות`;
+  const parts = [days ? d : null, hours ? h : null, minutes || (!days && !hours) ? m : null].filter(Boolean);
+  if (parts.length === 1) return `עוד ${parts[0]}`;
+  const last = parts.pop();
+  return `עוד ${parts.join(", ")} ${/^\d/.test(last) ? "ו-" : "ו"}${last}`;
+}
+
 export function daysUntil(iso, todayIso) {
   return Math.round((utc(iso) - utc(todayIso)) / 86_400_000);
 }
@@ -188,6 +229,9 @@ const FIELD_HE = {
   "rule.people": "מי נספר", "rule.unit": "יחידות", "rule.count": "כמות", "rule.time": "זמן",
   done: "בוצע", dueDate: "תאריך יעד", weights: "משקלים", deadlines: "מועדים", sources: "מקורות",
   bookingRef: "קוד הזמנה", confirmation: "אישור", privateNote: "הערה פרטית", documentIds: "מסמכים",
+  startTime: "שעת יציאה", date: "תאריך", checkIn: "כניסה", checkOut: "יציאה", time: "שעה", endTime: "עד שעה",
+  address: "כתובת", city: "עיר", region: "מדינה", website: "אתר", phone: "טלפון", maybe: "אולי", mapsUrl: "קישור למפה",
+  stopId: "עצירה", photo: "תמונה",
 };
 
 function recordName(e, rec, id, docs) {
@@ -204,7 +248,8 @@ function valueHe(path, value, rec) {
     return fmtMoney(value, rec?.price?.currency || "USD");
   }
   if (path === "actual.amount" && typeof value === "number") return fmtMoney(value, rec?.actual?.currency || "USD");
-  if (/date$/i.test(path) && typeof value === "string") return dateHe(value, "dm");
+  if ((/date$/i.test(path) || path === "checkIn" || path === "checkOut") && typeof value === "string") return dateHe(value, "dm");
+  if (path === "region" && typeof value === "string") return REGIONS[value]?.he || value;
   if (typeof value === "number") return fmtNum(value, 2);
   if (typeof value === "string") return value.length > 40 ? `${value.slice(0, 40)}…` : value;
   return "עודכן";
@@ -214,6 +259,7 @@ const EXPAND = new Set(["price", "actual", "fx"]);
 const SUMMARY_ONLY = {
   rule: "אופן החישוב שונה", sources: "המקורות עודכנו", deadlines: "המועדים עודכנו", stopPatch: "השינוי במסלול עודכן",
   weights: "מי נספר עודכן", notIncluded: "רשימת ״לא כלול״ עודכנה", table: "טבלת המחירים עודכנה",
+  lat: "המיקום במפה עודכן", lng: "המיקום במפה עודכן", passIds: "הכרטיסים עודכנו",
 };
 
 function getLeaf(obj, path) {

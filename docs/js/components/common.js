@@ -77,13 +77,63 @@ export function shareButton(cls = "btn btn-secondary") {
   );
 }
 
+/**
+ * "בטוחים?" before something is removed. Resolves true only when the red button is pressed; ביטול, Esc and a tap
+ * outside the box all answer false. Falls back to the browser's confirm() where <dialog> is missing.
+ */
+export function confirmDialog({ title = "בטוחים?", text = "", confirmLabel = "כן, למחוק", cancelLabel = "ביטול" } = {}) {
+  if (typeof HTMLDialogElement === "undefined" || !document.createElement("dialog").showModal) {
+    return Promise.resolve(window.confirm(text ? `${title}\n${text}` : title));
+  }
+  return new Promise((resolve) => {
+    let answer = false;
+    const close = (value) => { answer = value; dlg.close(); };
+    const cancel = h("button", { type: "button", class: "btn btn-secondary", onclick: () => close(false) }, cancelLabel);
+    const dlg = h("dialog", { class: "confirm", "aria-labelledby": "confirm-title", "aria-describedby": text ? "confirm-text" : null },
+      h("div", { class: "confirm-body" },
+        h("span", { class: "confirm-icon" }, icon("trash")),
+        h("h2", { id: "confirm-title" }, title),
+        text ? h("p", { id: "confirm-text", class: "meta" }, text) : null,
+        h("div", { class: "btn-row" },
+          h("button", { type: "button", class: "btn btn-danger-solid", onclick: () => close(true) }, icon("trash"), confirmLabel),
+          cancel)));
+    dlg.addEventListener("click", (e) => { if (e.target === dlg) close(false); }); // tap on the dimmed backdrop
+    dlg.addEventListener("close", () => { dlg.remove(); resolve(answer); });
+    document.body.append(dlg);
+    dlg.showModal();
+    cancel.focus();
+  });
+}
+
+/** The usual removal question: names the thing and says it can be undone. */
+export function confirmRemove(name, extra = "") {
+  return confirmDialog({
+    title: name ? `בטוחים שרוצים למחוק את ״${name}״?` : "בטוחים שרוצים למחוק?",
+    text: `${extra ? `${extra} ` : ""}אם התחרטתם, אפשר לבטל מיד בהודעה שלמטה או דרך ״היסטוריה״.`,
+  });
+}
+
+/** onclick handler that asks first, then runs `fn`. `name` may be a function (read when tapped). */
+export const askFirst = (name, fn, extra) => async () => {
+  if (await confirmRemove(typeof name === "function" ? name() : name, extra)) return fn();
+};
+
 export function emptyState(text) {
   return h("p", { class: "muted" }, text);
 }
 
-export function checklistItems(list) {
-  return h("ul", { class: "check-list" }, list.map((t) =>
-    h("li", {},
-      h("span", { class: `check-box ${t.done ? "on" : ""}`, role: "img", "aria-label": t.done ? "בוצע" : "עוד לא" }, t.done ? icon("check") : null),
-      h("span", { class: t.done ? "done-text" : "" }, t.label, t.dueDate ? h("span", { class: "meta" }, ` · עד ${dateHe(t.dueDate, "dm")}`) : null))));
+/** To-do rows. With `onToggle` (editors) every row is one big tap target that ticks / unticks it. */
+export function checklistItems(list, { onToggle } = {}) {
+  return h("ul", { class: "check-list" }, list.map((t) => {
+    const text = h("span", { class: t.done ? "done-text" : "" }, t.label, t.dueDate ? h("span", { class: "meta" }, ` · עד ${dateHe(t.dueDate, "dm")}`) : null);
+    if (!onToggle) {
+      return h("li", {},
+        h("span", { class: `check-box ${t.done ? "on" : ""}`, role: "img", "aria-label": t.done ? "בוצע" : "עוד לא" }, t.done ? icon("check") : null),
+        text);
+    }
+    return h("li", { class: "check-li" },
+      h("button", { type: "button", class: "check-toggle", role: "checkbox", "aria-checked": t.done ? "true" : "false", onclick: () => onToggle(t) },
+        h("span", { class: `check-box ${t.done ? "on" : ""}`, "aria-hidden": "true" }, t.done ? icon("check") : null),
+        text));
+  }));
 }

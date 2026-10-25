@@ -13,6 +13,7 @@ export const paths = {
   plan: `trips/${TRIP_ID}/plan/state`, // the whole trip with prices — editors only
   priv: `trips/${TRIP_ID}/private/state`, // booking codes, flights, AI settings — editors only
   route: `trips/${TRIP_ID}/public/state`, // price-free route for anyone with the link, derived from the plan
+  family: `trips/${TRIP_ID}/family/state`, // the same + hotel names, addresses, map locations (signed-in family), derived too
   changes: `trips/${TRIP_ID}/changes`,
   backups: `trips/${TRIP_ID}/backups`,
   proposals: `trips/${TRIP_ID}/proposals`,

@@ -13,7 +13,7 @@ import { prepareUpload } from "../ui/resize.js";
 import { can, store } from "../store.js";
 
 const KIND = { flight: ["plane", "טיסה"], hotel: ["hotel", "לינה"], car: ["car", "רכב"], cruise: ["ship", "שייט"], parks: ["ferris", "פארקים"], insurance: ["shield", "ביטוח"], other: ["file", "מסמך"] };
-const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", title: "", extract: true };
+const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", title: "", file: null, fileName: "", extract: true };
 
 function load(rerender) {
   if (state.loading) return;
@@ -31,9 +31,9 @@ async function openDoc(d) {
     const url = URL.createObjectURL(blob);
     if (win) win.location.href = url;
     else location.href = url;
-  } catch {
+  } catch (err) {
     win?.close();
-    toast("לא הצלחנו לפתוח את הקובץ.");
+    toast(err.message || "לא הצלחנו לפתוח את הקובץ.");
   }
 }
 
@@ -42,31 +42,44 @@ function sizeText(bytes) {
 }
 
 function uploadCard(rerender) {
-  const fileInput = h("input", { type: "file", class: "input", accept: "application/pdf,image/*", id: "doc-file", disabled: state.busy });
+  const chosen = h("p", { class: "meta", dir: "auto", "aria-live": "polite" }, state.fileName ? `נבחר: ${state.fileName}` : "");
+  const fileInput = h("input", {
+    type: "file", class: "input", accept: "application/pdf,image/*", id: "doc-file", disabled: state.busy,
+    onchange: (e) => { state.file = e.target.files?.[0] || null; state.fileName = state.file?.name || ""; chosen.replaceChildren(state.fileName ? `נבחר: ${state.fileName}` : ""); },
+  });
   const title = h("input", { class: "input", type: "text", dir: "auto", placeholder: "למשל: כרטיסי טיסה הלוך", value: state.title, oninput: (e) => { state.title = e.target.value; } });
   const go = async () => {
-    const file = fileInput.files?.[0];
+    // Kept in state, not read from the input: a background update re-creates the input and would forget the choice.
+    const file = state.file;
     if (!file) return toast("בחרו קובץ קודם");
     state.busy = true;
     state.error = "";
     state.proposal = null;
     state.step = "מעלה את הקובץ…";
     rerender();
+    let uploaded = false;
     try {
       const { blob, contentType, ext } = await prepareUpload(file);
       if (contentType === "application/pdf" && blob.size > 19.5 * 1024 * 1024) throw new Error("ה-PDF גדול מדי (עד 20MB).");
+      if (contentType !== "application/pdf" && blob.size > 9.5 * 1024 * 1024) throw new Error("התמונה גדולה מדי (עד 10MB).");
       const docId = newId("doc");
       const fileName = `${(file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "document").slice(0, 60)}.${ext}`;
       await uploadDoc(docId, fileName, blob, contentType);
-      state.step = state.extract ? "ה-AI קורא את המסמך… זה יכול לקחת עד דקה." : "שומר…";
+      uploaded = true;
+      state.step = state.extract ? "הקובץ הועלה. ה-AI קורא את המסמך… זה יכול לקחת עד דקה." : "שומר…";
       rerender();
       const r = await callFunction("addDocument", { docId, fileName, title: state.title || file.name, extract: state.extract });
       state.title = "";
+      state.fileName = "";
+      state.file = null;
       state.list = null;
       if (r.extracted) state.proposal = r;
       else toast("המסמך נשמר");
     } catch (err) {
-      state.error = err.message || "ההעלאה לא הצליחה.";
+      const msg = err.message || "ההעלאה לא הצליחה.";
+      // The server keeps the file listed even when reading it failed — say so, and refresh the list.
+      state.error = uploaded ? `הקובץ הועלה, אבל ${state.extract ? "קריאת המסמך עם AI" : "השמירה ברשימה"} לא הצליחה: ${msg}` : msg;
+      if (uploaded) state.list = null;
     } finally {
       state.busy = false;
       state.step = "";
@@ -75,7 +88,7 @@ function uploadCard(rerender) {
   };
   return h("section", { class: "card" },
     h("h2", {}, icon("upload"), "העלאת כרטיס או אישור הזמנה"),
-    h("div", { class: "field" }, h("label", { for: "doc-file" }, h("span", {}, "קובץ (PDF או צילום מסך)")), fileInput),
+    h("div", { class: "field" }, h("label", { for: "doc-file" }, h("span", {}, "קובץ (PDF או צילום מסך)")), fileInput, chosen),
     h("div", { class: "field" }, h("label", {}, h("span", {}, "שם המסמך"), title)),
     h("div", { class: "choice-row", role: "group", "aria-label": "לקרוא עם AI" },
       h("button", { type: "button", class: "choice", "aria-pressed": state.extract ? "true" : "false", onclick: () => { state.extract = true; rerender(); } }, icon("sparkles", "icon-sm"), "לקרוא עם AI ולהציע עדכון"),

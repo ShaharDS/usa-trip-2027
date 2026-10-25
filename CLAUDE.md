@@ -14,10 +14,12 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    `docs/js/shared/schema.js` (+ engine/renderer), not a one-off in a view.
 2. **High-level rows only** (flights, a hotel per city, car rental, parks, cruise, food, extras) — not souvenirs/lockers/Wi-Fi.
    Detailed research is AI background in `seed/reference-prices.md`, not rows.
-3. **Three levels (Shahar, 2026-10-25):** public link = **the route only** (dates, stops, nights, holidays — no prices, no AI) ·
-   family (one Google sign-in, "כניסה" button at the top of every page) = route + Ask AI, **still no prices** (the model gets
-   the route only) · editors = everything: prices, edit, documents, history, approve AI proposals. The owner manages the
-   email lists in-app (`setAccess`).
+3. **Three levels (Shahar, 2026-10-25):** public link = **the route only** (dates, stops, nights, holidays, day titles,
+   sight names, US states, a city-level map — no prices, no hotel names / addresses, no navigation buttons, no AI) ·
+   family (one Google sign-in, "כניסה" button at the top of every page) = + hotel names, addresses, Waze / Google Maps
+   buttons and Ask AI, **still no prices** · editors = everything: prices, edit, documents, history, approve AI proposals.
+   The owner manages the email lists in-app (`setAccess`). Editors land on the cost summary (with the countdown);
+   family / public land on the day-by-day route, which opens on **today** during the trip.
 4. **AI only proposes.** Every Claude edit becomes a proposal (before ← after lines with checkboxes); an editor taps אשר.
    AI v1 = Ask the trip + edit-by-sentence + paste a quote + upload a ticket. Weekly watch / email alerts / forgot-audit = later.
 5. Holidays do not constrain the cruise (they are timeline markers only). Shahar's 5 sailings × Utopia/Wonder quotes are the
@@ -36,10 +38,13 @@ technical**, opens a WhatsApp link on his phone. Static site on GitHub Pages (`d
    `OWNER_EMAIL` in `functions/.env`; emulator files `functions/.env.local` (CLAUDE_FAKE=1) and `functions/.secret.local`.
    Never type or print the real API key — the owner sets it with `firebase functions:secrets:set`.
 4. **Prices never reach anyone but editors.** `plan/state` (whole trip, prices) and `private/state` (booking codes, notes,
-   flights) are editors only; so are history, proposals, usage and documents (they all carry amounts). `public/state` is
-   generated from the plan by `routeView()` (`docs/js/shared/route.js`) inside `writeDocs` on every write — never write it
-   any other way, and never add a field to it without checking `tests/route.test.mjs`. Family's `aiAsk` uses
-   `familyContext()` (route + flight times), never `tripContext()`.
+   flights) are editors only; so are history, proposals, usage and documents (they all carry amounts). `public/state` and
+   `family/state` are generated from the plan by `routeView()` / `familyView()` (`docs/js/shared/route.js`) inside
+   `writeDocs` on every write — never write them any other way, and never add a field to them without checking
+   `tests/route.test.mjs` (public places: no address / location / link / phone / note / photo, nameless hotels, only a
+   ~10 km `near` grid). Family's `aiAsk` uses `familyContext()` (family route + flight times), never `tripContext()`.
+5b. **Coordinates never come from the model.** Places get their map location on the server (`functions/src/lib/geo.ts`:
+   Google Maps link → pin, else OpenStreetMap Nominatim on the address); the AI tool schemas have no lat/lng.
 5. **Claude API usage:** model `claude-sonnet-5-5` (Shahar's choice; changeable in Settings → AI), `thinking: {type: "adaptive"}`, effort per feature,
    `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`, `tool_choice: auto` (forced choice 400s on Sonnet 5.5 / Opus 5.5),
    strict tools, no temperature/top_p, streaming `finalMessage()`. Shapes verified against `@anthropic-ai/sdk` 1.3.0 —
@@ -64,14 +69,20 @@ USA Trip 2027/
     js/config.js            Firebase web config (public), ?emu=1 emulator switch
     js/main.js              boot, routing → views, nav, edit bar, render guard
     js/store.js router.js   state + memoized engine result; hash routes
+    data/demo-trip.json     demo mode + engine tests: cost rows and sample places (NEVER the opening data)
+    vendor/leaflet-1.9.4/   Leaflet (BSD-2), bundled; loaded only on screens with a map (OSM tiles)
     js/shared/              PURE engine: schema, engine (computeTrip, itinerary), ops (+undo), validate, format (Hebrew),
                             commit (prepareCommit/prepareUndo), aitools (AI tool schemas → ops), deadlines,
-                            route (routeView: plan → price-free public route)
-    js/views/               home (editors: renders `sections`), route (renderRouteHome = the whole site for public/family),
-                            category, options, print, ask, docs, settings (+ setupCard when no data), history, signin, footer
-    js/edit/                kit (form controls), forms (row/category/stop/section/option/question), expense (quick add +
-                            expenseOps), tools, sections, stops
-    js/components/          common (badges, chips, share), proposal (AI review card)
+                            route (routeView / familyView: plan → price-free public / family route), days (tripDays:
+                            one entry per date, tonight's hotel, states), links (Waze / Google Maps URLs), geo (Maps links)
+    js/views/               home (editors: renders `sections`; categories open in place), trip (day-by-day route: home for
+                            public/family, #/day/:date, route body), route (editors' #/route), category, options, print,
+                            ask, docs, settings (+ setupCard when no data), history, signin, footer
+    js/edit/                kit (form controls, pickers), forms (row/category/stop/section/option/question), expensePanel
+                            (inline add: by hand or AI) + expenseOps (pure), places (add/edit places on a day, AI box,
+                            day titles), tools, sections, stops
+    js/components/          common (badges, chips, share, confirmDialog / askFirst), proposal (AI review card + place
+                            check), map (Leaflet route map), voice (dictation button)
     js/data/                rest (public route via REST), live (editors: live plan + private), session (sign-in → whoami → data), commit
     js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables), storage (getBlob only)
     js/ui/                  h (DOM + automatic <bdi>), speech (dictation/read-aloud), resize (photos ≤1600px)
@@ -104,5 +115,11 @@ USA Trip 2027/
   is `undefined` while loading and `null` when the database has no trip (editors then get `setupCard`, and the functions
   refuse changes via `requireTripData`).
 - Demo mode: `?demo` = what anyone sees, `?demo=family`, `?demo=editor|owner`; the top bar's buttons switch between them.
+  Demo mode loads `data/demo-trip.json` (sample rows + places). `&today=2027-10-06` (demo only) shows the screens as on
+  that trip day.
+- Every removal goes through `askFirst()` / `confirmDialog()` (the "בטוחים?" popup). Inline boxes (`.inline-form`) keep
+  their text in module state and `main.js` holds back re-renders while a field inside one is focused.
+- Map tiles: OpenStreetMap (`tile.openstreetmap.org`, credit line under the map). CARTO's free tiles now need a key.
+- The family route is cached on the phone (`usaTrip.familyCache`) for offline use on the road; signing out removes it.
 - Auth emulator: sign in from page JS with `GoogleAuthProvider.credential(JSON.stringify({sub,email,email_verified:true}))`;
   set `localStorage.usaTrip.hadSession = "1"` so the session restores on reload.

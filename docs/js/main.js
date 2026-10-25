@@ -3,17 +3,18 @@
 // Three levels: anyone sees the route (no prices); family also asks the AI (still no prices); editors see the
 // whole plan with prices and change it.
 import { h, icon, mount, safeStorage, toast } from "./ui/h.js";
-import { can, computed, setState, store, subscribe } from "./store.js";
+import { can, computed, routeDoc, setState, store, subscribe } from "./store.js";
 import { currentRoute, onRoute, startRouter } from "./router.js";
 import { firebaseEnabled } from "./fb/lazy.js";
 import { hadSession, preloadAuth, signOutNow } from "./fb/auth.js";
 import { fetchRoute } from "./data/rest.js";
-import { startSession } from "./data/session.js";
-import { routeView } from "./shared/route.js";
+import { forgetFamilyCache, startSession } from "./data/session.js";
+import { familyView, routeView } from "./shared/route.js";
 import { renderHome } from "./views/home.js";
 import { renderCategory, itemRedirect } from "./views/category.js";
 import { renderOptions } from "./views/options.js";
-import { renderRoute, renderRouteHome } from "./views/route.js";
+import { renderRoute } from "./views/route.js";
+import { renderDay, renderTripHome, routeBody } from "./views/trip.js";
 import { renderPrint } from "./views/print.js";
 import { renderAsk } from "./views/ask.js";
 import { renderDocs } from "./views/docs.js";
@@ -22,6 +23,7 @@ import { renderSettings, setupCard } from "./views/settings.js";
 import { renderHistory } from "./views/history.js";
 import { renderEdit } from "./edit/forms.js";
 import { editTools, run } from "./edit/tools.js";
+import { openAdd } from "./edit/expensePanel.js";
 import { backLink, notice } from "./components/common.js";
 
 const CACHE_KEY = "usaTrip.routeCache";
@@ -56,7 +58,7 @@ function accountBar() {
   if (store.demo) {
     // Demo mode has no accounts: the buttons switch between the demo roles instead.
     return h("div", { class: "account-bar" },
-      h("span", { class: "account-who" }, icon("user", "icon-sm"), store.user ? `הדגמה · ${ROLE_HE[store.role] || store.role}` : "בני משפחה: שאלות ל-AI"),
+      h("span", { class: "account-who" }, icon("user", "icon-sm"), store.user ? `הדגמה · ${ROLE_HE[store.role] || store.role}` : "בני משפחה: כתובות, ניווט ושאלות"),
       store.user ? button("יציאה", "logout", () => { location.search = "?demo"; }) : button("כניסה", "login", startSignIn));
   }
   if (!store.user) {
@@ -65,7 +67,7 @@ function accountBar() {
       setTimeout(() => preloadAuth().catch(() => {}), 1200); // ready before the tap: iOS needs the popup opened synchronously
     }
     return h("div", { class: "account-bar" },
-      h("span", { class: "account-who" }, icon("users", "icon-sm"), "בני משפחה: שאלות ל-AI"),
+      h("span", { class: "account-who" }, icon("users", "icon-sm"), "בני משפחה: כתובות, ניווט ושאלות"),
       button("כניסה", "login", startSignIn));
   }
   const who = h("bdi", {}, store.user.name || store.user.email || "");
@@ -79,7 +81,7 @@ function accountBar() {
   }
   return h("div", { class: "account-bar" },
     h("span", { class: "account-who" }, icon("user", "icon-sm"), "מחובר/ת: ", who, ` · ${ROLE_HE[store.role] || ""}`),
-    button("יציאה", "logout", () => signOutNow().then(() => { location.hash = "#/"; location.reload(); })));
+    button("יציאה", "logout", () => { forgetFamilyCache(); signOutNow().then(() => { location.hash = "#/"; location.reload(); }); }));
 }
 
 function topBars() {
@@ -93,7 +95,7 @@ function topBars() {
     bars.push(h("div", { class: "editbar" },
       h("span", {}, icon("edit", "icon-sm"), store.editMode ? " מצב עריכה" : " בלי כפתורי עריכה"),
       h("span", { class: "row wrap", style: { gap: "6px" } },
-        h("button", { type: "button", onclick: () => { location.hash = "#/edit/expense/new"; } }, icon("plus", "icon-sm"), " הוצאה"),
+        h("button", { type: "button", onclick: () => { openAdd(""); if (location.hash.replace(/^#\/?/, "")) location.hash = "#/"; else render(); } }, icon("plus", "icon-sm"), " הוצאה"),
         h("button", { type: "button", onclick: () => setState({ editMode: !store.editMode }) }, store.editMode ? "להסתיר כפתורי עריכה" : "לחזור לעריכה"),
         h("button", { type: "button", onclick: () => { location.hash = "#/history"; } }, "היסטוריה"),
         h("button", { type: "button", onclick: () => { location.hash = "#/ask"; } }, icon("sparkles", "icon-sm"), " AI"))));
@@ -102,9 +104,20 @@ function topBars() {
   return bars;
 }
 
-/** Everyone but editors: the public route, shaped like the editors' context so the route views share code. */
+/** Everyone but editors: the route they may see (public, or family after sign-in) — never the plan. */
 function routeCtx() {
-  return { state: store.route, r: { itinerary: store.route.itinerary }, editMode: false, rerender: render, routeOnly: true };
+  const state = routeDoc();
+  return { state, r: { itinerary: state.itinerary }, editMode: false, rerender: render, routeOnly: true };
+}
+
+/** Editors on the route screens: the family route built from the live plan, with editing. */
+function tripCtx() {
+  return { state: routeDoc(), plan: store.docs.plan, editMode: store.editMode !== false, rerender: render, routeOnly: false };
+}
+
+/** Family / anyone: "#/route" — the whole route, day by day. */
+function routePage(ctx) {
+  return [backLink(), h("div", { class: "page-head" }, h("h1", {}, "המסלול")), ...routeBody(ctx)];
 }
 
 /** Editors: the plan and the engine. */
@@ -121,7 +134,7 @@ function editorCtx() {
   };
 }
 
-const TITLES = { home: "סיכום", route: "מסלול", ask: "שאלו את הטיול", docs: "מסמכים", settings: "הגדרות", history: "היסטוריה", print: "הדפסה", signin: "כניסה" };
+const TITLES = { home: "סיכום", route: "מסלול", day: "יום בטיול", ask: "שאלו את הטיול", docs: "מסמכים", settings: "הגדרות", history: "היסטוריה", print: "הדפסה", signin: "כניסה" };
 
 const editorsOnly = () => [backLink(), notice("החלק הזה פתוח רק לעורכי הטיול. את המסלול כולם רואים.", "info", "lock")];
 
@@ -131,11 +144,13 @@ function view(route) {
   // Anyone and family: the route only (plus the AI for family). Nothing with a price is rendered for them.
   if (!can.edit()) {
     if (route.name === "ask") return renderAsk(routeCtx());
-    if (route.name === "home" || route.name === "route") return renderRouteHome(routeCtx());
+    if (route.name === "home") return renderTripHome(routeCtx());
+    if (route.name === "route") return routePage(routeCtx());
+    if (route.name === "day") return renderDay(routeCtx(), a);
     return editorsOnly();
   }
   if (store.docs.plan === undefined) {
-    return [notice("טוען את נתוני הטיול המלאים…", "info", "clock"), ...(store.route ? renderRouteHome(routeCtx()) : [])];
+    return [notice("טוען את נתוני הטיול המלאים…", "info", "clock"), ...(store.route ? renderTripHome(routeCtx()) : [])];
   }
   if (store.docs.plan === null) return setupCard(); // no trip in the database yet: editing would fail
   const ctx = editorCtx();
@@ -144,7 +159,8 @@ function view(route) {
     case "cat": return renderCategory(ctx, a);
     case "item": location.replace(itemRedirect(ctx, a)); return [];
     case "options": return renderOptions(ctx, a);
-    case "route": return renderRoute(ctx);
+    case "route": return renderRoute(ctx, tripCtx());
+    case "day": return renderDay(tripCtx(), a);
     case "print": return renderPrint(ctx);
     case "ask": return renderAsk(ctx);
     case "docs": return renderDocs(ctx);
@@ -157,9 +173,28 @@ function view(route) {
 
 let lastRouteKey = null;
 let lastShape = null;
+let deferred = false;
+
+/** Someone is typing in a box that opens inside a page (adding an expense / a place): don't rebuild under them. */
+function typingInline() {
+  const a = document.activeElement;
+  return !!a?.closest?.(".inline-form") && /^(INPUT|TEXTAREA)$/.test(a.tagName);
+}
+// The render that was held back runs as soon as the typing box loses focus.
+document.addEventListener("focusout", () => setTimeout(() => {
+  if (deferred && !typingInline()) {
+    deferred = false;
+    render();
+  }
+}, 0));
+
 function render() {
   if (!store.route && !store.docs.plan) return;
   const route = currentRoute();
+  if (typingInline() && lastRouteKey === route.key) {
+    deferred = true;
+    return;
+  }
   // While an edit form is open, don't rebuild it on background data updates (it would erase what is typed) —
   // only when who you are / what you may see changed (e.g. sign-in finished after the form appeared).
   const shape = `${store.role}:${store.docs.plan ? 1 : 0}:${store.docs.priv ? 1 : 0}:${store.editMode}`;
@@ -193,7 +228,10 @@ function emptyPriv() {
   return { schemaVersion: 1, items: {}, flights: {}, aiSettings: { monthlyBudgetUsd: 25, dailyCapFamily: 15, dailyCapEditor: 40 } };
 }
 
+// The opening data (what "טען נתוני פתיחה" loads) has no cost rows or places; demo mode shows the demo trip,
+// which has sample rows and places so every screen has something on it.
 const loadSeed = () => fetch("data/seed-data.json", { cache: "no-cache" }).then((r) => r.json());
+const loadDemo = () => fetch("data/demo-trip.json", { cache: "no-cache" }).then((r) => r.json());
 
 async function boot() {
   const params = new URLSearchParams(location.search);
@@ -206,10 +244,11 @@ async function boot() {
 
   if (demo) {
     try {
-      const seed = await loadSeed();
+      const seed = await loadDemo();
       const editor = demoRole === "editor" || demoRole === "owner";
       setState({
         route: routeView(seed),
+        family: demoRole === "family" ? familyView(seed) : null,
         docs: editor ? { plan: seed, priv: emptyPriv() } : { plan: undefined, priv: undefined },
         role: demoRole,
         roleChecked: true,

@@ -103,7 +103,7 @@ export function resolveItinerary(state, chosen = chosenOptions(state)) {
       const start = cursor;
       const end = addDays(start, nights);
       out.push({
-        id: s.id, label: s.label, kind: s.kind, icon: s.icon, note: s.note,
+        id: s.id, label: s.label, kind: s.kind, icon: s.icon, note: s.note, region: s.region,
         nights, start, end, fill: !!s.fill, anchored: !!s.anchorDate,
       });
       cursor = end;

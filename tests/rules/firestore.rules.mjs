@@ -17,6 +17,7 @@ before(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, "config/access"), { editors: { "editor@example.com": { label: "עורך" } }, family: { "dad@example.com": { label: "אבא" } } });
     await setDoc(doc(db, "trips/usa2027/public/state"), { version: 1, settings: { title: "x" }, itinerary: { stops: [] } });
+    await setDoc(doc(db, "trips/usa2027/family/state"), { version: 1, places: { h: { label: "Hotel", address: "1 Main St" } } });
     await setDoc(doc(db, "trips/usa2027/plan/state"), { version: 1, items: { a: { price: { typical: 100, currency: "USD" } } } });
     await setDoc(doc(db, "trips/usa2027/private/state"), { items: { a: { bookingRef: "SECRET" } } });
     await setDoc(doc(db, "trips/usa2027/changes/c1"), { summary: "x" });
@@ -35,6 +36,16 @@ test("anyone can read the public route, nobody can write it", async () => {
   await assertSucceeds(getDoc(doc(anon(), "trips/usa2027/public/state")));
   await assertFails(setDoc(doc(anon(), "trips/usa2027/public/state"), { version: 99 }));
   await assertFails(setDoc(doc(as("ed", "editor@example.com"), "trips/usa2027/public/state"), { version: 99 }));
+});
+
+test("the family route (hotel names, addresses): family and editors — not strangers or anonymous", async () => {
+  const path = "trips/usa2027/family/state";
+  await assertFails(getDoc(doc(anon(), path)), "anonymous");
+  await assertFails(getDoc(doc(as("x", "stranger@gmail.com"), path)), "stranger");
+  await assertFails(getDoc(doc(as("dad", "dad@example.com", false), path)), "unverified email");
+  await assertSucceeds(getDoc(doc(as("dad", "dad@example.com"), path)), "family");
+  await assertSucceeds(getDoc(doc(as("ed", "editor@example.com"), path)), "editor");
+  await assertFails(setDoc(doc(as("ed", "editor@example.com"), path), { version: 99 }), "no browser writes");
 });
 
 test("prices (the plan) and private data: editors only — not family, strangers or anonymous", async () => {

@@ -12,6 +12,11 @@ const NULL_ITEM = {
   option_id: null, sources: null,
 };
 
+const NULL_PLACE = {
+  label: null, kind: null, date: null, check_in: null, check_out: null, time: null, end_time: null, address: null, city: null, region: null,
+  website: null, phone: null, note: null, maybe: null, maps_url: null, wikipedia_title: null,
+};
+
 function lastUserText(params: any): string {
   const first = params.messages[0];
   const content = typeof first.content === "string" ? first.content : (first.content || []).map((b: any) => b.text || "").join("\n");
@@ -50,7 +55,11 @@ export function fakeMessage(params: any): any {
   if (hasToolResults) return message([{ type: "text", text: "הצעת בדיקה: הוספתי את מה שביקשת. אשרו כדי לשמור." }], "end_turn");
 
   const calls: Array<[string, any]> = [];
-  if (/IGNORE|התעלם/i.test(text)) {
+  if (toolNames.includes("add_place") && /Hampton|Richmond|ריצ׳מונד/i.test(text)) {
+    // "+ הוספת מקום": a hotel by name — the server must find the location (the fake geocoder knows Richmond).
+    calls.push(["add_place", { ...NULL_PLACE, temp_id: "$h", label: "Hampton Inn Richmond-Downtown", kind: "hotel", check_in: "2027-10-06", check_out: "2027-10-07", time: "15:00", address: "700 E Main St, Richmond, VA 23219", city: "Richmond", region: "VA", note: "חניה בתשלום ליד המלון." }]);
+    calls.push(["set_day", { date: "2027-10-06", title: "נוסעים לריצ׳מונד", note: null }]);
+  } else if (/IGNORE|התעלם/i.test(text)) {
     // A hostile pasted quote: tries tools the quote mode doesn't offer + one legit update.
     calls.push(["update_settings", { title: "hacked", start_date: null, end_date: null, planning_rate: 1, buffer_pct: 0, card_fee_pct: null }]);
     calls.push(["remove_item", { item_id: "flights_intl" }]);
