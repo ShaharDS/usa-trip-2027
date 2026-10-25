@@ -2,7 +2,13 @@
 // proposes updates (row booked, real price, deadlines, booking code) for approval. Files go to and come back from the
 // addDocument / getDocumentFile functions — the browser never talks to Storage itself.
 import { h, icon, toast } from "../ui/h.js";
-import { backLink, emptyState, notice, pageHead } from "../components/common.js";
+import { askFirst, backLink, emptyState, notice, pageHead } from "../components/common.js";
+import { openFile } from "../components/fileViewer.js";
+import { select } from "../edit/kit.js";
+import { run } from "../edit/tools.js";
+import { activeList } from "../shared/engine.js";
+import { docLinks, linkItemOps, linkPlaceOps } from "../shared/docLinks.js";
+import { fileOf, refreshDocs } from "../data/docsIndex.js";
 import { proposalCard } from "../components/proposal.js";
 import { signInCard } from "./signin.js";
 import { dateHe, fmtNum } from "../shared/format.js";
@@ -12,7 +18,7 @@ import { blobToBase64, prepareUpload } from "../ui/resize.js";
 import { can, store } from "../store.js";
 
 const KIND = { flight: ["plane", "טיסה"], hotel: ["hotel", "לינה"], car: ["car", "רכב"], cruise: ["ship", "שייט"], parks: ["ferris", "פארקים"], insurance: ["shield", "ביטוח"], other: ["file", "מסמך"] };
-const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", reason: "", title: "", file: null, fileName: "", extract: true, reading: null };
+const state = { list: null, loading: false, busy: false, step: "", proposal: null, error: "", reason: "", title: "", file: null, fileName: "", extract: true, reading: null, linkFor: null };
 
 /** Read a saved file with the AI again (e.g. the first try failed). */
 async function readAgain(d, rerender) {
@@ -41,20 +47,6 @@ function load(rerender) {
     .then((list) => { state.list = list; })
     .catch(() => { state.error = "לא הצלחנו לטעון את רשימת המסמכים."; state.list = []; })
     .finally(() => { state.loading = false; rerender(); });
-}
-
-async function openDoc(d) {
-  const win = window.open("", "_blank"); // open synchronously (popup blockers), fill when the file arrives
-  try {
-    const r = await callFunction("getDocumentFile", { docId: d.id });
-    const bytes = Uint8Array.from(atob(r.data), (c) => c.charCodeAt(0));
-    const url = URL.createObjectURL(new Blob([bytes], { type: r.contentType }));
-    if (win) win.location.href = url;
-    else location.href = url;
-  } catch (err) {
-    win?.close();
-    toast(err.message || "לא הצלחנו לפתוח את הקובץ.");
-  }
 }
 
 function sizeText(bytes) {
@@ -90,6 +82,7 @@ function uploadCard(rerender) {
       state.fileName = "";
       state.file = null;
       state.list = null;
+      refreshDocs();
       if (r.extracted) state.proposal = r;
       else toast("המסמך נשמר");
     } catch (err) {
@@ -114,7 +107,86 @@ function uploadCard(rerender) {
       h("button", { type: "button", class: "choice", "aria-pressed": state.extract ? "false" : "true", onclick: () => { state.extract = false; rerender(); } }, "רק לשמור")),
     h("div", { class: "btn-row" }, h("button", { type: "button", class: "btn", disabled: state.busy, onclick: go }, icon("upload"), state.busy ? "רגע…" : "העלאה")),
     state.step ? h("p", { class: "meta", role: "status" }, state.step) : null,
-    h("p", { class: "meta" }, "המסמכים נראים רק לעורכים. בעמוד הציבורי אין מחירים ואין קודי הזמנה."));
+    h("p", { class: "meta" }, "המסמכים נראים רק לעורכים — חוץ ממסמך שמצרפים למקום במסלול, שאותו כל המשפחה יכולה לפתוח. אפשר לצרף מסמך גם ישר מהוצאה או ממקום במסלול."));
+}
+
+/** "מצורף ל: הוצאה ״טיסות״ · מקום ״Hilton…״" */
+function linksLine(links) {
+  const parts = [
+    ...links.items.map((x) => h("span", { class: "doc-link" }, icon("wallet", "icon-sm"), ` הוצאה: ״${x.label}״`)),
+    ...links.places.map((x) => h("span", { class: "doc-link" }, icon("pin", "icon-sm"), ` במסלול: ״${x.label}״ (המשפחה רואה)`)),
+  ];
+  return parts.length ? h("div", { class: "doc-links" }, h("span", { class: "meta" }, "מצורף ל:"), parts) : h("div", { class: "meta" }, "לא מצורף לשום הוצאה או מקום.");
+}
+
+/** Attach an existing document to a cost row or to a place on the route. */
+function linkPanel(d, rerender) {
+  const plan = store.docs.plan || {};
+  const items = activeList(plan.items);
+  const places = activeList(plan.places);
+  let itemId = items[0]?.id || "";
+  let placeId = places[0]?.id || "";
+  const file = fileOf(d);
+  const go = async (ops, doneText) => {
+    if (!ops.length) return toast("כבר מצורף לשם.");
+    try {
+      await run(ops, { doneText });
+      state.linkFor = null;
+      rerender();
+    } catch { /* the toast said why */ }
+  };
+  return h("div", { class: "inline-form" },
+    h("h3", {}, icon("upload"), ` לצרף את ״${d.title}״`),
+    items.length
+      ? h("div", { class: "field" },
+        h("label", {}, h("span", {}, "להוצאה (רק עורכים רואים)"),
+          select(items.map((x) => ({ value: x.id, label: `${x.label} — ${plan.categories?.[x.categoryId]?.label || ""}` })), itemId, (v) => { itemId = v; })),
+        h("button", { type: "button", class: "btn btn-secondary", style: { marginTop: "8px" }, onclick: () => go(linkItemOps(store.docs, itemId, d.id), `צורף ל״${plan.items[itemId]?.label}״`) }, icon("wallet", "icon-sm"), "צירוף להוצאה"))
+      : h("p", { class: "meta" }, "עוד אין הוצאות לצרף אליהן."),
+    places.length
+      ? h("div", { class: "field" },
+        h("label", {}, h("span", {}, "למקום במסלול (כל המשפחה תוכל לפתוח אותו)"),
+          select(places.map((x) => ({ value: x.id, label: `${x.label}${x.date || x.checkIn ? ` — ${dateHe(x.date || x.checkIn, "dm")}` : ""}` })), placeId, (v) => { placeId = v; })),
+        h("button", { type: "button", class: "btn btn-secondary", style: { marginTop: "8px" }, onclick: () => go(linkPlaceOps(store.docs, placeId, file), `צורף ל״${plan.places[placeId]?.label}״ במסלול`) }, icon("pin", "icon-sm"), "צירוף למקום במסלול"))
+      : h("p", { class: "meta" }, "עוד אין מקומות במסלול לצרף אליהם."),
+    h("div", { class: "btn-row" }, h("button", { type: "button", class: "btn btn-secondary", onclick: () => { state.linkFor = null; rerender(); } }, "סגירה")));
+}
+
+async function removeDoc(d, rerender) {
+  try {
+    await callFunction("deleteDocument", { docId: d.id });
+    state.list = null;
+    refreshDocs();
+    toast(`״${d.title}״ נמחק`);
+  } catch (err) {
+    toast(err.message || "המחיקה לא הצליחה.");
+  }
+  rerender();
+}
+
+function docRow(d, rerender) {
+  const [ic, kindHe] = KIND[d.kind] || KIND.other;
+  const links = docLinks(store.docs, d.id);
+  const where = [...links.items.map((x) => `ההוצאה ״${x.label}״`), ...links.places.map((x) => `״${x.label}״ במסלול`)];
+  return h("li", { class: "doc-row" },
+    h("div", { class: "row", style: { alignItems: "flex-start" } },
+      icon(ic),
+      h("div", { class: "grow" },
+        h("strong", { dir: "auto" }, d.title),
+        h("div", { class: "meta" }, `${kindHe} · ${d.uploadedAt ? dateHe(d.uploadedAt.slice(0, 10), "dm") : ""} · ${sizeText(d.size || 0)}${d.uploadedBy ? ` · ${d.uploadedBy}` : ""}`),
+        d.facts?.summary ? h("div", { class: "meta", dir: "auto" }, d.facts.summary) : null,
+        linksLine(links))),
+    h("div", { class: "btn-row" },
+      h("button", { type: "button", class: "edit-btn", onclick: () => openFile(fileOf(d)) }, icon("eye", "icon-sm"), "פתיחה"),
+      h("button", { type: "button", class: "edit-btn", onclick: () => { state.linkFor = state.linkFor === d.id ? null : d.id; rerender(); } }, icon("upload", "icon-sm"), "צירוף להוצאה / למסלול"),
+      !d.proposalId && !links.places.length
+        ? h("button", { type: "button", class: "edit-btn", disabled: !!state.reading, onclick: () => readAgain(d, rerender) }, icon("sparkles", "icon-sm"), state.reading === d.id ? "קורא…" : "לקרוא עם AI")
+        : null,
+      h("button", {
+        type: "button", class: "edit-btn edit-btn-danger",
+        onclick: askFirst(d.title, () => removeDoc(d, rerender), where.length ? `הוא יוסר גם מ${where.join(", ")}.` : "הקובץ יימחק לגמרי."),
+      }, icon("trash", "icon-sm"), "מחיקה")),
+    state.linkFor === d.id ? linkPanel(d, rerender) : null);
 }
 
 export function renderDocs(ctx) {
@@ -134,21 +206,7 @@ export function renderDocs(ctx) {
       state.list === null
         ? h("p", { class: "meta" }, "טוען…")
         : state.list.length
-          ? h("ul", { class: "check-list" }, state.list.map((d) => {
-            const [ic, kindHe] = KIND[d.kind] || KIND.other;
-            return h("li", {},
-              icon(ic),
-              h("div", { class: "grow" },
-                h("strong", { dir: "auto" }, d.title),
-                h("div", { class: "meta" }, `${kindHe} · ${d.uploadedAt ? dateHe(d.uploadedAt.slice(0, 10), "dm") : ""} · ${sizeText(d.size || 0)}${d.uploadedBy ? ` · ${d.uploadedBy}` : ""}`),
-                d.shared ? h("div", { class: "meta" }, icon("users", "icon-sm"), " מצורף למקום במסלול — כל המשפחה רואה") : null,
-                d.facts?.summary ? h("div", { class: "meta", dir: "auto" }, d.facts.summary) : null),
-              h("div", { class: "row wrap", style: { gap: "6px", justifyContent: "flex-end" } },
-                h("button", { type: "button", class: "edit-btn", onclick: () => openDoc(d) }, icon("eye", "icon-sm"), "פתיחה"),
-                !d.shared && !d.proposalId
-                  ? h("button", { type: "button", class: "edit-btn", disabled: !!state.reading, onclick: () => readAgain(d, rerender) }, icon("sparkles", "icon-sm"), state.reading === d.id ? "קורא…" : "לקרוא עם AI")
-                  : null));
-          }))
+          ? h("ul", { class: "doc-list" }, state.list.map((d) => docRow(d, rerender)))
           : emptyState("עוד אין מסמכים.")),
   ];
 }

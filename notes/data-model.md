@@ -54,7 +54,7 @@ travel order. Places outside the trip dates are allowed (dates may move) and lis
 Stops are walked in order. Anchors split the trip into stretches: trip start, every stop with an `anchorDate`, trip end. In each stretch, fixed nights are summed and the single `fill` stop gets the remainder. Too many nights → warning "חסרים X לילות"; nights left with no fill stop → warning.
 
 ## `trips/usa2027/private/state` (editors only)
-`items/{itemId}` booking code / confirmation / private note / `documentIds[]`; `flights/{id}` flight segments; `aiSettings` (model, monthly budget, daily caps, `includePrivateInAsk`).
+`items/{itemId}` booking code / confirmation / private note / `documentIds[]` (the row's documents — attached by hand or by the AI reading a ticket); `flights/{id}` flight segments; `aiSettings` (model, monthly budget, daily caps, `includePrivateInAsk`).
 
 ## Collections
 `changes/{id}` (history with `ops` + `inverseOps` for undo), `proposals/{id}` (AI), `documents/{id}` (uploaded files' metadata), `usage/{yyyy-mm}` (AI spend), `backups/{id}` (before each import), `config/access` (editors / family emails), `users/{uid}/asks`.

@@ -201,11 +201,15 @@ test("reading a file: the plain-JSON fallback when the structured request is ref
   await call("rejectProposal", { proposalId: again.proposalId }, editor);
 });
 
-test("a file attached to a place for the family: family can open it, never the editors-only ones", async () => {
+test("a file attached to a place: family can open it while it is attached; deleting it removes every link", async () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
   const r = await call("addDocument", { contentType: "image/png", fileName: "qr.png", data: png.toString("base64"), title: "QR כניסה", share: "family", placeId: "plc_rock", extract: true }, editor);
-  assert.equal(r.extracted, false, "shared files are never sent to the AI");
+  assert.equal(r.extracted, false, "files for the route are never sent to the AI");
   assert.equal(r.type, "image");
+  await rejects(call("getDocumentFile", { docId: r.docId }, dad), "PERMISSION_DENIED"); // not attached yet
+  const file = { id: r.docId, title: "QR כניסה", type: "image" };
+  await call("commitChange", { ops: [{ t: "update", e: "places", id: "plc_rock", set: { files: [file] }, before: { files: null } }] }, editor);
+  await call("commitChange", { ops: [{ t: "create", e: "privateItems", id: "nyc_attractions", v: { documentIds: [r.docId] } }] }, editor);
   const f = await call("getDocumentFile", { docId: r.docId }, dad);
   assert.equal(f.contentType, "image/png");
   assert.deepEqual([...Buffer.from(f.data, "base64")], [...png]);
@@ -213,4 +217,12 @@ test("a file attached to a place for the family: family can open it, never the e
   await rejects(call("getDocumentFile", { docId: other.docId }, dad), "PERMISSION_DENIED");
   const stranger = await googleUser("nobody@gmail.com", "x");
   await rejects(call("getDocumentFile", { docId: r.docId }, stranger), "PERMISSION_DENIED");
+  await rejects(call("deleteDocument", { docId: r.docId }, dad), "PERMISSION_DENIED");
+  const del = await call("deleteDocument", { docId: r.docId }, editor);
+  assert.equal(del.ok, true);
+  const fam = await fetch(`${FS}/trips/usa2027/family/state`, { headers: { Authorization: `Bearer ${dad}` } }).then((x) => x.json());
+  assert.equal(fam.fields.places.mapValue.fields.plc_rock.mapValue.fields.files, undefined, "unlinked from the place");
+  const priv = await fetch(`${FS}/trips/usa2027/private/state`, { headers: { Authorization: `Bearer ${editor}` } }).then((x) => x.json());
+  assert.equal(priv.fields.items.mapValue.fields.nyc_attractions.mapValue.fields.documentIds, undefined, "unlinked from the expense");
+  await rejects(call("getDocumentFile", { docId: r.docId }, editor), "NOT_FOUND");
 });

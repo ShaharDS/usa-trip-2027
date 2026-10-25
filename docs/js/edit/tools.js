@@ -5,6 +5,7 @@ import { activeList } from "../shared/engine.js";
 import { newId } from "../shared/schema.js";
 import { ID_PREFIX } from "../shared/ops.js";
 import { askFirst } from "../components/common.js";
+import { openItemAttach } from "./itemFiles.js";
 
 /** Commit with a toast that offers undo. */
 export async function run(ops, opts = {}) {
@@ -84,6 +85,8 @@ export async function removeCategory(ctx, cat) {
   return done;
 }
 
+const attachBtn = (ctx, item) => smallBtn("צירוף מסמך", "upload", () => { openItemAttach(item.id); ctx.rerender(); });
+
 const removeItemBtn = (item) =>
   smallBtn("מחיקה", "trash", askFirst(item.label, () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" נמחק` }).catch(() => {})));
 
@@ -95,12 +98,13 @@ export const editTools = {
       smallBtn("שכפול", "copy", () => run([duplicateOp("items", item, { label: `${item.label} (עותק)`, order: (item.order ?? 0) + 0.5 })], { doneText: "השורה שוכפלה" })),
       smallBtn("למעלה", "up", () => run(moveOps("items", siblings, item.id, -1)), { disabled: siblings[0]?.id === item.id }),
       smallBtn("למטה", "down", () => run(moveOps("items", siblings, item.id, 1)), { disabled: siblings.at(-1)?.id === item.id }),
+      attachBtn(ctx, item),
       removeItemBtn(item));
   },
 
-  /** Outside edit mode: just עריכה and מחיקה. */
+  /** Outside edit mode: עריכה, צירוף מסמך and מחיקה. */
   itemBasic(ctx, item) {
-    return h("div", { class: "btn-row" }, smallLink("עריכה", "edit", `#/edit/item/${encodeURIComponent(item.id)}`), removeItemBtn(item));
+    return h("div", { class: "btn-row" }, smallLink("עריכה", "edit", `#/edit/item/${encodeURIComponent(item.id)}`), attachBtn(ctx, item), removeItemBtn(item));
   },
 
   category(ctx, cat) {

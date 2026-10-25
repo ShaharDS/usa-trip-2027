@@ -5,6 +5,7 @@ import { dateHe, explainTypicalHe, fmtIls, fmtUsd, rangeIls } from "../shared/fo
 import { DEADLINE_HE, STATUS_HINT } from "../shared/schema.js";
 import { backLink, catChip, catColor, emptyState, ilsText, pageHead, rangeLine, statusBadge } from "../components/common.js";
 import { can } from "../store.js";
+import { itemFiles } from "../edit/itemFiles.js";
 
 function domainOf(url) {
   try {
@@ -41,7 +42,8 @@ export function itemCard(ctx, item, cat) {
       ? h("ul", { class: "sources" }, item.sources.map((s) =>
         h("li", {}, h("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, icon("external", "icon-sm"), s.label || domainOf(s.url)))))
       : null,
-    // Editors always get עריכה + מחיקה; edit mode adds duplicate / move.
+    itemFiles(ctx, item),
+    // Editors always get עריכה + צירוף מסמך + מחיקה; edit mode adds duplicate / move.
     editing ? ctx.editTools?.item(ctx, item) : can.edit() ? ctx.editTools?.itemBasic?.(ctx, item) : null);
 }
 

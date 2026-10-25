@@ -3,7 +3,15 @@
 _Written 2026-10-25, end of the build session; updated 2026-10-25 (second session: three access levels + the two live bugs).
 Read `CLAUDE.md` for the rules and the file map; this file is the **state of play, what was verified, and what is left**._
 
-## 0. Round 4 (2026-10-25, same session) — one route on a calendar, old-site look, files on places
+## 0. Documents, managed in one place (2026-10-25, same session) — deployed + pushed
+Every file lives once in "מסמכים" (`documents` collection). Links: a cost row → `privateItems.documentIds` (editors
+only), a place → `places.files` (family can open it while it is attached — `getDocumentFile` checks the plan).
+`shared/docLinks.js` (links, link / unlink ops). Expense rows: "צירוף מסמך" + file buttons (`edit/itemFiles.js`).
+Documents page: where each file is attached, "צירוף להוצאה / למסלול" for an existing file, and "מחיקה"
+(`deleteDocument`: unlinks everywhere as one change in the history, then deletes the file). Also fixed: the
+"someone else changed it" check compared objects as JSON text (field order) — `sameValue` now sorts keys.
+
+## 0a. Round 4 (2026-10-25, same session) — one route on a calendar, old-site look, files on places
 Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md` (round 4). Why: Shahar found the route confusing — editing
 didn't show everywhere and the cruise was stuck on 15–18 (the "באיזו הפלגה?" option's `stopPatch` pinned it).
 - **Model:** every part (stop) has real dates (`anchorDate` + `nights`); `shared/calendar.js` (owners per night,

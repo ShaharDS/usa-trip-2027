@@ -719,3 +719,16 @@ a.cal-c:hover { box-shadow: 0 0 0 2px var(--primary-soft); }
 .viewer-body { flex: 1; min-height: 0; display: grid; place-items: center; padding: 10px; overflow: auto; }
 .viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: crisp-edges; }
 .viewer-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 14px 14px; }
+
+.item-files { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--border); }
+.item-files > .meta { margin: 0 0 2px; }
+
+/* ---------- documents page ---------- */
+.doc-list { list-style: none; margin: 0; padding: 0; }
+.doc-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.doc-row:last-child { border-bottom: 0; }
+.doc-links { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; font-size: var(--fs-meta); }
+.doc-link { display: inline-flex; align-items: center; gap: 4px; background: var(--primary-soft); color: #0A3E75; border-radius: 999px; padding: 2px 10px; }
+.doc-link .icon { width: 16px; height: 16px; }
+.edit-btn-danger { color: var(--danger); border-color: var(--danger-soft); }
+.edit-btn-danger:hover { background: var(--danger-soft); }

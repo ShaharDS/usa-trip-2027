@@ -1,8 +1,9 @@
 // Tickets and confirmations. The browser never touches Storage: it sends the file to addDocument (checked: editor,
 // PDF / JPG / PNG / WEBP by its first bytes, size), which saves it with the admin SDK; getDocumentFile hands it back.
 // So no Storage rules, cross-service IAM role or bucket CORS are involved.
-//   - Editors' documents (they carry prices) are editors-only. A file attached to a place on the route for the
-//     family ("share: family" — a booking confirmation, a QR) is marked `shared`, and family may open it too.
+//   - Editors' documents (they carry prices) are editors-only. A file attached to a place on the route
+//     (`places.files` — a booking confirmation, a QR) may be opened by the family too, for as long as it is attached.
+//   - deleteDocument removes every link to a file (one change in the history, like any edit), then the file.
 //   - Reading with the AI: step 1 reads the file with NO tools (structured JSON; plain JSON if the structured
 //     request is refused); those facts — never the raw document — feed step 2, the proposal (row booked, real
 //     price, deadlines, private booking code, flight segments). An editor approves as usual. readDocument re-runs
@@ -12,7 +13,9 @@ import * as logger from "firebase-functions/logger";
 import { getStorage } from "firebase-admin/storage";
 import { db, paths, REGION, TRIP_ID } from "./lib/admin.js";
 import { requireRole, type Caller } from "./lib/access.js";
-import { badRequest, readDocs, requireTripData } from "./lib/state.js";
+import { badRequest, readDocs, rejectPrepared, requireTripData, writeDocs } from "./lib/state.js";
+import { prepareCommit } from "./shared/commit.js";
+import { linkedToPlace, unlinkAllOps } from "./shared/docLinks.js";
 import { aiSettingsOf, reserve, settle } from "./lib/caps.js";
 import { ANTHROPIC_API_KEY, addUsage, createMessage, emptyUsage, textOf, toHttpsError, type Usage } from "./lib/claude.js";
 import { EXTRACT_SYSTEM } from "./lib/prompts.js";
@@ -227,9 +230,40 @@ export const getDocumentFile = onCall({ region: REGION, memory: "512MiB" }, asyn
     throw new HttpsError("not-found", "המסמך לא נמצא.", { messageHe: "המסמך לא נמצא." });
   }
   const editor = caller.role === "editor" || caller.role === "owner";
-  if (!editor && rec?.shared !== true) {
+  if (!editor && !linkedToPlace((await readDocs()).plan, docId)) {
     throw new HttpsError("permission-denied", "המסמך הזה פתוח רק לעורכי הטיול.", { messageHe: "המסמך הזה פתוח רק לעורכי הטיול." });
   }
   const [buf] = await getStorage().bucket().file(path).download();
   return { contentType: String(rec?.contentType || "application/octet-stream"), fileName: String(rec?.fileName || "document"), data: buf.toString("base64") };
+});
+
+/** Delete a document: unlink it from every cost row and place (one change in the history), then the file. */
+export const deleteDocument = onCall({ region: REGION, memory: "512MiB" }, async (req) => {
+  const caller = await requireRole(req, "editor");
+  const docId = String(req.data?.docId || "");
+  if (!ID_RE.test(docId)) badRequest("מסמך לא מוכר.");
+  const docRef = db.collection(paths.documents).doc(docId);
+  const snap = await docRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "המסמך כבר לא קיים.", { messageHe: "המסמך כבר לא קיים." });
+  const rec = snap.data() || {};
+  const changeRef = db.collection(paths.changes).doc();
+  await db.runTransaction(async (tx) => {
+    const docs = await readDocs(tx);
+    const ops = unlinkAllOps(docs, docId);
+    if (!ops.length) return;
+    requireTripData(docs);
+    const prepared = prepareCommit(docs, ops, {
+      now: new Date().toISOString(), byUid: caller.uid, byLabel: caller.label, source: "manual",
+      summary: `המסמך "${String(rec.title || "").slice(0, 80)}" נמחק ונותק מהמסלול ומההוצאות`, changeId: changeRef.id,
+    });
+    if (!prepared.ok) rejectPrepared(prepared);
+    writeDocs(tx, prepared.docs);
+    tx.set(changeRef, prepared.change);
+  });
+  const path = String(rec.path || "");
+  if (path.startsWith(`trips/${TRIP_ID}/docs/${docId}/`)) {
+    await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+  }
+  await docRef.delete();
+  return { ok: true, docId };
 });
