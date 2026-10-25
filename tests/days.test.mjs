@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { familyView, routeView } from "../docs/js/shared/route.js";
-import { dayId, nightStops, placesOutside, regionInfo, tripDays, tripPhase } from "../docs/js/shared/days.js";
+import { dayId, nightStops, placesOutside, regionInfo, tripDays, tripParts, tripPhase } from "../docs/js/shared/days.js";
 import { dayRouteUrls, googleMapsUrl, googlePlaceUrl, wazeUrl } from "../docs/js/shared/links.js";
 import { applyOps } from "../docs/js/shared/ops.js";
 import { validateOps } from "../docs/js/shared/validate.js";
@@ -112,4 +112,14 @@ test("a long day is split into parts of at most 3 stops in between", () => {
   assert.equal(new URL(legs[0].url).searchParams.get("waypoints").split("|").length, 3);
   assert.equal(legs[1].from, "E");
   assert.equal(legs.at(-1).to, "Z");
+});
+
+test("parts of the trip: runs of days in the same stop, and flying home on its own", () => {
+  const parts = tripParts(tripDays(routeView(seed())));
+  assert.deepEqual(parts.map((p) => [p.key, p.nights]), [["s:nyc", 6], ["s:road", 2], ["s:orlando", 7], ["s:cruise", 3], ["home", 0]]);
+  assert.equal(parts[0].from, "2027-09-30");
+  assert.equal(parts[0].to, "2027-10-05");
+  assert.deepEqual(parts[1].regions, ["NY", "PA", "DC", "SC", "GA"]);
+  assert.ok(parts.at(-1).home);
+  assert.equal(parts.reduce((n, p) => n + p.days.length, 0), 19);
 });

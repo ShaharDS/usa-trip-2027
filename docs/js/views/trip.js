@@ -3,10 +3,10 @@
 // familyView(plan) — through tripDays() (shared/days.js). During the trip the home screen opens on today.
 import { h, icon, tint } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
-import { nightStops, placesOutside, regionInfo, sleepIn, tripDays, tripPhase } from "../shared/days.js";
+import { nightStops, placesOutside, regionInfo, sleepIn, tripDays, tripParts, tripPhase } from "../shared/days.js";
 import { dayRouteUrls, googleMapsUrl, wazeUrl } from "../shared/links.js";
 import { COLORS, PLACE_KIND_HE, PLACE_KIND_ICON } from "../shared/schema.js";
-import { dateHe, dateRangeHe, daysUntil, fmtNum, nightsHe, relativeHe, todayLocal } from "../shared/format.js";
+import { dateHe, dateRangeHe, dayMonthHe, daysUntil, fmtNum, nightsHe, relativeHe, todayLocal, weekdayLetterHe } from "../shared/format.js";
 import { backLink, notice, shareButton } from "../components/common.js";
 import { routeMap } from "../components/map.js";
 import { can, store } from "../store.js";
@@ -208,73 +208,115 @@ export function renderDay(ctx, date) {
   ];
 }
 
-/** A day in the list: number, date, title, what's on, where we sleep. */
-function dayCard(day, isToday) {
+// ---------------------------------------------------------------- the route, part by part
+
+/** One colour per part of the trip (always shown with its name), in trip order. */
+const PART_COLORS = ["blue", "teal", "indigo", "magenta", "green", "gold", "plum", "sky", "brown"].map((k) => COLORS[k]);
+const partColor = (part) => (part.home ? COLORS.slate : PART_COLORS[part.index % PART_COLORS.length]);
+const STOP_ICON = { city: "building", road: "route", parks: "ferris", cruise: "ship", beach: "palm", transit: "pin", other: "pin" };
+const partIcon = (part) => (part.home ? "plane" : part.stop?.icon || STOP_ICON[part.stop?.kind] || "pin");
+const partName = (part) => (part.home ? "חוזרים הביתה" : part.stop?.label || "עוד לא נקבע איפה ישנים");
+const partWhen = (part) => (part.home
+  ? dateHe(part.from, "long")
+  : `${nightsHe(part.nights)} · ${part.from === part.to ? dateHe(part.from, "dm") : `${dayMonthHe(part.from)}–${dayMonthHe(part.to)}`}`);
+const partId = (part) => `part-${part.index}`;
+
+/** The title of a day inside its part (the part already says the city, so don't repeat it). */
+function cardTitle(day, part) {
+  if (day.title) return day.title;
+  if (day.last) return "טסים הביתה";
+  if (day.first) return "יוצאים לדרך";
+  if (day.checkOut && day.checkIn) return `נוסעים: ${day.checkOut.city || placeName(day.checkOut)} ← ${day.checkIn.city || placeName(day.checkIn)}`;
+  if (day.leaving) return `${day.leaving.label} ← ${part.stop?.label || ""}`;
+  if (day === part.days[0] && !part.home && part.index > 0) return `מגיעים ל${part.stop?.label || ""}`;
+  return "";
+}
+
+/** A day: a calendar tile, the title, today's places (numbered, in the part's colour), a new hotel. */
+function dayCard(day, part, color, isToday) {
+  const title = cardTitle(day, part);
   const shown = day.places.slice(0, 3);
+  const newHotel = day.checkIn || (day === part.days[0] ? day.sleep : null);
   return h("li", {},
     h("a", { class: ["day-card", isToday ? "day-card-today" : ""], href: dayHref(day.date), id: `day-${day.date}` },
-      h("span", { class: "day-card-num" }, h("span", { class: "v num" }, fmtNum(day.n)), h("span", { class: "k" }, dateHe(day.date, "wshort"))),
-      h("span", { class: "grow" },
-        h("span", { class: "day-card-title", dir: "auto" }, isToday ? h("span", { class: "today-tag" }, "היום") : null, autoTitle(day) || dateHe(day.date, "dm")),
+      h("span", { class: "date-tile", style: { borderColor: color, background: tint(color, 0.08) } },
+        h("span", { class: "dt-week" }, weekdayLetterHe(day.date)),
+        h("span", { class: "dt-date num" }, dayMonthHe(day.date))),
+      h("span", { class: "grow day-card-text" },
+        h("span", { class: "day-card-top" },
+          isToday ? h("span", { class: "today-tag" }, icon("sun", "icon-sm"), "היום") : null,
+          h("span", { class: "day-card-n" }, `יום ${fmtNum(day.n)}`),
+          title ? h("span", { class: "day-card-title", dir: "auto" }, title) : null),
         shown.length
-          ? h("span", { class: "day-card-places" }, shown.map((p) => h("span", { class: "mini-place" }, icon(PLACE_KIND_ICON[p.kind] || "pin", "icon-sm"), h("span", { dir: "auto" }, placeName(p)))),
-            day.places.length > 3 ? h("span", { class: "meta" }, `ועוד ${fmtNum(day.places.length - 3)}`) : null)
-          : null,
-        !day.last && (day.sleep || day.stop)
-          ? h("span", { class: "day-card-sleep meta" }, icon("moon", "icon-sm"), " ", h("span", { dir: "auto" }, day.sleep ? placeName(day.sleep) : `ב${day.stop.label}`))
+          ? h("span", { class: "day-card-places" }, shown.map((p, i) =>
+            h("span", { class: "mini-place" }, h("span", { class: "mini-n", style: { background: p.maybe ? "#8A93A6" : color } }, String(i + 1)), h("span", { dir: "auto" }, placeName(p)))),
+          day.places.length > 3 ? h("span", { class: "meta" }, `ועוד ${fmtNum(day.places.length - 3)}`) : null)
+          : !title ? h("span", { class: "meta" }, "יום חופשי — עוד לא תכננו") : null,
+        newHotel && !day.last
+          ? h("span", { class: "day-card-sleep" }, icon("moon", "icon-sm"), h("span", { dir: "auto" }, placeName(newHotel)))
           : null),
       icon("next", "chev")));
 }
 
-/** The days, under a coloured band each time the state we sleep in changes. */
-function dayList(days, todayIso) {
-  const groups = [];
-  for (const d of days) {
-    const code = d.last ? "" : d.sleep?.region || d.stop?.region || d.regions.at(-1) || "";
-    const g = groups.at(-1);
-    if (g && g.code === code) g.days.push(d);
-    else groups.push({ code, days: [d] });
-  }
-  return groups.map((g) => {
-    const r = regionInfo(g.code);
-    return h("section", { class: "day-group", style: { "--band": r?.color || COLORS.slate } },
-      h("h3", { class: "day-group-head" },
-        r ? [h("span", { class: "region-dot", style: { background: r.color } }), r.he, r.he !== g.code ? h("bdi", { class: "region-code" }, g.code) : null] : (g.days[0].last ? "חוזרים הביתה" : "בדרך"),
-        h("span", { class: "meta" }, g.days.length > 1 ? ` · ימים ${fmtNum(g.days[0].n)}–${fmtNum(g.days.at(-1).n)}` : ` · יום ${fmtNum(g.days[0].n)}`)),
-      h("ol", { class: "day-list" }, g.days.map((d) => dayCard(d, d.date === todayIso))));
+/** The "}" that holds a part's days together (pure CSS: two curls, two stems, the point). */
+function brace(color) {
+  return h("div", { class: "brace-col", "aria-hidden": "true", style: { color } },
+    h("div", { class: "brace" }, ["b-top", "b-stem", "b-pt1", "b-pt2", "b-stem", "b-bot"].map((c) => h("span", { class: c }))),
+    h("span", { class: "brace-dot", style: { background: color } }));
+}
+
+/** One part of the trip: its name, nights and dates, states — and its days inside the bracket. */
+function partSection(part, todayIso) {
+  const color = partColor(part);
+  return h("section", { class: "card part", id: partId(part), style: { "--part": color } },
+    h("header", { class: "part-head" },
+      h("span", { class: "part-icon", style: { background: color } }, icon(partIcon(part))),
+      h("div", { class: "grow" },
+        h("h3", { class: "part-name" }, partName(part)),
+        h("p", { class: "part-when" }, partWhen(part)),
+        part.regions.length && !part.home ? regionChips(part.regions) : null)),
+    h("div", { class: "part-body" },
+      brace(color),
+      h("ol", { class: "day-list" }, part.days.map((d) => dayCard(d, part, color, d.date === todayIso)))));
+}
+
+/** "המסלול במבט אחד": the parts as a coloured bar, the map (pins in the parts' colours) and the parts list. */
+function overview(ctx, parts) {
+  if (!parts.length) return null;
+  const nights = nightStops(ctx.state);
+  const partOfDate = (date) => parts.find((p) => p.from <= date && date <= p.to) || parts[0];
+  const pts = nights.map((s) => {
+    const part = partOfDate(s.from);
+    return { lat: s.lat, lng: s.lng, n: part.index + 1, color: partColor(part) };
   });
-}
-
-/** Overview map + the nights in order (the legend). */
-function overview(ctx) {
-  const stops = nightStops(ctx.state);
-  const pts = stops.map((s, i) => ({ lat: s.lat, lng: s.lng, n: i + 1, color: regionInfo(s.region)?.color || COLORS.slate }));
-  const map = routeMap(pts, { label: "מפת המסלול: איפה ישנים בכל שלב", height: 300 });
-  if (!stops.length) return null;
+  const total = parts.reduce((n, p) => n + Math.max(p.nights, 0.6), 0);
   return h("section", { class: "card" },
-    h("h2", {}, icon("map"), "המסלול על המפה"),
-    map,
-    h("ol", { class: "legend" }, stops.map((s, i) => {
-      const r = regionInfo(s.region);
-      return h("li", {},
-        h("span", { class: "legend-n", style: { background: r?.color || COLORS.slate } }, String(i + 1)),
-        h("span", { class: "grow" }, h("strong", { dir: "auto" }, s.label), r ? h("span", { class: "meta" }, ` · ${r.he}`) : null,
-          h("span", { class: "meta", style: { display: "block" } }, `${nightsHe(s.nights)} · מ-${dateHe(s.from, "dm")}`)));
-    })));
+    h("h2", {}, icon("map"), "המסלול במבט אחד"),
+    h("div", { class: "parts-bar", "aria-hidden": "true" }, parts.map((p) =>
+      h("span", { style: { flexGrow: String(Math.max(p.nights, 0.6) / total), background: partColor(p) } }, p.nights >= 2 ? String(p.nights) : ""))),
+    routeMap(pts, { label: "מפת המסלול: איפה ישנים בכל חלק של הטיול", height: 280 }),
+    h("ol", { class: "parts-list" }, parts.map((p) =>
+      h("li", {},
+        h("button", { type: "button", class: "part-link", onclick: () => document.getElementById(partId(p))?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+          h("span", { class: "legend-n", style: { background: partColor(p) } }, String(p.index + 1)),
+          h("span", { class: "grow" },
+            h("strong", {}, partName(p)),
+            h("span", { class: "meta", style: { display: "block" } }, partWhen(p), p.regions.length && !p.home ? ` · ${p.regions.map((r) => regionInfo(r).he).join(" ← ")}` : "")),
+          icon("down", "icon-sm"))))));
 }
 
-/** The route: map, then every day (grouped by state). Shared by the home screen and #/route. */
+/** The route: the overview, then every part with its days. Shared by the home screen and #/route. */
 export function routeBody(ctx) {
   const days = tripDays(ctx.state);
+  const parts = tripParts(days);
   const t = today();
   const outside = can.edit() && !ctx.routeOnly ? placesOutside(ctx.state) : [];
   return [
-    overview(ctx),
+    overview(ctx, parts),
     outside.length ? notice(`${outside.length === 1 ? "מקום אחד" : `${fmtNum(outside.length)} מקומות`} מחוץ לתאריכי הטיול, ולכן לא מופיעים באף יום: ${outside.map((p) => p.label).join(", ")}`, "", "alert") : null,
-    h("section", { class: "card" },
-      h("h2", {}, icon("days"), "יום אחרי יום"),
-      h("p", { class: "card-sub" }, "לחצו על יום כדי לראות מה עושים בו, איפה ישנים, וכפתורי ניווט."),
-      dayList(days, t)),
+    h("h2", { class: "section-title" }, icon("days"), "יום אחרי יום"),
+    h("p", { class: "meta section-sub" }, "לחצו על יום כדי לראות מה עושים בו, איפה ישנים, וכפתורי ניווט."),
+    parts.map((p) => partSection(p, t)),
   ];
 }
 

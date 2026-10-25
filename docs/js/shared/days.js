@@ -62,6 +62,25 @@ export function tripDays(route) {
   return out;
 }
 
+/**
+ * Parts of the trip, in order: runs of days that sleep in the same stop (a city, the road south, the cruise).
+ * The last day (flying home) is a part of its own. {key, stop, days, from, to, nights, regions, home, index}
+ */
+export function tripParts(days) {
+  const parts = [];
+  for (const d of days) {
+    const key = d.last ? "home" : d.stop ? `s:${d.stop.id}` : "none";
+    const cur = parts.at(-1);
+    if (cur && cur.key === key) cur.days.push(d);
+    else parts.push({ key, stop: d.last ? null : d.stop, days: [d] });
+  }
+  return parts.map((p, index) => {
+    const regions = [];
+    for (const d of p.days) for (const r of d.regions) if (!regions.includes(r)) regions.push(r);
+    return { ...p, index, home: p.key === "home", from: p.days[0].date, to: p.days.at(-1).date, nights: p.key === "home" ? 0 : p.days.length, regions };
+  });
+}
+
 /** Where today falls: {phase: "before" | "during" | "after", index} (index of today's day while "during"). */
 export function tripPhase(route, today) {
   const s = route?.settings || {};

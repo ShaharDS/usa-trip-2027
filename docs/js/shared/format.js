@@ -147,6 +147,15 @@ export function countdownHe({ days, hours, minutes }) {
   return `עוד ${parts.join(", ")} ${/^\d/.test(last) ? "ו-" : "ו"}${last}`;
 }
 
+const WEEKDAY_LETTER = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+/** "ה׳" (Thursday) — the day of the week as on a Hebrew calendar. */
+export const weekdayLetterHe = (iso) => WEEKDAY_LETTER[new Date(utc(iso)).getUTCDay()];
+/** "30.9" */
+export const dayMonthHe = (iso) => {
+  const [, m, d] = String(iso).split("-").map(Number);
+  return `${d}.${m}`;
+};
+
 export function daysUntil(iso, todayIso) {
   return Math.round((utc(iso) - utc(todayIso)) / 86_400_000);
 }
