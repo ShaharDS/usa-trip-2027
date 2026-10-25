@@ -939,28 +939,31 @@ const DEFAULT_PARAMS = {
 
 /* ===== FLIGHT OPTIONS (Skyscanner, 24.10.2026, one way per person, economy, estimates) ===== */
 PLACES.jfkApt = { name: "מלון ליד שדה התעופה JFK", short: "ליד JFK", lat: 40.668, lng: -73.80 };
-const FLIGHT_SRC = "Skyscanner, 24.10.2026 · כיוון אחד לאדם, מחלקת תיירים · הערכה";
+const FLIGHT_SRC = "Skyscanner, 24.10.2026 (עודכן 25.10.2026: ארקיע 21.10 ואל על ממיאמי 18–19.10) · כיוון אחד לאדם, מחלקת תיירים · הערכה, חוץ ממה שמסומן \"מחיר במכירה\"";
 const FP = {
   "flt.out.ly.w1": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
   "flt.out.ly.w2": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 4.10"],
   "flt.out.iz.w1": [612, "ארקיע ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
   "flt.out.hifly.w2": [374, "HiFly Malta ישירה, תל אביב ← ניו יורק (JFK), 4.10 · יוצאת 00:05, נוחתת כ-06:00"],
-  "flt.ret.ly.mia.1810": [1449, "אל על ישירה, מיאמי (MIA) ← תל אביב, 18.10"],
-  "flt.ret.ly.mia.1910": [1274, "אל על ישירה, מיאמי (MIA) ← תל אביב, 19.10"],
+  "flt.ret.ly.mia.1810": [886, "אל על ישירה, מיאמי (MIA) ← תל אביב, 18.10"],
+  "flt.ret.ly.mia.1910": [886, "אל על ישירה, מיאמי (MIA) ← תל אביב, 19.10"],
   "flt.ret.ly.mia.2110": [845, "אל על ישירה, מיאמי (MIA) ← תל אביב, 21.10"],
   "flt.ret.mco": [800, "אורלנדו (MCO) ← תל אביב, עצירה אחת"],
   "flt.ret.jfk.1810": [391, "HiFly Malta ישירה, ניו יורק (JFK) ← תל אביב, 18.10"],
   "flt.ret.jfk.1910": [375, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 19.10"],
-  "flt.ret.jfk.2110": [637, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 21.10 (הערכה, עוד לא במכירה)"],
+  "flt.ret.jfk.2110": [359, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 21.10 · יוצאת 17:00 · כולל מזוודה 23 ק״ג"],
   "flt.dom": [220, "טיסה פנימית מיאמי/אורלנדו ← ניו יורק (JFK)"],
   "bag.dom": [45, "מזוודה ראשונה בטיסה הפנימית"],
 };
+/* prices confirmed on sale (no "הערכה" badge) */
+const FP_ONSALE = { "flt.ret.jfk.2110": "מחיר במכירה" };
 const FP_NOTE = {
   "flt.out.iz.w1": "הזול ביותר עם עצירה: Iberia דרך מדריד, $584",
-  "flt.ret.ly.mia.2110": "חלופה עם עצירה: TAP דרך ליסבון, $775",
   "flt.ret.jfk.1810": "אל על באותו יום: $697",
   "flt.ret.jfk.1910": "אל על באותו יום: $697",
-  "flt.ret.jfk.2110": "ב-18–19.10 ארקיע עלתה כ-$375, אז ייתכן שיירד. אל על $807, LOT דרך ורשה $885",
+  "flt.ret.jfk.2110": "נבדק ב-25.10.2026. חלופות: אל על $807, LOT דרך ורשה $885",
+  "flt.ret.ly.mia.1810": "באתר אל על אין מקומות ב־18.10",
+  "flt.ret.ly.mia.2110": "עוד לא במכירה. חלופה עם עצירה: TAP דרך ליסבון, $775",
   "flt.dom": "MIA: כ-$195–261 (American, Delta) · MCO: Delta $219, JetBlue $244",
 };
 const FOPT = {
@@ -1822,7 +1825,7 @@ function FlightChooser({ x, pick }) {
     <ul className="fo-legs">
       <li>הלוך: ${bidi(fl.outLabel)} · <${Price} id=${fl.outId} base=${FP[fl.outId][0]} /> <${Kind} k="הערכה" />${FP_NOTE[fl.outId] ? html`<small> (${bidi(FP_NOTE[fl.outId])})</small>` : null}</li>
       ${fl.dom ? html`<li>טיסה פנימית ל-JFK: <${Price} id="flt.dom" base=${FP["flt.dom"][0]} /> לאדם <${Kind} k="הערכה" /><small> (${bidi(FP_NOTE["flt.dom"])})</small></li>` : null}
-      <li>חזור: ${bidi(fl.retLabel || "")} · ${fl.retId ? html`<${Price} id=${fl.retId} base=${FP[fl.retId][0]} />` : usd(fl.ret)} <${Kind} k="הערכה" />${fl.retId && FP_NOTE[fl.retId] ? html`<small> (${bidi(FP_NOTE[fl.retId])})</small>` : null}</li>
+      <li>חזור: ${bidi(fl.retLabel || "")} · ${fl.retId ? html`<${Price} id=${fl.retId} base=${FP[fl.retId][0]} />` : usd(fl.ret)} <${Kind} k=${(fl.retId && FP_ONSALE[fl.retId]) || "הערכה"} />${fl.retId && FP_NOTE[fl.retId] ? html`<small> (${bidi(FP_NOTE[fl.retId])})</small>` : null}</li>
     </ul>
     ${fl.outId === "flt.out.hifly.w2" ? html`<div className="fo-note warn">⚠ ${bidi(FLIGHT_NOTES.hifly)}</div>` : null}
     ${x.fo === "B" ? html`<div className="fo-note">🏨 ${bidi(FLIGHT_NOTES.jfk)}</div>` : null}
@@ -1834,7 +1837,7 @@ function FlightChooser({ x, pick }) {
 function FlightCalc({ r, sch, bud, p, sp, rp, setRpMany }) {
   const f = flightOf(sch), fl = bud.fl;
   const outLbl = r.outbound.options ? legLabel(r.outbound.options, rp.outOpt || r.outbound.def) : (fl.outLabel || r.outbound.label) + " ($" + fl.out + ", הערכה)";
-  const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : fl.retLabel ? fl.retLabel + " ($" + fl.ret + ", הערכה)" : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
+  const retLbl = f.options ? legLabel(f.options, rp.retOpt || f.def) : fl.retLabel ? fl.retLabel + " ($" + fl.ret + ", " + ((fl.retId && FP_ONSALE[fl.retId]) || "הערכה") + ")" : f.label + " ($" + fl.ret + (f.priceRange ? ", טווח \u2066" + f.priceRange + "\u2069" : "") + ")";
   const combos = r.outbound.options && f.options ? REV_FLIGHTS[r.outbound.options].flatMap((o) => REV_FLIGHTS[f.options].map((t) => ({ k: o.id + "|" + t.id, price: optP(r.outbound.options, o) + optP(f.options, t), label: o.label.split(" · ")[0] + " + " + t.label.split(" · ")[0] }))).sort((a, b) => a.price - b.price) : null;
   const curCombo = (rp.outOpt || r.outbound.def) + "|" + (rp.retOpt || f.def);
   return html`<div className="fcalc">
