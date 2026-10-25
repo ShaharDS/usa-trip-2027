@@ -78,11 +78,14 @@ export async function removeCategory(ctx, cat) {
   const extra = rows.length ? (rows.length === 1 ? "גם השורה שבה תימחק." : `גם ${rows.length} השורות שבה יימחקו.`) : "";
   let done = false;
   await askFirst(cat.label, async () => {
-    await run([{ t: "archive", e: "categories", id: cat.id }, ...rows.map((x) => ({ t: "archive", e: "items", id: x.id }))], { doneText: `הקטגוריה "${cat.label}" הוסרה` });
+    await run([{ t: "archive", e: "categories", id: cat.id }, ...rows.map((x) => ({ t: "archive", e: "items", id: x.id }))], { doneText: `הקטגוריה "${cat.label}" נמחקה` });
     done = true;
   }, extra)().catch(() => {});
   return done;
 }
+
+const removeItemBtn = (item) =>
+  smallBtn("מחיקה", "trash", askFirst(item.label, () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" נמחק` }).catch(() => {})));
 
 export const editTools = {
   item(ctx, item) {
@@ -92,7 +95,12 @@ export const editTools = {
       smallBtn("שכפול", "copy", () => run([duplicateOp("items", item, { label: `${item.label} (עותק)`, order: (item.order ?? 0) + 0.5 })], { doneText: "השורה שוכפלה" })),
       smallBtn("למעלה", "up", () => run(moveOps("items", siblings, item.id, -1)), { disabled: siblings[0]?.id === item.id }),
       smallBtn("למטה", "down", () => run(moveOps("items", siblings, item.id, 1)), { disabled: siblings.at(-1)?.id === item.id }),
-      smallBtn("הסרה", "archive", askFirst(item.label, () => run([{ t: "archive", e: "items", id: item.id }], { doneText: `"${item.label}" הוסר` }).catch(() => {}))));
+      removeItemBtn(item));
+  },
+
+  /** Outside edit mode: just עריכה and מחיקה. */
+  itemBasic(ctx, item) {
+    return h("div", { class: "btn-row" }, smallLink("עריכה", "edit", `#/edit/item/${encodeURIComponent(item.id)}`), removeItemBtn(item));
   },
 
   category(ctx, cat) {
@@ -101,7 +109,14 @@ export const editTools = {
       smallLink("עריכת הקטגוריה", "edit", `#/edit/category/${encodeURIComponent(cat.id)}`),
       smallBtn("למעלה", "up", () => run(moveOps("categories", cats, cat.id, -1)), { disabled: cats[0]?.id === cat.id }),
       smallBtn("למטה", "down", () => run(moveOps("categories", cats, cat.id, 1)), { disabled: cats.at(-1)?.id === cat.id }),
-      smallBtn("הסרת הקטגוריה", "archive", () => removeCategory(ctx, cat).then((done) => { if (done) location.hash = "#/"; })));
+      smallBtn("מחיקת הקטגוריה", "trash", () => removeCategory(ctx, cat).then((done) => { if (done) location.hash = "#/"; })));
+  },
+
+  /** Outside edit mode: edit / delete the category. */
+  categoryBasic(ctx, cat) {
+    return h("div", { class: "btn-row" },
+      smallLink("עריכת הקטגוריה", "edit", `#/edit/category/${encodeURIComponent(cat.id)}`),
+      smallBtn("מחיקת הקטגוריה", "trash", () => removeCategory(ctx, cat)));
   },
 
   addItem(ctx, catId) {

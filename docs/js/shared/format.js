@@ -182,6 +182,16 @@ export function partHe(part, state) {
   }
 }
 
+/** For the cost rows on screen: "3 חדרי מלון × 6 לילות × כ-$460" (the usual price; the range is said separately). */
+export function explainTypicalHe(itemResult, state) {
+  const u = itemResult.unit;
+  if (itemResult.mode === "actual") return "הסכום ששולם בפועל";
+  const ranged = u.low !== u.high && !u.fromTable;
+  const priceText = `${ranged ? "כ-" : ""}${fmtMoney(u.typical, u.currency)}`;
+  if (!itemResult.parts.length) return `סכום כולל: ${priceText}`;
+  return [...itemResult.parts.map((p) => partHe(p, state)), priceText].join(" × ");
+}
+
 /** "7 אנשים × 6 לילות × $460" (or "סכום כולל: $540") */
 export function explainHe(itemResult, state) {
   const u = itemResult.unit;

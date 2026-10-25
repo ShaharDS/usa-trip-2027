@@ -48,7 +48,7 @@ export function fakeMessage(params: any): any {
     const system = (Array.isArray(params.system) ? params.system : [{ text: String(params.system || "") }]).map((b: any) => b.text || "").join("\n");
     const sawPrices = /"price"|"ils"|"usd"|₪/.test(system);
     return message([{ type: "text", text: sawPrices
-      ? "זו תשובת בדיקה: המלון בניו יורק מוערך בכ-25,800 ₪ (אומדן)."
+      ? "זו תשובת בדיקה: המלון בניו יורק מוערך בכ-25,800 ₪ (משוער)."
       : "זו תשובת בדיקה: מגיעים לאורלנדו ב-8 באוקטובר. מחירים פתוחים רק לעורכים." }], "end_turn");
   }
 

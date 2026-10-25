@@ -1,8 +1,8 @@
 // One category: its rows, each with the amount, status, how it is calculated, note and sources.
 import { h, icon } from "../ui/h.js";
 import { activeList } from "../shared/engine.js";
-import { dateHe, explainHe, fmtIls, fmtUsd } from "../shared/format.js";
-import { DEADLINE_HE } from "../shared/schema.js";
+import { dateHe, explainTypicalHe, fmtIls, fmtUsd, rangeIls } from "../shared/format.js";
+import { DEADLINE_HE, STATUS_HINT } from "../shared/schema.js";
 import { backLink, catChip, catColor, emptyState, ilsText, pageHead, rangeLine, statusBadge } from "../components/common.js";
 import { can } from "../store.js";
 
@@ -24,13 +24,14 @@ export function itemCard(ctx, item, cat) {
       h("div", { class: "grow" },
         h("h3", { class: "item-name" }, item.label),
         h("div", { class: "row wrap", style: { marginTop: "6px", gap: "8px" } }, statusBadge(item.status),
-          res.mode === "table" ? h("span", { class: "meta" }, "לפי האפשרות שנבחרה") : null)),
+          h("span", { class: "meta" }, STATUS_HINT[item.status] || ""),
+          res.mode === "table" ? h("span", { class: "meta" }, "· לפי האפשרות שנבחרה") : null)),
       h("div", { class: "item-amount num" },
         res.included ? ilsText(res.amount, final) : "לא נספר",
         h("span", { class: "item-usd" }, res.included ? (final ? fmtUsd(res.amount.usd.typ) : `בערך ${fmtUsd(res.amount.usd.typ)}`) : ""))),
-    h("div", { class: "item-explain" }, explainHe(res, state)),
+    h("div", { class: "item-explain" }, h("span", { class: "meta" }, "איך חישבנו: "), explainTypicalHe(res, state)),
     res.included && !final && Math.round(res.amount.ils.low) !== Math.round(res.amount.ils.high)
-      ? h("p", { class: "meta" }, `טווח: ${rangeLine(res.amount)}`)
+      ? h("p", { class: "meta" }, `המחיר עוד לא סופי: יכול לצאת ${rangeIls(res.amount.ils.low, res.amount.ils.high)}.`)
       : null,
     item.note ? h("p", { class: "item-note", dir: "auto" }, item.note) : null,
     (item.deadlines || []).length
@@ -40,7 +41,8 @@ export function itemCard(ctx, item, cat) {
       ? h("ul", { class: "sources" }, item.sources.map((s) =>
         h("li", {}, h("a", { href: s.url, target: "_blank", rel: "noopener noreferrer" }, icon("external", "icon-sm"), s.label || domainOf(s.url)))))
       : null,
-    editing ? ctx.editTools?.item(ctx, item) : null);
+    // Editors always get עריכה + מחיקה; edit mode adds duplicate / move.
+    editing ? ctx.editTools?.item(ctx, item) : can.edit() ? ctx.editTools?.itemBasic?.(ctx, item) : null);
 }
 
 export function renderCategory(ctx, catId) {

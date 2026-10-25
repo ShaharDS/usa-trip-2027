@@ -1,6 +1,6 @@
 // Small building blocks shared by the screens.
 import { h, icon, tint } from "../ui/h.js";
-import { COLORS, STATUS_HE } from "../shared/schema.js";
+import { COLORS, STATUS_HE, STATUS_HINT, STATUSES } from "../shared/schema.js";
 import { approxIls, dateHe, fmtIls, fmtUsd, rangeIls, warningHe } from "../shared/format.js";
 import { SITE_URL } from "../config.js";
 
@@ -8,6 +8,13 @@ const STATUS_ICON = { paid: "done", booked: "check", quote: "file", estimate: "c
 
 export function statusBadge(status) {
   return h("span", { class: `badge badge-${status}` }, icon(STATUS_ICON[status] || "clock"), STATUS_HE[status] || status);
+}
+
+/** The four status words and what each one means (top of "לאן הולך הכסף"). */
+export function statusLegend() {
+  return h("details", { class: "status-legend" },
+    h("summary", {}, icon("info", "icon-sm"), " מה אומרות המילים משוער / הצעת מחיר / הוזמן / שולם?"),
+    h("ul", {}, STATUSES.map((s) => h("li", {}, statusBadge(s), h("span", {}, STATUS_HINT[s])))));
 }
 
 export function catColor(cat) {

@@ -8,7 +8,7 @@ import {
   approxIls, countdownHe, dateHe, dateRangeHe, daysUntil, deltaSentence, fmtIls, fmtNum, fmtUsd, ilsShort, israelMoment, nightsHe,
   rangeIls, relativeHe, signedIls, timeLeft, todayLocal, warningHe,
 } from "../shared/format.js";
-import { catChip, catColor, checklistItems, ilsText, shareButton } from "../components/common.js";
+import { catChip, catColor, checklistItems, ilsText, shareButton, statusLegend } from "../components/common.js";
 import { timelineList } from "./route.js";
 import { footer } from "./footer.js";
 import { can, store } from "../store.js";
@@ -112,7 +112,7 @@ function whatsNew(ctx) {
   );
 }
 
-const CERT_LABEL = { paid: "כבר שולם", booked: "הוזמן", quote: "הצעת מחיר", estimate: "אומדן" };
+const CERT_LABEL = { paid: "כבר שולם", booked: "הוזמן", quote: "הצעת מחיר", estimate: "משוער (עוד לא הזמנו)" };
 const CERT_CLASS = { paid: "cert-paid", booked: "cert-booked", quote: "cert-quote", estimate: "cert-estimate" };
 
 function certainty(ctx) {
@@ -121,8 +121,8 @@ function certainty(ctx) {
   const sentence = closed >= 99.5
     ? "כל הסכום כבר סגור."
     : closed < 1
-      ? "עוד לא סגרנו כלום — כל הסכומים הם אומדנים והצעות מחיר, והם עוד ישתנו."
-      : `${fmtNum(Math.round(closed))}% מהסכום כבר סגור. השאר — אומדנים והצעות מחיר שעוד ישתנו.`;
+      ? "עוד לא סגרנו כלום — כל הסכומים הם מחירים משוערים והצעות מחיר, והם עוד ישתנו."
+      : `${fmtNum(Math.round(closed))}% מהסכום כבר סגור. השאר — מחירים משוערים והצעות מחיר שעוד ישתנו.`;
   return h(
     "section",
     { class: "card" },
@@ -145,7 +145,7 @@ function categoryMeta(cat, r) {
   const statuses = new Set(rows.map((x) => x.status));
   const closed = rows.every((x) => x.status === "paid" || x.status === "booked");
   const some = rows.some((x) => x.status === "paid" || x.status === "booked");
-  const word = closed ? "הכל סגור" : some ? "חלק סגור" : statuses.has("quote") && statuses.size === 1 ? "הצעת מחיר" : "אומדן";
+  const word = closed ? "הכל סגור" : some ? "חלק סגור" : statuses.has("quote") && statuses.size === 1 ? "הצעת מחיר" : "משוער";
   return `${rows.length === 1 ? "שורה אחת" : `${rows.length} שורות`} · ${word}`;
 }
 
@@ -168,7 +168,7 @@ function categoryPanel(ctx, cat, id) {
         : h("div", { class: "btn-row" },
           h("button", { type: "button", class: "btn", onclick: () => { openAdd(cat.id); ctx.rerender(); } }, icon("plus"), `הוספת הוצאה ל״${cat.label}״`))
       : null,
-    editing ? editTools.category(ctx, cat) : null);
+    editing ? editTools.category(ctx, cat) : can.edit() ? editTools.categoryBasic(ctx, cat) : null);
 }
 
 export function categoryList(ctx, { withTotal = true } = {}) {
@@ -218,6 +218,7 @@ function categories(ctx) {
   return h("section", { class: "card" },
     h("h2", {}, icon("wallet"), ctx.section.title || "לאן הולך הכסף"),
     h("p", { class: "card-sub" }, ctx.r.categories.length ? "לחצו על קטגוריה כדי לפתוח אותה ולראות את השורות שלה." : "עוד אין קטגוריות. התחילו בהוספת הוצאה או קטגוריה."),
+    statusLegend(),
     categoryList(ctx),
     can.edit() && adding ? addPanel(ctx) : null,
     can.edit() ? newCategoryPanel(ctx) : null,

@@ -26,7 +26,14 @@ export const COLORS = {
 };
 
 export const STATUSES = ["estimate", "quote", "booked", "paid"];
-export const STATUS_HE = { estimate: "אומדן", quote: "הצעת מחיר", booked: "הוזמן", paid: "שולם" };
+export const STATUS_HE = { estimate: "משוער", quote: "הצעת מחיר", booked: "הוזמן", paid: "שולם" };
+/** What each status means, in one plain line (shown next to the word). */
+export const STATUS_HINT = {
+  estimate: "מחיר שאנחנו מעריכים — עוד לא הזמנו",
+  quote: "קיבלנו מחיר אמיתי — עוד לא הזמנו",
+  booked: "הזמנו — אולי עוד לא שילמנו הכל",
+  paid: "שילמנו — זה הסכום הסופי",
+};
 export const CURRENCIES = ["USD", "ILS"];
 export const STOP_KINDS = ["city", "road", "parks", "cruise", "beach", "transit", "other"];
 export const STOP_KIND_HE = {

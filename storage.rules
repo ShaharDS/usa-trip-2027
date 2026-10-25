@@ -2,6 +2,9 @@ rules_version = '2';
 
 // Tickets and booking confirmations: editors only (they show prices). Never public.
 // Files are read with getBlob() through these rules — the app never creates public download links.
+// isEditor() reads Firestore (config/access): Storage needs the "firebaserules.firestoreServiceAgent" role for that.
+// The Firebase CLI grants it on deploy only with `firebase experiments:enable crossservicerules` (else every upload
+// is refused as "unauthorized").
 service firebase.storage {
   match /b/{bucket}/o {
 

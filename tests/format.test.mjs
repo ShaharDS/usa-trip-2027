@@ -87,6 +87,6 @@ test("private details and flights are described by their row", () => {
   assert.equal(describeOp({ t: "create", e: "flights", id: "f1", v: { carrier: "LY", number: "1", date: "2027-09-30" } }, docs), "רישום טיסה LY1 ב-30 בספטמבר");
   assert.equal(
     describeOp({ t: "update", e: "items", id: "hotel_nyc", set: { status: "booked", actual: { amount: 7900, currency: "USD" } } }, docs),
-    "\"מלון בניו יורק\" — סטטוס: אומדן ← הוזמן, סכום בפועל: ריק ← $7,900",
+    "\"מלון בניו יורק\" — סטטוס: משוער ← הוזמן, סכום בפועל: ריק ← $7,900",
   );
 });
