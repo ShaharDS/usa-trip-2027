@@ -1,8 +1,9 @@
 // Lazy Firebase modules from the official gstatic CDN (no build step). Nothing here loads for a plain
-// viewer: the public page is read over REST. Auth / Firestore / Functions / Storage load only when needed.
+// viewer: the public page is read over REST. Auth / Firestore / Functions load only when needed (files go
+// through the functions, so the browser never loads Storage).
 import { ACTIVE_FIREBASE, EMULATOR_HOST, FIREBASE_SDK, FUNCTIONS_REGION, USE_EMULATORS } from "../config.js";
 
-let appP, authP, liteP, fullP, fnP, storageP;
+let appP, authP, liteP, fullP, fnP;
 
 export const firebaseEnabled = () => !!ACTIVE_FIREBASE;
 
@@ -49,11 +50,3 @@ export function functionsModule() {
   return fnP;
 }
 
-export function storageModule() {
-  storageP ??= Promise.all([app(), import(`${FIREBASE_SDK}/firebase-storage.js`)]).then(([a, m]) => {
-    const storage = m.getStorage(a);
-    if (USE_EMULATORS) m.connectStorageEmulator(storage, EMULATOR_HOST, 9199);
-    return { m, storage };
-  });
-  return storageP;
-}

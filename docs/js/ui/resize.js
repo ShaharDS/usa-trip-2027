@@ -1,6 +1,16 @@
 // Shrink photos/screenshots before upload (≈1600px is plenty for reading a ticket, and much cheaper for AI).
 // PDFs and small images are uploaded as they are.
 
+/** Blob -> base64 (no "data:" prefix), to send a file to a Cloud Function. */
+export function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).replace(/^data:[^,]*,/, ""));
+    r.onerror = () => reject(new Error("לא הצלחנו לקרוא את הקובץ מהטלפון. נסו לבחור אותו שוב."));
+    r.readAsDataURL(blob);
+  });
+}
+
 export async function prepareUpload(file, maxSide = 1600) {
   if (file.type === "application/pdf") return { blob: file, contentType: "application/pdf", ext: "pdf" };
   if (!/^image\//.test(file.type)) throw new Error("אפשר להעלות PDF או תמונה בלבד.");

@@ -1,5 +1,7 @@
-// Tickets and confirmations (editors only — they carry prices). The browser uploads the file to Storage, then calls
-// addDocument. The file is read by Claude in a step WITHOUT tools (structured JSON only), and those facts —
+// Tickets and confirmations (editors only — they carry prices). The browser never touches Storage: it sends the
+// file to addDocument (checked: editor, PDF / JPG / PNG / WEBP by its first bytes, size), which saves it with the
+// admin SDK; getDocumentFile hands it back to an editor. So no Storage rules, cross-service IAM role or bucket
+// CORS are involved. The file is read by Claude in a step WITHOUT tools (structured JSON only), and those facts —
 // never the raw document — feed the proposal step, which suggests: mark the row booked, real price,
 // deadlines, private booking code, flight segments. An editor approves as usual.
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -13,7 +15,21 @@ import { EXTRACT_SYSTEM } from "./lib/prompts.js";
 import { runProposal, saveProposal } from "./lib/propose.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
-const FILE_RE = /^[A-Za-z0-9._-]{1,100}$/;
+const MB = 1024 * 1024;
+
+/** What may be uploaded, how big, and how its first bytes must look (a renamed .exe is not a PDF). */
+const TYPES: Record<string, { ext: string; max: number; magic: (b: Buffer) => boolean }> = {
+  "application/pdf": { ext: "pdf", max: 15 * MB, magic: (b) => b.subarray(0, 5).toString("latin1") === "%PDF-" },
+  "image/jpeg": { ext: "jpg", max: 10 * MB, magic: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  "image/png": { ext: "png", max: 10 * MB, magic: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
+  "image/webp": { ext: "webp", max: 10 * MB, magic: (b) => b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP" },
+};
+
+/** "BoardingPass (3).pdf" -> "BoardingPass-3.pdf" */
+function safeFileName(name: string, ext: string) {
+  const base = String(name || "").replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "document";
+  return `${base}.${ext}`;
+}
 const nul = (type: string | string[]) => ({ type: Array.isArray(type) ? [...type, "null"] : [type, "null"] });
 
 const FACTS_SCHEMA = {
@@ -46,21 +62,23 @@ const FACTS_SCHEMA = {
 
 export const addDocument = onCall({ region: REGION, secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, memory: "1GiB" }, async (req) => {
   const caller = await requireRole(req, "editor");
-  const docId = String(req.data?.docId || "");
-  const fileName = String(req.data?.fileName || "");
+  const contentType = String(req.data?.contentType || "");
+  const type = TYPES[contentType];
+  if (!type) badRequest("אפשר להעלות PDF או תמונה (JPG / PNG / WEBP).");
+  const buf = Buffer.from(String(req.data?.data || ""), "base64");
+  if (!buf.length) badRequest("הקובץ ריק. נסו לבחור אותו שוב.");
+  if (buf.length > type.max) badRequest(`הקובץ גדול מדי (עד ${type.max / MB}MB).`);
+  if (!type.magic(buf)) badRequest(contentType === "application/pdf" ? "הקובץ לא נראה כמו PDF תקין." : "הקובץ לא נראה כמו תמונה תקינה.");
+  const fileName = safeFileName(String(req.data?.fileName || ""), type.ext);
   const title = String(req.data?.title || "").trim().slice(0, 80) || fileName;
   const extract = req.data?.extract !== false;
-  if (!ID_RE.test(docId) || !FILE_RE.test(fileName)) badRequest("שם הקובץ לא תקין.");
 
+  const docRef = db.collection(paths.documents).doc();
+  const docId = docRef.id;
   const file = getStorage().bucket().file(`trips/${TRIP_ID}/docs/${docId}/${fileName}`);
-  const [exists] = await file.exists();
-  if (!exists) badRequest("הקובץ לא הועלה. נסו שוב.");
-  const [meta] = await file.getMetadata();
-  const contentType = String(meta.contentType || "");
-  const size = Number(meta.size || 0);
-  const docRef = db.collection(paths.documents).doc(docId);
+  await file.save(buf, { contentType, resumable: false, metadata: { cacheControl: "private, max-age=0" } });
   const record: Record<string, unknown> = {
-    title, fileName, contentType, size, uploadedBy: caller.label, uploadedAt: new Date().toISOString(), path: file.name,
+    title, fileName, contentType, size: buf.length, uploadedBy: caller.label, uploadedAt: new Date().toISOString(), path: file.name,
   };
   if (!extract) {
     await docRef.set(record);
@@ -73,7 +91,6 @@ export const addDocument = onCall({ region: REGION, secrets: [ANTHROPIC_API_KEY]
   const res = await reserve(caller, "extract", 0.5, settings);
   const usage = emptyUsage();
   try {
-    const [buf] = await file.download();
     const data = buf.toString("base64");
     const block = contentType === "application/pdf"
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
@@ -120,8 +137,24 @@ export const addDocument = onCall({ region: REGION, secrets: [ANTHROPIC_API_KEY]
     return { docId, extracted: true, facts, ...saved };
   } catch (err) {
     await docRef.set(record, { merge: true }); // keep the file listed even if reading it failed
-    throw toHttpsError(err);
+    const e = toHttpsError(err);
+    throw new HttpsError(e.code, e.message, { ...((e.details as object) || {}), saved: true, docId });
   } finally {
     await settle(res, usage.costUsd);
   }
+});
+
+/** An uploaded file, for an editor to open (base64; files are at most 15MB). */
+export const getDocumentFile = onCall({ region: REGION, memory: "512MiB" }, async (req) => {
+  await requireRole(req, "editor");
+  const docId = String(req.data?.docId || "");
+  if (!ID_RE.test(docId)) badRequest("מסמך לא מוכר.");
+  const snap = await db.collection(paths.documents).doc(docId).get();
+  const rec = snap.data();
+  const path = String(rec?.path || "");
+  if (!snap.exists || !path.startsWith(`trips/${TRIP_ID}/docs/${docId}/`)) {
+    throw new HttpsError("not-found", "המסמך לא נמצא.", { messageHe: "המסמך לא נמצא." });
+  }
+  const [buf] = await getStorage().bucket().file(path).download();
+  return { contentType: String(rec?.contentType || "application/octet-stream"), fileName: String(rec?.fileName || "document"), data: buf.toString("base64") };
 });

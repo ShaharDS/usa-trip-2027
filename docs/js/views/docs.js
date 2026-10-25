@@ -1,15 +1,14 @@
 // Tickets and booking confirmations (editors only — they carry prices). Editors upload a PDF / screenshot; the AI reads it and
-// proposes updates (row booked, real price, deadlines, booking code) for approval.
+// proposes updates (row booked, real price, deadlines, booking code) for approval. Files go to and come back from the
+// addDocument / getDocumentFile functions — the browser never talks to Storage itself.
 import { h, icon, toast } from "../ui/h.js";
 import { backLink, emptyState, notice, pageHead } from "../components/common.js";
 import { proposalCard } from "../components/proposal.js";
 import { signInCard } from "./signin.js";
 import { dateHe, fmtNum } from "../shared/format.js";
-import { newId } from "../shared/schema.js";
 import { callFunction } from "../fb/api.js";
-import { docBlob, uploadDoc } from "../fb/storage.js";
 import { listDocuments } from "../data/live.js";
-import { prepareUpload } from "../ui/resize.js";
+import { blobToBase64, prepareUpload } from "../ui/resize.js";
 import { can, store } from "../store.js";
 
 const KIND = { flight: ["plane", "טיסה"], hotel: ["hotel", "לינה"], car: ["car", "רכב"], cruise: ["ship", "שייט"], parks: ["ferris", "פארקים"], insurance: ["shield", "ביטוח"], other: ["file", "מסמך"] };
@@ -27,8 +26,9 @@ function load(rerender) {
 async function openDoc(d) {
   const win = window.open("", "_blank"); // open synchronously (popup blockers), fill when the file arrives
   try {
-    const blob = await docBlob(d.path);
-    const url = URL.createObjectURL(blob);
+    const r = await callFunction("getDocumentFile", { docId: d.id });
+    const bytes = Uint8Array.from(atob(r.data), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: r.contentType }));
     if (win) win.location.href = url;
     else location.href = url;
   } catch (err) {
@@ -57,18 +57,14 @@ function uploadCard(rerender) {
     state.proposal = null;
     state.step = "מעלה את הקובץ…";
     rerender();
-    let uploaded = false;
     try {
-      const { blob, contentType, ext } = await prepareUpload(file);
-      if (contentType === "application/pdf" && blob.size > 19.5 * 1024 * 1024) throw new Error("ה-PDF גדול מדי (עד 20MB).");
-      if (contentType !== "application/pdf" && blob.size > 9.5 * 1024 * 1024) throw new Error("התמונה גדולה מדי (עד 10MB).");
-      const docId = newId("doc");
-      const fileName = `${(file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "document").slice(0, 60)}.${ext}`;
-      await uploadDoc(docId, fileName, blob, contentType);
-      uploaded = true;
-      state.step = state.extract ? "הקובץ הועלה. ה-AI קורא את המסמך… זה יכול לקחת עד דקה." : "שומר…";
+      const { blob, contentType } = await prepareUpload(file);
+      if (contentType === "application/pdf" && blob.size > 15 * 1024 * 1024) throw new Error("ה-PDF גדול מדי (עד 15MB).");
+      if (contentType !== "application/pdf" && blob.size > 10 * 1024 * 1024) throw new Error("התמונה גדולה מדי (עד 10MB).");
+      const data = await blobToBase64(blob);
+      state.step = state.extract ? "מעלה, וה-AI קורא את המסמך… זה יכול לקחת עד דקה." : "מעלה ושומר…";
       rerender();
-      const r = await callFunction("addDocument", { docId, fileName, title: state.title || file.name, extract: state.extract });
+      const r = await callFunction("addDocument", { contentType, fileName: file.name, data, title: state.title || file.name, extract: state.extract });
       state.title = "";
       state.fileName = "";
       state.file = null;
@@ -77,9 +73,10 @@ function uploadCard(rerender) {
       else toast("המסמך נשמר");
     } catch (err) {
       const msg = err.message || "ההעלאה לא הצליחה.";
-      // The server keeps the file listed even when reading it failed — say so, and refresh the list.
-      state.error = uploaded ? `הקובץ הועלה, אבל ${state.extract ? "קריאת המסמך עם AI" : "השמירה ברשימה"} לא הצליחה: ${msg}` : msg;
-      if (uploaded) state.list = null;
+      // The server keeps the file listed even when reading it with the AI failed — say so, and refresh the list.
+      const saved = !!err.details?.saved;
+      state.error = saved ? `הקובץ נשמר ברשימה, אבל קריאת המסמך עם AI לא הצליחה: ${msg}` : msg;
+      if (saved) state.list = null;
     } finally {
       state.busy = false;
       state.step = "";

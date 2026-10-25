@@ -1,40 +1,10 @@
 rules_version = '2';
 
-// Tickets and booking confirmations: editors only (they show prices). Never public.
-// Files are read with getBlob() through these rules — the app never creates public download links.
-// isEditor() reads Firestore (config/access): Storage needs the "firebaserules.firestoreServiceAgent" role for that.
-// The Firebase CLI grants it on deploy only with `firebase experiments:enable crossservicerules` (else every upload
-// is refused as "unauthorized").
+// Tickets and booking confirmations live in Storage, but the browser never reads or writes it: the
+// addDocument / getDocumentFile Cloud Functions do, after checking that the caller is an editor (they show
+// prices). So these rules deny everything — no cross-service Firestore lookup, IAM role or bucket CORS needed.
 service firebase.storage {
   match /b/{bucket}/o {
-
-    function signedIn() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.firebase.sign_in_provider == 'google.com';
-    }
-    function email() {
-      return request.auth.token.email.lower();
-    }
-    function access() {
-      return firestore.get(/databases/(default)/documents/config/access).data;
-    }
-    function isEditor() {
-      return signedIn() && email() in access().editors;
-    }
-    function okType() {
-      return (request.resource.contentType == 'application/pdf' && request.resource.size < 20 * 1024 * 1024)
-        || (request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.size < 10 * 1024 * 1024);
-    }
-
-    match /trips/{tripId}/docs/{docId}/{fileName} {
-      allow read: if isEditor();
-      allow create: if resource == null && isEditor() && okType()
-        && docId.matches('[A-Za-z0-9_-]{1,40}')
-        && fileName.matches('[A-Za-z0-9._-]{1,100}');
-      allow update, delete: if false;
-    }
-
     match /{allPaths=**} {
       allow read, write: if false;
     }

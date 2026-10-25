@@ -6,12 +6,12 @@ Read `CLAUDE.md` for the rules and the file map; this file is the **state of pla
 ## 0. Round 3 (2026-10-25, third session) — DEPLOYED + pushed (`a75f584`)
 **Live since 2026-10-25:** Shahar set up Storage; functions (Claude secret v2), Firestore rules and Storage rules deployed
 (smoke test: whoami 200, writes 401 without sign-in, anonymous `family/state` 403); site pushed and Pages built.
-**Still Shahar's:** CORS on the bucket (step 3 below), "ריקון כל ההוצאות", adding family, first real upload / AI place.
-**First real upload failed "unauthorized" (2026-10-25):** Storage rules read Firestore (`isEditor()`), which needs the
-Storage service agent to hold `roles/firebaserules.firestoreServiceAgent`. The Firebase CLI did NOT grant it (not even
-with `firebase experiments:enable crossservicerules`, now enabled on this PC). Fix = one Cloud Shell command (Shahar):
-`gcloud projects add-iam-policy-binding usa-trip-2027-shahar --member=serviceAccount:service-768226421972@gcp-sa-firebasestorage.iam.gserviceaccount.com --role=roles/firebaserules.firestoreServiceAgent`
-Then retry the upload. (If it still fails: switch Storage rules to custom claims set by `whoami`, no Firestore read.)
+**Still Shahar's:** "ריקון כל ההוצאות", adding family, first real upload / AI place.
+**Uploads now go through the functions (2026-10-25):** the first real upload was refused by the Storage rules (their
+Firestore lookup needs an IAM role the CLI never granted; the IAM + CORS commands in Cloud Shell didn't fix it in time).
+Now `addDocument` receives the file (base64; editor; PDF/JPG/PNG/WEBP checked by first bytes; ≤15MB PDF / 10MB image)
+and saves it with the admin SDK; `getDocumentFile` returns it to an editor. `storage.rules` deny the browser
+everything, so no IAM role or CORS is needed (the ones Shahar added are harmless). Deployed + pushed.
 Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md`. Shahar's asks and what was built:
 - **Documents upload was broken** → cause: **Firebase Storage was never set up** on the project (`deploy --only storage
   --dry-run`: "has not been set up"; `addDocument` never called). Code: Hebrew errors per step (`fb/storage.js`
@@ -45,8 +45,7 @@ Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md`. Shahar's asks and what 
 1. Shahar: Firebase console → Storage → **Get started** → production, location `us-east1` (or `us-central1`).
 2. `firebase.cmd deploy --only functions,firestore:rules,storage --project usa-trip-2027-shahar` (say yes to letting
    Storage rules read Firestore). This also moves the functions to Claude-secret v2.
-3. Shahar, Cloud Shell, once: `gcloud storage buckets update gs://usa-trip-2027-shahar.firebasestorage.app --cors-file=storage-cors.json`
-   (upload the file or paste its JSON) — needed for opening documents from the site.
+3. ~~CORS~~ — not needed any more: files go through the functions.
 4. Commit + push `main` (Pages serves `/docs`). Functions first, then the site.
 5. Shahar: Settings → גיבוי → "ריקון כל ההוצאות" (this write also creates `family/state`); add family in Settings → גישה;
    add hotels per day with "הוספת מקום ליום הזה" → "עם AI".

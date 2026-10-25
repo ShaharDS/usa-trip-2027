@@ -9,7 +9,6 @@ const PROJECT = "demo-usa-trip";
 const AUTH = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1";
 const FN = `http://127.0.0.1:5001/${PROJECT}/me-west1`;
 const FS = `http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
-const STORAGE = `http://127.0.0.1:9199/v0/b/${PROJECT}.appspot.com/o`;
 const seed = JSON.parse(readFileSync(fileURLToPath(new URL("../../docs/data/demo-trip.json", import.meta.url)), "utf8"));
 
 async function googleUser(email, name) {
@@ -119,13 +118,19 @@ test("a proposal goes stale if the same field changed meanwhile", async () => {
   assert.equal(r.stale, true);
 });
 
-test("ticket upload → read → proposal with private booking code and flight", async () => {
+test("ticket upload → read → proposal with private booking code and flight; the file opens again", async () => {
   const pdf = Buffer.from("%PDF-1.4\n% fake ticket\n");
-  const name = encodeURIComponent("trips/usa2027/docs/doc_test1/ticket.pdf");
-  const up = await fetch(`${STORAGE}?name=${name}`, { method: "POST", headers: { Authorization: `Firebase ${editor}`, "Content-Type": "application/pdf" }, body: pdf });
-  assert.equal(up.status, 200, await up.text());
-  const r = await call("addDocument", { docId: "doc_test1", fileName: "ticket.pdf", title: "כרטיסי טיסה" }, editor);
+  const send = (extra, token = editor) => call("addDocument", { contentType: "application/pdf", fileName: "BoardingPass (3).pdf", data: pdf.toString("base64"), title: "כרטיסי טיסה", ...extra }, token);
+  await rejects(send({}, dad), "PERMISSION_DENIED");
+  await rejects(send({ contentType: "text/html" }), "INVALID_ARGUMENT");
+  await rejects(send({ data: Buffer.from("<html>not a pdf</html>").toString("base64") }), "INVALID_ARGUMENT");
+  const r = await send({});
   assert.equal(r.extracted, true);
+  const file = await call("getDocumentFile", { docId: r.docId }, editor);
+  assert.equal(file.contentType, "application/pdf");
+  assert.equal(file.fileName, "BoardingPass-3.pdf");
+  assert.equal(Buffer.from(file.data, "base64").toString(), pdf.toString());
+  await rejects(call("getDocumentFile", { docId: r.docId }, dad), "PERMISSION_DENIED");
   assert.equal(r.facts.confirmation, "ABC123");
   assert.ok(r.lines.some((l) => /פרטים פרטיים/.test(l)), r.lines.join(" | "));
   assert.ok(r.lines.some((l) => /צורף לשורה/.test(l)));
@@ -134,7 +139,7 @@ test("ticket upload → read → proposal with private booking code and flight",
   const priv = await (await fetch(`${FS}/trips/usa2027/private/state`, { headers: { Authorization: `Bearer ${editor}` } })).json();
   const row = priv.fields.items.mapValue.fields.flights_intl.mapValue.fields;
   assert.equal(row.bookingRef.stringValue, "ABC123");
-  assert.equal(row.documentIds.arrayValue.values[0].stringValue, "doc_test1");
+  assert.equal(row.documentIds.arrayValue.values[0].stringValue, r.docId);
   assert.ok(Object.keys(priv.fields.flights.mapValue.fields).length === 1);
   const pubText = JSON.stringify(await (await fetch(`${FS}/trips/usa2027/public/state`)).json());
   assert.ok(!pubText.includes("ABC123"));

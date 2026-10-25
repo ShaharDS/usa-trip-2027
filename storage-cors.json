@@ -1,8 +1,0 @@
-[
-  {
-    "origin": ["https://shahards.github.io", "http://localhost:8150", "http://127.0.0.1:8150"],
-    "method": ["GET"],
-    "responseHeader": ["Content-Type", "Content-Disposition"],
-    "maxAgeSeconds": 3600
-  }
-]

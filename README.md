@@ -31,10 +31,7 @@ flowchart LR
 ## הקמה (פעם אחת — שחר עושה בעצמו)
 1. **Firebase:** בחשבון הגוגל של בעל האתר צרו פרויקט (אצלנו: `usa-trip-2027-shahar`), עברו ל-Blaze והגדירו התראת תקציב.
 2. **Firestore:** צרו מסד ב-`me-west1` (Tel Aviv), מצב production.
-3. **Storage:** Storage → Get started → production, מיקום `us-east1` או `us-central1` (שם יש מכסה חינמית), ואשרו את ההרשאה ש-Firebase מבקש עבור כללים שקוראים מ-Firestore. אחר כך, פעם אחת ב-Cloud Shell, הרשאת CORS כדי שאפשר יהיה לפתוח קבצים מהאתר:
-   ```bash
-   gcloud storage buckets update gs://usa-trip-2027-shahar.firebasestorage.app --cors-file=storage-cors.json
-   ```
+3. **Storage:** Storage → Get started → production, מיקום `us-east1` או `us-central1` (שם יש מכסה חינמית). זהו — הקבצים עוברים דרך הפונקציות, כך שאין צורך בהרשאות או ב-CORS.
 4. **Authentication:** הפעילו Google. ב-Settings → Authorized domains הוסיפו `shahards.github.io`.
 5. **אפליקציית Web:** Project settings → Your apps → Web app. העתיקו את ה-config לקובץ `docs/js/config.js` (במקום `FIREBASE_CONFIG = null`). זה לא סוד.
 6. **בעל האתר:** העתיקו את `functions/.env.example` ל-`functions/.env` ושימו בו `OWNER_EMAIL=` עם כתובת הגוגל של בעל האתר (הקובץ לא נכנס ל-git).

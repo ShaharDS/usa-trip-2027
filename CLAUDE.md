@@ -84,12 +84,12 @@ USA Trip 2027/
     js/components/          common (badges, chips, share, confirmDialog / askFirst), proposal (AI review card + place
                             check), map (Leaflet route map), voice (dictation button)
     js/data/                rest (public route via REST), live (editors: live plan + private), session (sign-in → whoami → data), commit
-    js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables), storage (getBlob only)
+    js/fb/                  lazy (gstatic SDK v13.1.0), auth (popup), api (callables) — no Storage SDK: files go through the functions
     js/ui/                  h (DOM + automatic <bdi>), speech (dictation/read-aloud), resize (photos ≤1600px)
     js/dev/audit.js         father-friendly audit (run via the browser console / pane)
     dev/og.html             source of assets/og.jpg (render 1200×630)
   functions/src/            commitChange (+undoChange) · accessAdmin (whoami/getAccess/setAccess) · adminImport ·
-                            ai (aiAsk/aiPropose) · proposals (apply/reject) · documents (addDocument) ·
+                            ai (aiAsk/aiPropose) · proposals (apply/reject) · documents (addDocument saves + reads a file, getDocumentFile opens it) ·
                             lib/ admin, access, state, caps, claude, claudeFake, prompts, propose
   firestore.rules storage.rules firebase.json firestore.indexes.json
   seed/reference-prices.md  AI background research (copied to functions/assets/ at build)
