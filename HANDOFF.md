@@ -3,7 +3,10 @@
 _Written 2026-10-25, end of the build session; updated 2026-10-25 (second session: three access levels + the two live bugs).
 Read `CLAUDE.md` for the rules and the file map; this file is the **state of play, what was verified, and what is left**._
 
-## 0. Round 3 (2026-10-25, third session) — built + tested locally, NOT deployed, NOT committed
+## 0. Round 3 (2026-10-25, third session) — DEPLOYED + pushed (`a75f584`)
+**Live since 2026-10-25:** Shahar set up Storage; functions (Claude secret v2), Firestore rules and Storage rules deployed
+(smoke test: whoami 200, writes 401 without sign-in, anonymous `family/state` 403); site pushed and Pages built.
+**Still Shahar's:** CORS on the bucket (step 3 below), "ריקון כל ההוצאות", adding family, first real upload / AI place.
 Plan: `~/.claude/plans/see-that-usa-trip-spicy-tide.md`. Shahar's asks and what was built:
 - **Documents upload was broken** → cause: **Firebase Storage was never set up** on the project (`deploy --only storage
   --dry-run`: "has not been set up"; `addDocument` never called). Code: Hebrew errors per step (`fb/storage.js`
