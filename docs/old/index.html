@@ -698,7 +698,7 @@ const northDrive = (n) => [
 ];
 const NORTH_DRIVE = northDrive({});
 const NYC_HOME = { type: "flight", from: "jfk", to: "tlv", nonstop: true, hours: "כ-10", depart: "לפי חברה",
-  label: "ניו יורק (JFK/EWR) ← תל אביב", priceRange: "$637–1,959", options: "fromNYC", def: "iz", sources: [] };
+  label: "ניו יורק (JFK/EWR) ← תל אביב", priceRange: "$348–1,959", options: "fromNYC", def: "iz", sources: [] };
 
 ROUTES.push(
   {
@@ -914,7 +914,7 @@ const REV_FLIGHTS = {
     { id: "lh", label: "Lufthansa דרך פרנקפורט · 16:55 ש׳", price: 1364, nonstop: false },
   ],
   fromNYC: [
-    { id: "iz", label: "ארקיע ישירה JFK · 17:00→10:55 (+1)", price: 637, nonstop: true },
+    { id: "iz", label: "ארקיע או HiFly ישירה JFK", price: 348, nonstop: true },
     { id: "6h", label: "ישראייר ישירה JFK · 13:30→07:40 (+1)", price: 716, nonstop: true },
     { id: "ly", label: "אל על ישירה JFK/EWR · כ-10:20 ש׳ · $807–907", price: 807, nonstop: true },
     { id: "ua", label: "United ישירה EWR · 22:50→16:20 (+1)", price: 1959, nonstop: true },
@@ -939,36 +939,42 @@ const DEFAULT_PARAMS = {
 
 /* ===== FLIGHT OPTIONS (Skyscanner, 24.10.2026, one way per person, economy, estimates) ===== */
 PLACES.jfkApt = { name: "מלון ליד שדה התעופה JFK", short: "ליד JFK", lat: 40.668, lng: -73.80 };
-const FLIGHT_SRC = "Skyscanner, 24.10.2026 (עודכן 25.10.2026: ארקיע 21.10 ואל על ממיאמי 18–19.10) · כיוון אחד לאדם, מחלקת תיירים · הערכה, חוץ ממה שמסומן \"מחיר במכירה\"";
+const FLIGHT_SRC = "Skyscanner, 24.10.2026 (עודכן 26.10.2026: הלוך 4.10, חזרה מ-JFK ואל על ממיאמי) · כיוון אחד לאדם, מחלקת תיירים · הערכה, חוץ ממה שמסומן \"מחיר במכירה\"";
 const FP = {
   "flt.out.ly.w1": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
   "flt.out.ly.w2": [636, "אל על ישירה, תל אביב ← ניו יורק (JFK), 4.10"],
   "flt.out.iz.w1": [612, "ארקיע ישירה, תל אביב ← ניו יורק (JFK), 30.9"],
-  "flt.out.hifly.w2": [374, "HiFly Malta ישירה, תל אביב ← ניו יורק (JFK), 4.10 · יוצאת 00:05, נוחתת כ-06:00"],
+  "flt.out.hifly.w2": [769, "HiFly Malta ישירה, תל אביב ← ניו יורק (JFK), 4.10 · יוצאת 00:05, נוחתת כ-06:00"],
+  "flt.out.ib.w2": [584, "Iberia עצירה במדריד, תל אביב ← ניו יורק (JFK), 4.10"],
   "flt.ret.ly.mia.1810": [886, "אל על ישירה, מיאמי (MIA) ← תל אביב, 18.10"],
   "flt.ret.ly.mia.1910": [886, "אל על ישירה, מיאמי (MIA) ← תל אביב, 19.10"],
   "flt.ret.ly.mia.2110": [845, "אל על ישירה, מיאמי (MIA) ← תל אביב, 21.10"],
   "flt.ret.mco": [800, "אורלנדו (MCO) ← תל אביב, עצירה אחת"],
-  "flt.ret.jfk.1810": [391, "HiFly Malta ישירה, ניו יורק (JFK) ← תל אביב, 18.10"],
-  "flt.ret.jfk.1910": [375, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 19.10"],
-  "flt.ret.jfk.2110": [359, "ארקיע ישירה, ניו יורק (JFK) ← תל אביב, 21.10 · יוצאת 17:00 · כולל מזוודה 23 ק״ג"],
+  "flt.ret.jfk.1810": [348, "ארקיע או HiFly ישירה, ניו יורק (JFK) ← תל אביב, 18.10"],
+  "flt.ret.jfk.1910": [348, "ארקיע או HiFly ישירה, ניו יורק (JFK) ← תל אביב, 19.10"],
+  "flt.ret.jfk.2110": [348, "ארקיע או HiFly ישירה, ניו יורק (JFK) ← תל אביב, 21.10 · כולל מזוודה 23 ק״ג"],
   "flt.dom": [220, "טיסה פנימית מיאמי/אורלנדו ← ניו יורק (JFK)"],
   "bag.dom": [45, "מזוודה ראשונה בטיסה הפנימית"],
 };
 /* prices confirmed on sale (no "הערכה" badge) */
-const FP_ONSALE = { "flt.ret.jfk.2110": "מחיר במכירה" };
+const FP_ONSALE = { "flt.ret.jfk.1810": "מחיר במכירה", "flt.ret.jfk.1910": "מחיר במכירה", "flt.ret.jfk.2110": "מחיר במכירה" };
+/* window-2 cheap outbound: the cheaper of these is used automatically */
+const W2_CHEAP_OUT = ["flt.out.ib.w2", "flt.out.hifly.w2"];
+const w2CheapOut = () => W2_CHEAP_OUT.reduce((a, b) => (FP[b][0] < FP[a][0] ? b : a));
 const FP_NOTE = {
+  "flt.out.ib.w2": "עצירה אחת במדריד. לא ידוע אם מזוודה כלולה, לבדוק לפני ההזמנה. חלופה ישירה: HiFly $769 (המחיר קפץ ב־26.10, ייתכן שירד בחזרה)",
+  "flt.out.hifly.w2": "המחיר קפץ ב־26.10, ייתכן שירד בחזרה. חלופה זולה יותר: Iberia עצירה במדריד, $584",
   "flt.out.iz.w1": "הזול ביותר עם עצירה: Iberia דרך מדריד, $584",
   "flt.ret.jfk.1810": "אל על באותו יום: $697",
   "flt.ret.jfk.1910": "אל על באותו יום: $697",
-  "flt.ret.jfk.2110": "נבדק ב-25.10.2026. חלופות: אל על $807, LOT דרך ורשה $885",
+  "flt.ret.jfk.2110": "נבדק ב-26.10.2026. חלופות: אל על $807, LOT דרך ורשה $885",
   "flt.ret.ly.mia.1810": "באתר אל על אין מקומות ב־18.10",
   "flt.ret.ly.mia.2110": "עוד לא במכירה. חלופה עם עצירה: TAP דרך ליסבון, $775",
   "flt.dom": "MIA: כ-$195–261 (American, Delta) · MCO: Delta $219, JetBlue $244",
 };
 const FOPT = {
   A: { short: "אל על ישירות", label: (r) => "אל על לניו יורק, חזרה " + (r.legs.some((l) => l.type === "flight" && l.from === "mco") ? "מאורלנדו (עם עצירה)" : "ישירה ממיאמי") },
-  A2: { short: "הלוך זול", label: () => "HiFly הלוך לניו יורק, חזרה באל על ממיאמי" },
+  A2: { short: "הלוך זול", label: () => (w2CheapOut() === "flt.out.ib.w2" ? "הלוך לניו יורק עם עצירה במדריד" : "HiFly הלוך לניו יורק") + ", חזרה באל על ממיאמי" },
   B: { short: "הלוך-חזור לניו יורק + טיסה פנימית", label: () => "הלוך-חזור לניו יורק, וטיסה פנימית לניו יורק בסוף" },
 };
 const FLIGHT_NOTES = {
@@ -1398,7 +1404,7 @@ const ddmm = (d) => d.slice(8, 10) + d.slice(5, 7);
 const flightOpts = (r) => (r.direction !== "ns" ? [] : r.window === 2 ? ["A", "A2", "B"] : ["A", "B"]);
 function routeWithFlight(r, fo, base) {
   const w = r.window === 2 ? "w2" : "w1";
-  const outId = fo === "A" ? "flt.out.ly." + w : w === "w2" ? "flt.out.hifly.w2" : "flt.out.iz.w1";
+  const outId = fo === "A" ? "flt.out.ly." + w : w === "w2" ? w2CheapOut() : "flt.out.iz.w1";
   const R = { ...r, fo, outId, outbound: { ...r.outbound, label: FP[outId][1] } };
   if (fo !== "B") return R;
   const legs = r.legs.map((l) => ({ ...l }));
@@ -1562,7 +1568,7 @@ function computeBudget(sch, p, rp) {
   lines.forEach((l) => { l.split = l.parts || l.w.map((x) => (l.v || 0) * x / l.w.reduce((a, b) => a + b, 0)); });
   const total = lines.reduce((s, l) => s + (l.v || 0), 0);
   const units = UNITS.map((u, i) => ({ ...u, v: lines.reduce((s, l) => s + l.split[i], 0) }));
-  return { lines, secs, total, units, ticket: tk, fl, cabin, rpx, missing: 0, plannedTotal, paidTotal, remaining };
+  return { lines, secs, baseTotal: secs.reduce((s, x) => s + x.base, 0), total, units, ticket: tk, fl, cabin, rpx, missing: 0, plannedTotal, paidTotal, remaining };
 }
 
 /* ---------- edit screen ---------- */
@@ -1949,8 +1955,10 @@ function App() {
   const all = useMemo(() => ALL_ROUTES.map((r) => {
     const rpr = rps[r.id] || {};
     const fos = flightOpts(r);
-    const fo = fos.length ? (fos.includes(rpr.fo) ? rpr.fo : "A") : null;
-    const opts = (fos.length ? fos : [null]).map((f) => { const sch = scheduleFor(r, f, shift, cut, autoFix); return { fo: f, sch, bud: computeBudget(sch, p, f === fo ? rpr : { ...rpr, rt: undefined }) }; });
+    const opts = (fos.length ? fos : [null]).map((f) => { const sch = scheduleFor(r, f, shift, cut, autoFix); return { fo: f, sch, bud: computeBudget(sch, p, fos.length ? { ...rpr, rt: undefined } : rpr) }; });
+    /* default = cheapest flight option for this route, unless the user picked one */
+    const fo = fos.length ? (fos.includes(rpr.fo) ? rpr.fo : opts.reduce((a, b) => (b.bud.baseTotal < a.bud.baseTotal ? b : a)).fo) : null;
+    if (fos.length && rpr.rt != null) { const o = opts.find((x) => x.fo === fo); o.bud = computeBudget(o.sch, p, rpr); }
     const c = opts.find((o) => o.fo === fo) || opts[0];
     return { r: c.sch.route, base: r, sch: c.sch, bud: c.bud, opts, fo };
   }), [shift, cut, autoFix, p, rps, ovVer]);
